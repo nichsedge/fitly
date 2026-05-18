@@ -13,7 +13,7 @@ interface Props {
 }
 
 export default function OutfitDetailModal({ outfit, items, onClose, onEdit }: Props) {
-  const { deleteOutfit, updateOutfit } = useApp();
+  const { deleteOutfit, updateOutfit, updateItem } = useApp();
   const [confirming, setConfirming] = useState(false);
   const [toast, setToast] = useState('');
   const [isEditingName, setIsEditingName] = useState(false);
@@ -52,10 +52,37 @@ export default function OutfitDetailModal({ outfit, items, onClose, onEdit }: Pr
   };
 
   const handleWear = async () => {
-    await updateOutfit({ ...outfit, lastWornAt: Date.now() });
+    const now = Date.now();
+    const updatedLogs = [...(outfit.wearLogs || [])];
+    updatedLogs.push(now);
+
+    await updateOutfit({ 
+      ...outfit, 
+      lastWornAt: now,
+      wearLogs: updatedLogs
+    });
+
+    // Also update all items inside this outfit
+    for (const itemId of outfit.itemIds) {
+      const item = items.find(i => i.id === itemId);
+      if (item) {
+        const itemLogs = [...(item.wearLogs || [])];
+        if (!item.wearLogs && item.lastWornAt) {
+          itemLogs.push(item.lastWornAt);
+        }
+        itemLogs.push(now);
+        await updateItem({
+          ...item,
+          lastWornAt: now,
+          wearLogs: itemLogs
+        });
+      }
+    }
+
     setToast('✓ Wearing this outfit today!');
     setTimeout(onClose, 1200);
   };
+
 
   return (
     <>

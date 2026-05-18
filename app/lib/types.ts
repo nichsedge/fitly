@@ -81,3 +81,15 @@ export const COLORS = [
   { value: '#1d4ed8', label: 'Navy' },
   { value: '#d4a373', label: 'Beige' },
 ];
+
+export interface Trip {
+  id: string;
+  name: string;
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
+  itemIds: string[];
+  outfitIds?: string[];
+  destination?: string;
+  completed?: boolean;
+}
+

@@ -11,7 +11,7 @@ interface Props {
 }
 
 export default function AddItemView({ onDone }: Props) {
-  const { addItem, tags: dynamicTags } = useApp();
+  const { addItem, tags: dynamicTags, addTag } = useApp();
   const fileRef = useRef<HTMLInputElement>(null);
   const [images, setImages] = useState<string[]>([]);
   const [name, setName] = useState('');
@@ -26,6 +26,8 @@ export default function AddItemView({ onDone }: Props) {
   const [condition, setCondition] = useState<ClothingItem['condition']>('new');
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState('');
+  const [newTagText, setNewTagText] = useState('');
+  const [isAddingTag, setIsAddingTag] = useState(false);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -55,6 +57,29 @@ export default function AddItemView({ onDone }: Props) {
 
   const toggleTag = (tagLabel: string) => {
     setTags(prev => prev.includes(tagLabel) ? prev.filter(t => t !== tagLabel) : [...prev, tagLabel]);
+  };
+
+  const handleCreateTag = async () => {
+    const trimmed = newTagText.trim();
+    if (!trimmed) {
+      setIsAddingTag(false);
+      return;
+    }
+    const existing = dynamicTags.find(t => t.label.toLowerCase() === trimmed.toLowerCase());
+    if (existing) {
+      if (!tags.includes(existing.label)) {
+        setTags(prev => [...prev, existing.label]);
+      }
+      setNewTagText('');
+      setIsAddingTag(false);
+      return;
+    }
+    const newTag = { id: uuidv4(), label: trimmed };
+    await addTag(newTag);
+    setTags(prev => [...prev, trimmed]);
+    setNewTagText('');
+    setIsAddingTag(false);
+    setToast(`✓ Tag "${trimmed}" created and selected`);
   };
 
   const canSave = name.trim() && category;
@@ -344,17 +369,46 @@ export default function AddItemView({ onDone }: Props) {
       {/* Tags */}
       <div className="form-group">
         <label className="form-label">Style Tags <span style={{ color: 'var(--text-muted)' }}>(optional)</span></label>
-        <div className="pill-group">
+        <div className="pill-group" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
           {dynamicTags.map(tag => (
             <button
               id={`tag-${tag.id}`}
               key={tag.id}
               className={`pill ${tags.includes(tag.label) ? 'active' : ''}`}
+              type="button"
               onClick={() => toggleTag(tag.label)}
             >
               {tag.label}
             </button>
           ))}
+          {isAddingTag ? (
+            <input
+              type="text"
+              className="form-input"
+              style={{ width: 120, height: 28, padding: '2px 8px', fontSize: 12, borderRadius: 'var(--radius-pill)', display: 'inline-block', margin: 0 }}
+              placeholder="Tag name..."
+              value={newTagText}
+              onChange={e => setNewTagText(e.target.value)}
+              onBlur={handleCreateTag}
+              onKeyDown={e => {
+                if (e.key === 'Enter') handleCreateTag();
+                if (e.key === 'Escape') {
+                  setNewTagText('');
+                  setIsAddingTag(false);
+                }
+              }}
+              autoFocus
+            />
+          ) : (
+            <button
+              type="button"
+              className="pill"
+              style={{ borderStyle: 'dashed', borderColor: 'var(--accent)', color: 'var(--accent)', background: 'none' }}
+              onClick={() => setIsAddingTag(true)}
+            >
+              ＋ New Tag
+            </button>
+          )}
         </div>
       </div>
 

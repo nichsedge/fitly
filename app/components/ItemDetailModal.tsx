@@ -5,6 +5,7 @@ import { ClothingItem, CATEGORIES, COLORS } from '../lib/types';
 import { useApp } from './AppProvider';
 import Toast from './Toast';
 import DailyOutfitBuilder from './DailyOutfitBuilder';
+import { v4 as uuidv4 } from 'uuid';
 
 interface Props {
   item: ClothingItem;
@@ -23,7 +24,9 @@ export default function ItemDetailModal({ item, onClose }: Props) {
   const [materialInput, setMaterialInput] = useState(item.material || '');
   const [editingCare, setEditingCare] = useState(false);
   const [careInput, setCareInput] = useState(item.careInstructions || '');
-  const { deleteItem, updateItem, tags: dynamicTags } = useApp();
+  const [newTagText, setNewTagText] = useState('');
+  const [isAddingTag, setIsAddingTag] = useState(false);
+  const { deleteItem, updateItem, tags: dynamicTags, addTag } = useApp();
   const fileRef = useRef<HTMLInputElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
@@ -88,6 +91,30 @@ export default function ItemDetailModal({ item, onClose }: Props) {
     
     await updateItem({ ...item, tags: updatedTags });
     setToast(isActive ? `− Tag removed: ${label}` : `+ Tag added: ${label}`);
+  };
+
+  const handleCreateTag = async () => {
+    const trimmed = newTagText.trim();
+    if (!trimmed) {
+      setIsAddingTag(false);
+      return;
+    }
+    const existing = dynamicTags.find(t => t.label.toLowerCase() === trimmed.toLowerCase());
+    if (existing) {
+      if (!item.tags.includes(existing.label)) {
+        await updateItem({ ...item, tags: [...item.tags, existing.label] });
+        setToast(`+ Tag added: ${existing.label}`);
+      }
+      setNewTagText('');
+      setIsAddingTag(false);
+      return;
+    }
+    const newTag = { id: uuidv4(), label: trimmed };
+    await addTag(newTag);
+    await updateItem({ ...item, tags: [...item.tags, trimmed] });
+    setNewTagText('');
+    setIsAddingTag(false);
+    setToast(`✓ Tag "${trimmed}" created and added`);
   };
 
   const handleSaveMaterial = async () => {
@@ -458,7 +485,7 @@ export default function ItemDetailModal({ item, onClose }: Props) {
               </div>
               
               {editingTags ? (
-                <div className="pill-group" style={{ marginBottom: 'var(--space-2)' }}>
+                <div className="pill-group" style={{ marginBottom: 'var(--space-2)', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
                   {dynamicTags.map(tag => (
                     <button
                       key={tag.id}
@@ -469,6 +496,34 @@ export default function ItemDetailModal({ item, onClose }: Props) {
                       {tag.label}
                     </button>
                   ))}
+                  {isAddingTag ? (
+                    <input
+                      type="text"
+                      className="form-input"
+                      style={{ width: 120, height: 28, padding: '2px 8px', fontSize: 12, borderRadius: 'var(--radius-pill)', display: 'inline-block', margin: 0 }}
+                      placeholder="Tag name..."
+                      value={newTagText}
+                      onChange={e => setNewTagText(e.target.value)}
+                      onBlur={handleCreateTag}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleCreateTag();
+                        if (e.key === 'Escape') {
+                          setNewTagText('');
+                          setIsAddingTag(false);
+                        }
+                      }}
+                      autoFocus
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      className="pill"
+                      style={{ borderStyle: 'dashed', borderColor: 'var(--accent)', color: 'var(--accent)', background: 'none', fontSize: 12, padding: '4px 10px' }}
+                      onClick={() => setIsAddingTag(true)}
+                    >
+                      ＋ New Tag
+                    </button>
+                  )}
                 </div>
               ) : (
                 item.tags.length > 0 ? (

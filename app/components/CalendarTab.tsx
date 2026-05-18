@@ -4,11 +4,15 @@ import { useMemo, useState } from 'react';
 import { useApp } from './AppProvider';
 import { ClothingItem, Outfit, CATEGORIES } from '../lib/types';
 import ItemDetailModal from './ItemDetailModal';
+import OutfitDetailModal from './OutfitDetailModal';
+import OutfitBuilderModal from './OutfitBuilderModal';
 
 // Group logic
 export default function CalendarTab() {
   const { items, outfits, plans, addPlan, deletePlan } = useApp();
   const [selectedItem, setSelectedItem] = useState<ClothingItem | null>(null);
+  const [selectedOutfit, setSelectedOutfit] = useState<Outfit | null>(null);
+  const [editingOutfit, setEditingOutfit] = useState<Outfit | null>(null);
   const [isPlanning, setIsPlanning] = useState(false);
   const [planDate, setPlanDate] = useState(new Date().toISOString().split('T')[0]);
 
@@ -150,7 +154,12 @@ export default function CalendarTab() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                 {/* Outfits first */}
                 {day.outfits.map(outfit => (
-                  <div key={`outfit-${outfit.id}`} className="outfit-card" style={{ padding: 'var(--space-3)' }}>
+                  <div 
+                    key={`outfit-${outfit.id}`} 
+                    className="outfit-card" 
+                    style={{ padding: 'var(--space-3)', cursor: 'pointer' }}
+                    onClick={() => setSelectedOutfit(outfit)}
+                  >
                     <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 'var(--space-2)', color: 'var(--accent)' }}>Outfit: {outfit.name}</div>
                     <div style={{ display: 'flex', gap: 'var(--space-2)', overflowX: 'auto', scrollbarWidth: 'none' }}>
                       {outfit.itemIds.map(itemId => {
@@ -213,6 +222,25 @@ export default function CalendarTab() {
         <ItemDetailModal 
           item={items.find(i => i.id === selectedItem.id) || selectedItem} 
           onClose={() => setSelectedItem(null)} 
+        />
+      )}
+
+      {selectedOutfit && (
+        <OutfitDetailModal
+          outfit={selectedOutfit}
+          items={items}
+          onClose={() => setSelectedOutfit(null)}
+          onEdit={() => {
+            setEditingOutfit(selectedOutfit);
+            setSelectedOutfit(null);
+          }}
+        />
+      )}
+
+      {editingOutfit && (
+        <OutfitBuilderModal
+          initialOutfit={editingOutfit}
+          onClose={() => setEditingOutfit(null)}
         />
       )}
 
