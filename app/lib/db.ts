@@ -96,9 +96,10 @@ function migrateItem(raw: any): ClothingItem {
   if (!raw.tags) raw.tags = [];
   
   // New fields
-  if (!raw.condition) raw.condition = 'good';
+  if (raw.condition === undefined) raw.condition = 'good';
   if (raw.material === undefined) raw.material = '';
   if (raw.careInstructions === undefined) raw.careInstructions = '';
+  if (raw.lastWashedAt === undefined) raw.lastWashedAt = 0;
   
   return raw as ClothingItem;
 }
@@ -126,13 +127,27 @@ export async function getItem(id: string): Promise<ClothingItem | undefined> {
 }
 
 export async function addItem(item: ClothingItem): Promise<void> {
-  const db = await getDB();
-  await db.add('items', item);
+  try {
+    const db = await getDB();
+    await db.add('items', item);
+  } catch (err: any) {
+    if (err?.name === 'QuotaExceededError') {
+      throw new Error('Device storage limit reached. Please clear old items or photos in Settings.');
+    }
+    throw err;
+  }
 }
 
 export async function updateItem(item: ClothingItem): Promise<void> {
-  const db = await getDB();
-  await db.put('items', item);
+  try {
+    const db = await getDB();
+    await db.put('items', item);
+  } catch (err: any) {
+    if (err?.name === 'QuotaExceededError') {
+      throw new Error('Device storage limit reached. Please clear old items or photos in Settings.');
+    }
+    throw err;
+  }
 }
 
 export async function deleteItem(id: string): Promise<void> {
@@ -154,13 +169,27 @@ export async function getOutfit(id: string): Promise<Outfit | undefined> {
 }
 
 export async function addOutfit(outfit: Outfit): Promise<void> {
-  const db = await getDB();
-  await db.add('outfits', outfit);
+  try {
+    const db = await getDB();
+    await db.add('outfits', outfit);
+  } catch (err: any) {
+    if (err?.name === 'QuotaExceededError') {
+      throw new Error('Device storage limit reached.');
+    }
+    throw err;
+  }
 }
 
 export async function updateOutfit(outfit: Outfit): Promise<void> {
-  const db = await getDB();
-  await db.put('outfits', outfit);
+  try {
+    const db = await getDB();
+    await db.put('outfits', outfit);
+  } catch (err: any) {
+    if (err?.name === 'QuotaExceededError') {
+      throw new Error('Device storage limit reached.');
+    }
+    throw err;
+  }
 }
 
 export async function deleteOutfit(id: string): Promise<void> {

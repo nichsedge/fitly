@@ -5,21 +5,29 @@ import { useApp } from './AppProvider';
 import { CATEGORIES, Category } from '../lib/types';
 import ItemCard from './ItemCard';
 import ItemDetailModal from './ItemDetailModal';
-import InsightsSection from './InsightsSection';
 import { ClothingItem } from '../lib/types';
+import Toast from './Toast';
+import { triggerHaptic } from '../lib/haptics';
 
-export default function WardrobeView() {
-  const { items, tags } = useApp();
+interface Props {
+  onNavigateToAdd?: () => void;
+}
+
+export default function WardrobeView({ onNavigateToAdd }: Props) {
+  const { items, tags, loadSampleData, updateItem, t } = useApp();
   const [activeCategory, setActiveCategory] = useState<Category | 'all'>('all');
   const [activeTag, setActiveTag] = useState<string>('all');
   const [activeStatus, setActiveStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedItem, setSelectedItem] = useState<ClothingItem | null>(null);
+  const [loadingSample, setLoadingSample] = useState(false);
+  const [toast, setToast] = useState('');
   
   // Batch Selection
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const { updateItem } = useApp();
+
+  const dirtyItems = items.filter(i => i.status === 'dirty' || i.status === 'cleaning');
 
   const filtered = items.filter(i => {
     const matchCat = activeCategory === 'all' || i.category === activeCategory;
@@ -46,6 +54,7 @@ export default function WardrobeView() {
     await Promise.all(itemsToUpdate.map(i => updateItem({ ...i, status })));
     setSelectionMode(false);
     setSelectedIds(new Set());
+    setToast(`✓ Updated ${itemsToUpdate.length} item(s)`);
   };
 
   const handleBatchTag = async (tag: string) => {
@@ -56,29 +65,53 @@ export default function WardrobeView() {
     }));
     setSelectionMode(false);
     setSelectedIds(new Set());
+    setToast(`✓ Tagged ${itemsToUpdate.length} item(s)`);
+  };
+
+  const handleLoadSample = async () => {
+    setLoadingSample(true);
+    await loadSampleData();
+    setLoadingSample(false);
+    setToast('✓ Sample wardrobe loaded');
+  };
+
+  const handleCleanAllLaundry = async () => {
+    await Promise.all(dirtyItems.map(item => updateItem({ ...item, status: 'ready' })));
+    setToast(`✓ Reset ${dirtyItems.length} item(s) to Ready!`);
   };
 
   return (
-    <div className="page-content">
-      {/* Header with Search and Toggle */}
+    <div className="page-content" style={{ position: 'relative', paddingBottom: 'calc(var(--space-12) + 20px)' }}>
+      {/* Header with Search and Actions */}
       <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-          <h2 className="section-title">Wardrobe</h2>
+          <h2 className="section-title">{t('wardrobe')}</h2>
           <span className="section-count">{items.length}</span>
         </div>
-        <button 
-          className={`btn ${selectionMode ? 'btn-primary' : 'btn-ghost'}`} 
-          style={{ padding: '4px 12px', fontSize: 13, height: 'auto', minHeight: 'auto' }}
-          onClick={() => {
-            setSelectionMode(!selectionMode);
-            setSelectedIds(new Set());
-          }}
-        >
-          {selectionMode ? 'Done' : 'Select'}
-        </button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {onNavigateToAdd && (
+            <button
+              className="btn btn-primary"
+              style={{ padding: '5px 12px', fontSize: 13, height: 'auto', minHeight: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}
+              onClick={() => { triggerHaptic(10); onNavigateToAdd(); }}
+            >
+              <span>+</span> <span>{t('add')}</span>
+            </button>
+          )}
+          {items.length > 0 && (
+            <button 
+              className={`btn ${selectionMode ? 'btn-primary' : 'btn-ghost'}`} 
+              style={{ padding: '4px 12px', fontSize: 13, height: 'auto', minHeight: 'auto' }}
+              onClick={() => {
+                setSelectionMode(!selectionMode);
+                setSelectedIds(new Set());
+              }}
+            >
+              {selectionMode ? t('done') : t('selectMode')}
+            </button>
+          )}
+        </div>
       </div>
-
-
 
       {/* Search Bar */}
       <div className="search-container animate-in">
@@ -86,7 +119,7 @@ export default function WardrobeView() {
         <input
           type="text"
           className="search-input"
-          placeholder="Search items or tags..."
+          placeholder={t('searchPlaceholder')}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -100,115 +133,175 @@ export default function WardrobeView() {
         )}
       </div>
 
-      {/* Stats Mini Bar (Only if not showing full insights) */}
+      {/* Stats Mini Bar */}
       {items.length > 0 && (
         <div className="stats-row animate-in" style={{ display: searchQuery ? 'none' : 'flex' }}>
           <div className="stat-card">
             <span className="stat-card__value">{items.length}</span>
-            <span className="stat-card__label">Items</span>
+            <span className="stat-card__label">{t('items')}</span>
           </div>
           <div className="stat-card">
             <span className="stat-card__value">
               {new Set(items.map(i => i.category)).size}
             </span>
-            <span className="stat-card__label">Categories</span>
+            <span className="stat-card__label">{t('categories')}</span>
           </div>
           <div className="stat-card">
             <span className="stat-card__value">
               {new Set(items.flatMap(i => i.tags)).size}
             </span>
-            <span className="stat-card__label">Styles</span>
+            <span className="stat-card__label">{t('styles')}</span>
           </div>
         </div>
       )}
 
-      {/* Filter */}
-      <div className="filter-bar" style={{ marginBottom: 'var(--space-2)' }}>
-        <button
-          id="filter-cat-all"
-          className={`filter-chip ${activeCategory === 'all' ? 'active' : ''}`}
-          onClick={() => setActiveCategory('all')}
-        >
-          All
-        </button>
-        {CATEGORIES.map(cat => (
-          <button
-            id={`filter-cat-${cat.value}`}
-            key={cat.value}
-            className={`filter-chip ${activeCategory === cat.value ? 'active' : ''}`}
-            onClick={() => setActiveCategory(cat.value)}
-          >
-            {cat.emoji} {cat.label}
-          </button>
-        ))}
-      </div>
-      
-      <div className="filter-bar">
-        <button
-          id="filter-tag-all"
-          className={`filter-chip ${activeTag === 'all' ? 'active' : ''}`}
-          onClick={() => setActiveTag('all')}
-        >
-          🏷️ All Styles
-        </button>
-        {tags.map(tag => (
-          <button
-            id={`filter-tag-${tag.id}`}
-            key={tag.id}
-            className={`filter-chip ${activeTag === tag.label ? 'active' : ''}`}
-            onClick={() => setActiveTag(tag.label)}
-          >
-            {tag.label}
-          </button>
-        ))}
-      </div>
+      {/* Filter Chips */}
+      {items.length > 0 && (
+        <>
+          <div className="filter-bar" style={{ marginBottom: 'var(--space-2)' }}>
+            <button
+              id="filter-cat-all"
+              className={`filter-chip ${activeCategory === 'all' ? 'active' : ''}`}
+              onClick={() => setActiveCategory('all')}
+            >
+              {t('all')}
+            </button>
+            {CATEGORIES.map(cat => (
+              <button
+                id={`filter-cat-${cat.value}`}
+                key={cat.value}
+                className={`filter-chip ${activeCategory === cat.value ? 'active' : ''}`}
+                onClick={() => setActiveCategory(cat.value)}
+              >
+                {cat.emoji} {cat.label}
+              </button>
+            ))}
+          </div>
+          
+          <div className="filter-bar">
+            <button
+              id="filter-tag-all"
+              className={`filter-chip ${activeTag === 'all' ? 'active' : ''}`}
+              onClick={() => setActiveTag('all')}
+            >
+              🏷️ {t('allStyles')}
+            </button>
+            {tags.map(tag => (
+              <button
+                id={`filter-tag-${tag.id}`}
+                key={tag.id}
+                className={`filter-chip ${activeTag === tag.label ? 'active' : ''}`}
+                onClick={() => setActiveTag(tag.label)}
+              >
+                {tag.label}
+              </button>
+            ))}
+          </div>
 
-      <div className="filter-bar">
-        <button
-          id="filter-status-all"
-          className={`filter-chip ${activeStatus === 'all' ? 'active' : ''}`}
-          onClick={() => setActiveStatus('all')}
-        >
-          ✨ All Status
-        </button>
-        <button
-          id="filter-status-ready"
-          className={`filter-chip ${activeStatus === 'ready' ? 'active' : ''}`}
-          onClick={() => setActiveStatus('ready')}
-        >
-          ✅ Ready
-        </button>
-        <button
-          id="filter-status-dirty"
-          className={`filter-chip ${activeStatus === 'dirty' ? 'active' : ''}`}
-          onClick={() => setActiveStatus('dirty')}
-        >
-          🧺 Dirty
-        </button>
-        <button
-          id="filter-status-cleaning"
-          className={`filter-chip ${activeStatus === 'cleaning' ? 'active' : ''}`}
-          onClick={() => setActiveStatus('cleaning')}
-        >
-          🧼 Cleaning
-        </button>
-      </div>
+          <div className="filter-bar">
+            <button
+              id="filter-status-all"
+              className={`filter-chip ${activeStatus === 'all' ? 'active' : ''}`}
+              onClick={() => setActiveStatus('all')}
+            >
+              ✨ {t('allStatus')}
+            </button>
+            <button
+              id="filter-status-ready"
+              className={`filter-chip ${activeStatus === 'ready' ? 'active' : ''}`}
+              onClick={() => setActiveStatus('ready')}
+            >
+              ✅ {t('ready')}
+            </button>
+            <button
+              id="filter-status-dirty"
+              className={`filter-chip ${activeStatus === 'dirty' ? 'active' : ''}`}
+              onClick={() => setActiveStatus('dirty')}
+            >
+              🧺 {t('dirty')}
+            </button>
+            <button
+              id="filter-status-cleaning"
+              className={`filter-chip ${activeStatus === 'cleaning' ? 'active' : ''}`}
+              onClick={() => setActiveStatus('cleaning')}
+            >
+              🧼 {t('cleaning')}
+            </button>
+          </div>
+
+          {/* Quick Laundry Reset Banner */}
+          {dirtyItems.length > 0 && (
+            <div style={{
+              marginTop: 'var(--space-3)',
+              marginBottom: 'var(--space-4)',
+              padding: '10px 14px',
+              background: 'rgba(239, 68, 68, 0.12)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              borderRadius: 'var(--radius-md)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: 13
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>🧺</span>
+                <span><strong>{dirtyItems.length} {t('laundryBanner')}</strong></span>
+              </div>
+              <button
+                onClick={handleCleanAllLaundry}
+                style={{
+                  background: '#ef4444',
+                  color: 'white',
+                  border: 'none',
+                  padding: '4px 10px',
+                  borderRadius: 'var(--radius-pill)',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                {t('cleanAllReady')}
+              </button>
+            </div>
+          )}
+        </>
+      )}
 
       {/* Grid */}
       {items.length === 0 ? (
-        <div className="empty-state animate-in">
-          <div className="empty-state__emoji">🧥</div>
-          <div className="empty-state__title">Your wardrobe is empty</div>
-          <div className="empty-state__desc">
-            Tap the <strong style={{ color: 'var(--accent)' }}>+</strong> button to add your first clothing item
+        <div className="empty-state animate-in" style={{ padding: 'var(--space-8) var(--space-4)', textAlign: 'center' }}>
+          <div className="empty-state__emoji" style={{ fontSize: 56, marginBottom: 12 }}>🧥</div>
+          <div className="empty-state__title" style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>{t('emptyWardrobeTitle')}</div>
+          <p className="empty-state__desc" style={{ fontSize: 14, color: 'var(--text-muted)', maxWidth: 360, margin: '0 auto 20px auto' }}>
+            {t('emptyWardrobeDesc')}
+          </p>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 280, margin: '0 auto' }}>
+            {onNavigateToAdd && (
+              <button
+                className="btn btn-primary"
+                onClick={onNavigateToAdd}
+                style={{ padding: '12px 20px', fontSize: 14, fontWeight: 700 }}
+              >
+                {t('addFirstItem')}
+              </button>
+            )}
+            <button
+              className="btn btn-ghost"
+              onClick={handleLoadSample}
+              disabled={loadingSample}
+              style={{ fontSize: 13, color: 'var(--text-muted)' }}
+            >
+              {loadingSample ? '...' : t('loadSampleWardrobe')}
+            </button>
           </div>
         </div>
       ) : filtered.length === 0 ? (
         <div className="empty-state animate-in">
           <div className="empty-state__emoji">🔍</div>
-          <div className="empty-state__title">No items found</div>
+          <div className="empty-state__title">{t('noItemsFound')}</div>
           <div className="empty-state__desc">
-            {searchQuery ? `No results for "${searchQuery}"` : `No ${activeCategory}s matching your filters`}
+            {searchQuery ? `"${searchQuery}"` : ``}
           </div>
         </div>
       ) : (
@@ -229,7 +322,7 @@ export default function WardrobeView() {
           {selectionMode && selectedIds.size > 0 && (
             <div className="batch-actions-bar animate-slide-up">
               <div style={{ fontSize: 13, fontWeight: 700, color: 'white', marginBottom: 'var(--space-2)' }}>
-                {selectedIds.size} items selected
+                {selectedIds.size} selected
               </div>
               <div style={{ display: 'flex', gap: 'var(--space-2)', overflowX: 'auto', paddingBottom: 4 }}>
                 <button className="btn btn-ghost" style={{ background: 'rgba(34, 197, 94, 0.2)', color: '#22c55e', fontSize: 11, border: 'none' }} onClick={() => handleBatchStatus('ready')}>✅ Set Ready</button>
@@ -243,6 +336,36 @@ export default function WardrobeView() {
         </>
       )}
 
+      {/* Floating Action Button (FAB) for Wardrobe Page */}
+      {onNavigateToAdd && items.length > 0 && (
+        <button
+          onClick={() => { triggerHaptic(12); onNavigateToAdd(); }}
+          style={{
+            position: 'fixed',
+            bottom: 'calc(var(--nav-height) + max(24px, env(safe-area-inset-bottom)))',
+            right: 20,
+            width: 56,
+            height: 56,
+            borderRadius: '50%',
+            background: 'var(--accent-gradient)',
+            color: 'white',
+            border: 'none',
+            fontSize: 28,
+            fontWeight: 400,
+            display: 'grid',
+            placeItems: 'center',
+            boxShadow: '0 8px 24px rgba(99, 102, 241, 0.45)',
+            cursor: 'pointer',
+            zIndex: 45,
+            transition: 'transform 0.2s ease, boxShadow 0.2s ease'
+          }}
+          aria-label="Add item to wardrobe"
+          title="Add clothing item"
+        >
+          +
+        </button>
+      )}
+
       {/* Item Detail Modal */}
       {selectedItem && (
         <ItemDetailModal
@@ -250,6 +373,7 @@ export default function WardrobeView() {
           onClose={() => setSelectedItem(null)}
         />
       )}
+      {toast && <Toast message={toast} onDone={() => setToast('')} />}
     </div>
   );
 }

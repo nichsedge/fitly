@@ -1,30 +1,36 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { AppProvider } from "./components/AppProvider";
+import ServiceWorkerRegister from "./components/ServiceWorkerRegister";
 
-const inter = Inter({
+const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-inter",
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-plus-jakarta",
 });
 
 export const metadata: Metadata = {
-  title: "Outfit Manager – Your Digital Wardrobe",
-  description: "Organize your wardrobe digitally. Add clothes, build outfits, and dress with confidence every day.",
+  title: "Fitly – Local-First Digital Wardrobe",
+  description: "Organize your wardrobe digitally offline. Add clothes, build outfits, and dress with confidence.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Outfit Manager",
+    title: "Fitly",
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
+    "application-name": "Fitly",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0f0f0f",
+  themeColor: "#09090b",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -34,7 +40,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={inter.variable}>
+      <body className={plusJakartaSans.variable}>
+        <ServiceWorkerRegister />
         <AppProvider>
           {children}
         </AppProvider>

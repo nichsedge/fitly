@@ -4,40 +4,41 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  /* Color Palette */
-  --bg-0: #0a0a0a;
-  --bg-1: #111111;
-  --bg-2: #1a1a1a;
-  --bg-3: #232323;
-  --bg-4: #2c2c2c;
-  --surface: #161616;
-  --surface-2: #1e1e1e;
-  --border: rgba(255,255,255,0.08);
-  --border-hover: rgba(255,255,255,0.15);
-  --bg-hover: rgba(255,255,255,0.05);
+  /* Color Palette - Obsidian Glass */
+  --bg-0: #09090b;
+  --bg-1: #121215;
+  --bg-2: #18181b;
+  --bg-3: #27272a;
+  --bg-4: #3f3f46;
+  --surface: #121215;
+  --surface-2: #1c1c21;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(99, 102, 241, 0.35);
+  --bg-hover: rgba(255, 255, 255, 0.04);
 
   /* Text */
-  --text-primary: #f5f5f5;
-  --text-secondary: #a0a0a0;
-  --text-muted: #606060;
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
 
-  /* Accent */
-  --accent: #c8f542;           /* electric lime */
-  --accent-dim: #96b830;
-  --accent-glow: rgba(200,245,66,0.18);
-  --accent-subtle: rgba(200,245,66,0.08);
+  /* Accent - Indigo Violet */
+  --accent: #6366f1;
+  --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  --accent-dim: #4f46e5;
+  --accent-glow: rgba(99, 102, 241, 0.25);
+  --accent-subtle: rgba(99, 102, 241, 0.1);
 
   /* Semantic */
-  --danger: #ff4757;
-  --danger-dim: rgba(255,71,87,0.15);
-  --success: #2ecc71;
-  --warning: #f39c12;
+  --danger: #ef4444;
+  --danger-dim: rgba(239, 68, 68, 0.15);
+  --success: #10b981;
+  --warning: #f59e0b;
 
   /* Geometry */
-  --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
-  --radius-xl: 28px;
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-xl: 30px;
   --radius-pill: 9999px;
 
   /* Spacing */
@@ -55,15 +56,15 @@
   --nav-height: 68px;
 
   /* Typography */
-  --font: var(--font-inter), 'Inter', system-ui, sans-serif;
+  --font: var(--font-plus-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif;
 
   /* Transitions */
   --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
   /* Default theme overrides */
-  --nav-bg: rgba(17,17,17,0.92);
-  --header-bg: rgba(10,10,10,0.85);
-  --modal-bg: #111111;
+  --nav-bg: rgba(18, 18, 21, 0.88);
+  --header-bg: rgba(9, 9, 11, 0.85);
+  --modal-bg: #121215;
 }
 
 [data-theme='light'] {
@@ -110,6 +111,8 @@ body {
   background: var(--bg-0);
   overflow-x: hidden;
   transition: background 0.3s ease, color 0.3s ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 /* ─── Scrollbars ─── */
@@ -184,8 +187,8 @@ body {
   transform: translateX(-50%);
   width: 100%;
   max-width: 480px;
-  height: calc(var(--nav-height) + 20px);
-  padding-bottom: 20px;
+  height: calc(var(--nav-height) + max(16px, env(safe-area-inset-bottom)));
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
   background: var(--nav-bg);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
@@ -193,7 +196,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 10px 20px 10px;
+  padding: 0 10px max(16px, env(safe-area-inset-bottom)) 10px;
   z-index: 50;
   box-shadow: 0 -10px 40px rgba(0,0,0,0.15);
 }

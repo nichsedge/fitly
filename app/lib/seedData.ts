@@ -1,7 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { ClothingItem } from './types';
 
-// Color map inferred from Indonesian item names
 const colorMap: Record<string, string> = {
   hitam: '#1a1a1a',
   navy: '#1d4ed8',
@@ -21,26 +20,31 @@ function inferColor(name: string): string {
   for (const [keyword, hex] of Object.entries(colorMap)) {
     if (lower.includes(keyword)) return hex;
   }
-  return '#6b7280'; // default gray
+  return '#6b7280';
 }
 
-const now = Date.now();
+export function getFreshSampleItems(): ClothingItem[] {
+  const now = Date.now();
+  return [
+    // Outerwear
+    { id: uuidv4(), name: 'Black Jacket', category: 'outerwear', color: inferColor('hitam'), tags: ['Casual', 'Work'], images: [], createdAt: now - 11000, status: 'ready', condition: 'good' },
+    { id: uuidv4(), name: 'Navy Blazer', category: 'outerwear', color: inferColor('navy'), tags: ['Formal', 'Work'], images: [], createdAt: now - 10000, status: 'ready', condition: 'excellent' },
+    { id: uuidv4(), name: 'Blue Flannel', category: 'outerwear', color: inferColor('biru'), tags: ['Casual', 'Streetwear'], images: [], createdAt: now - 9000, status: 'ready', condition: 'good' },
 
-export const DEFAULT_ITEMS: ClothingItem[] = [
-  // Outerwear
-  { id: uuidv4(), name: 'Jaket Hitam',  category: 'outerwear', color: inferColor('Jaket Hitam'),  tags: ['Casual'],    images: [], createdAt: now - 11, status: 'ready' },
-  { id: uuidv4(), name: 'Jaket Navy',   category: 'outerwear', color: inferColor('Jaket Navy'),   tags: ['Casual'],    images: [], createdAt: now - 10, status: 'ready' },
-  { id: uuidv4(), name: 'Flannel Biru', category: 'outerwear', color: inferColor('Flannel Biru'), tags: ['Casual', 'Streetwear'], images: [], createdAt: now - 9, status: 'ready' },
+    // Tops
+    { id: uuidv4(), name: 'Brown Henley Shirt', category: 'top', color: inferColor('coklat'), tags: ['Casual'], images: [], createdAt: now - 8000, status: 'ready', condition: 'good' },
+    { id: uuidv4(), name: 'Blue Denim Shirt', category: 'top', color: inferColor('biru'), tags: ['Casual', 'Streetwear'], images: [], createdAt: now - 7000, status: 'ready', condition: 'good' },
+    { id: uuidv4(), name: 'White Crew Tee', category: 'top', color: inferColor('putih'), tags: ['Casual', 'Basic'], images: [], createdAt: now - 6000, status: 'ready', condition: 'new' },
+    { id: uuidv4(), name: 'Grey Heather Tee', category: 'top', color: inferColor('abu'), tags: ['Casual', 'Basic'], images: [], createdAt: now - 5000, status: 'ready', condition: 'good' },
 
-  // Tops
-  { id: uuidv4(), name: 'Henley Coklat',   category: 'top', color: inferColor('Henley Coklat'),   tags: ['Casual'],    images: [], createdAt: now - 8, status: 'ready' },
-  { id: uuidv4(), name: 'Henley Biru',     category: 'top', color: inferColor('Henley Biru'),     tags: ['Casual'],    images: [], createdAt: now - 7, status: 'ready' },
-  { id: uuidv4(), name: 'Kaos Putih Misty',category: 'top', color: inferColor('Kaos Putih Misty'),tags: ['Casual'],    images: [], createdAt: now - 6, status: 'ready' },
-  { id: uuidv4(), name: 'Kaos Abu Misty',  category: 'top', color: inferColor('Kaos Abu Misty'),  tags: ['Casual'],    images: [], createdAt: now - 5, status: 'ready' },
+    // Bottoms
+    { id: uuidv4(), name: 'Cream Chinos', category: 'bottom', color: inferColor('cream'), tags: ['Casual', 'Work'], images: [], createdAt: now - 4000, status: 'ready', condition: 'good' },
+    { id: uuidv4(), name: 'Black Slim Jeans', category: 'bottom', color: inferColor('hitam'), tags: ['Casual', 'Streetwear'], images: [], createdAt: now - 3000, status: 'ready', condition: 'excellent' },
+    { id: uuidv4(), name: 'Grey Tailored Trousers', category: 'bottom', color: inferColor('abu'), tags: ['Formal', 'Work'], images: [], createdAt: now - 2000, status: 'ready', condition: 'good' },
 
-  // Bottoms
-  { id: uuidv4(), name: 'Cino Cream', category: 'bottom', color: inferColor('Cino Cream'), tags: ['Casual', 'Formal'], images: [], createdAt: now - 4, status: 'ready' },
-  { id: uuidv4(), name: 'Cino Hitam', category: 'bottom', color: inferColor('Cino Hitam'), tags: ['Casual', 'Formal'], images: [], createdAt: now - 3, status: 'ready' },
-  { id: uuidv4(), name: 'Cino Abu',   category: 'bottom', color: inferColor('Cino Abu'),   tags: ['Casual'],           images: [], createdAt: now - 2, status: 'ready' },
-  { id: uuidv4(), name: 'Cino Mocca', category: 'bottom', color: inferColor('Cino Mocca'), tags: ['Casual'],           images: [], createdAt: now - 1, status: 'ready' },
-];
+    // Shoes
+    { id: uuidv4(), name: 'White Leather Sneakers', category: 'shoes', color: inferColor('putih'), tags: ['Casual', 'Basic'], images: [], createdAt: now - 1000, status: 'ready', condition: 'good' },
+  ];
+}
+
+export const DEFAULT_ITEMS = getFreshSampleItems();

@@ -3,7 +3,13 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { ClothingItem, Outfit, CustomTag, PlannedOutfit } from '../lib/types';
 import * as db from '../lib/db';
-import { DEFAULT_ITEMS } from '../lib/seedData';
+import { getFreshSampleItems } from '../lib/seedData';
+import { Language, Currency, translations, formatCurrency } from '../lib/i18n';
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+}
 
 interface AppState {
   items: ClothingItem[];
@@ -11,6 +17,16 @@ interface AppState {
   tags: CustomTag[];
   plans: PlannedOutfit[];
   loading: boolean;
+  isOffline: boolean;
+  isInstallable: boolean;
+  currency: Currency;
+  language: Language;
+  setCurrency: (c: Currency) => void;
+  setLanguage: (l: Language) => void;
+  t: (key: keyof typeof translations['en']) => string;
+  formatPrice: (amount: number | undefined | null) => string;
+  promptInstallApp: () => Promise<void>;
+  loadSampleData: () => Promise<void>;
   refreshItems: () => Promise<void>;
   refreshOutfits: () => Promise<void>;
   refreshTags: () => Promise<void>;
@@ -41,6 +57,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [plans, setPlans] = useState<PlannedOutfit[]>([]);
   const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  const [currency, setCurrencyState] = useState<Currency>('IDR');
+  const [language, setLanguageState] = useState<Language>('en');
+  const [isOffline, setIsOffline] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+
+  const setCurrency = useCallback((c: Currency) => {
+    setCurrencyState(c);
+    localStorage.setItem('currency', c);
+  }, []);
+
+  const setLanguage = useCallback((l: Language) => {
+    setLanguageState(l);
+    localStorage.setItem('language', l);
+  }, []);
+
+  const t = useCallback((key: keyof typeof translations['en']): string => {
+    const langDict = translations[language] || translations.en;
+    return langDict[key] || translations.en[key] || String(key);
+  }, [language]);
+
+  const formatPrice = useCallback((amount: number | undefined | null): string => {
+    return formatCurrency(amount, currency);
+  }, [currency]);
 
   const refreshItems = useCallback(async () => {
     const all = await db.getAllItems();
@@ -73,17 +112,66 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         document.documentElement.dataset.theme = 'dark';
       }
 
-      const existing = await db.getAllItems();
-      if (existing.length === 0) {
-        // Seed default wardrobe items on first launch
-        await Promise.all(DEFAULT_ITEMS.map(item => db.addItem(item)));
+      // Currency init
+      const savedCurrency = localStorage.getItem('currency') as Currency | null;
+      if (savedCurrency && ['IDR', 'USD', 'EUR', 'GBP'].includes(savedCurrency)) {
+        setCurrencyState(savedCurrency);
+      } else {
+        setCurrencyState('IDR');
       }
+
+      // Language init
+      const savedLang = localStorage.getItem('language') as Language | null;
+      if (savedLang && ['en', 'id'].includes(savedLang)) {
+        setLanguageState(savedLang);
+      } else {
+        setLanguageState('en');
+      }
+
+      // Online/Offline tracking
+      if (typeof window !== 'undefined') {
+        setIsOffline(!navigator.onLine);
+        const handleOnline = () => setIsOffline(false);
+        const handleOffline = () => setIsOffline(true);
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+
+        // PWA beforeinstallprompt handler
+        const handleBeforeInstall = (e: Event) => {
+          e.preventDefault();
+          setDeferredPrompt(e as BeforeInstallPromptEvent);
+        };
+        window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+
+        return () => {
+          window.removeEventListener('online', handleOnline);
+          window.removeEventListener('offline', handleOffline);
+          window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+        };
+      }
+    };
+
+    init().then(async () => {
       await db.seedTagsIfEmpty();
       await Promise.all([refreshItems(), refreshOutfits(), refreshTags(), refreshPlans()]);
       setLoading(false);
-    };
-    init();
+    });
   }, [refreshItems, refreshOutfits, refreshTags, refreshPlans]);
+
+  const loadSampleData = useCallback(async () => {
+    const sampleItems = getFreshSampleItems();
+    await Promise.all(sampleItems.map(item => db.addItem(item)));
+    await refreshItems();
+  }, [refreshItems]);
+
+  const promptInstallApp = useCallback(async () => {
+    if (!deferredPrompt) return;
+    await deferredPrompt.prompt();
+    const choice = await deferredPrompt.userChoice;
+    if (choice.outcome === 'accepted') {
+      setDeferredPrompt(null);
+    }
+  }, [deferredPrompt]);
 
   const toggleTheme = useCallback(() => {
     const next = theme === 'dark' ? 'light' : 'dark';
@@ -144,7 +232,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const updateTag = useCallback(async (updatedTag: CustomTag, oldLabel: string) => {
     await db.updateTag(updatedTag);
-    // Renaming a tag: Update all items that had the old label
     const itemsToUpdate = items.filter(item => item.tags.includes(oldLabel));
     for (const item of itemsToUpdate) {
       await db.updateItem({
@@ -158,7 +245,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const deleteTag = useCallback(async (id: string, label: string) => {
     await db.deleteTag(id);
-    // Deleting a tag: Remove the label from all items that had it
     const itemsToUpdate = items.filter(item => item.tags.includes(label));
     for (const item of itemsToUpdate) {
       await db.updateItem({
@@ -180,6 +266,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return (
     <AppContext.Provider value={{
       items, outfits, tags, plans, loading,
+      isOffline,
+      isInstallable: !!deferredPrompt,
+      currency,
+      language,
+      setCurrency,
+      setLanguage,
+      t,
+      formatPrice,
+      promptInstallApp,
+      loadSampleData,
       refreshItems, refreshOutfits, refreshTags, refreshPlans,
       addItem, updateItem, deleteItem,
       addOutfit, updateOutfit, deleteOutfit,

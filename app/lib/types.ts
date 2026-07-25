@@ -28,6 +28,7 @@ export interface ClothingItem {
   material?: string;
   careInstructions?: string;
   condition?: ItemCondition;
+  lastWashedAt?: number;
 }
 
 export interface Outfit {
@@ -53,7 +54,7 @@ export interface PlannedOutfit {
   };
 }
 
-export type ActiveTab = 'wardrobe' | 'outfits' | 'calendar' | 'add' | 'insights';
+export type ActiveTab = 'wardrobe' | 'outfits' | 'laundry' | 'calendar' | 'add' | 'insights';
 
 export const CATEGORIES: { value: Category; label: string; emoji: string }[] = [
   { value: 'top', label: 'Top', emoji: '👕' },

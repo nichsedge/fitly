@@ -10,8 +10,47 @@ interface Props {
   onDone: () => void;
 }
 
+function compressImage(file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.82): Promise<string> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth || height > maxHeight) {
+          if (width > height) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(e.target?.result as string);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(compressedDataUrl);
+      };
+      img.onerror = () => resolve(e.target?.result as string);
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => resolve('');
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function AddItemView({ onDone }: Props) {
-  const { addItem, tags: dynamicTags, addTag } = useApp();
+  const { addItem, tags: dynamicTags, addTag, t, currency } = useApp();
   const fileRef = useRef<HTMLInputElement>(null);
   const [images, setImages] = useState<string[]>([]);
   const [name, setName] = useState('');
@@ -29,25 +68,37 @@ export default function AddItemView({ onDone }: Props) {
   const [newTagText, setNewTagText] = useState('');
   const [isAddingTag, setIsAddingTag] = useState(false);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (images.length >= 5) {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const availableSlots = 5 - images.length;
+    if (availableSlots <= 0) {
       setToast('Maximum 5 photos allowed.');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = ev => {
-      const dataUrl = ev.target?.result as string;
-      setImages(prev => [...prev, dataUrl]);
-      // auto-fill name from file if empty
-      if (!name) {
-        const base = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
+
+    const filesToProcess = Array.from(files).slice(0, availableSlots);
+    setToast('Optimizing photos...');
+
+    try {
+      const compressedList = await Promise.all(filesToProcess.map(f => compressImage(f)));
+      const validCompressed = compressedList.filter(Boolean);
+      
+      setImages(prev => [...prev, ...validCompressed]);
+
+      // Auto-fill item name from first file if empty
+      if (!name && filesToProcess[0]) {
+        const base = filesToProcess[0].name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
         setName(base.charAt(0).toUpperCase() + base.slice(1));
       }
-    };
-    reader.readAsDataURL(file);
-    // clear input so same file can be selected again
+      setToast(`✓ Added ${validCompressed.length} compressed photo(s)`);
+    } catch (err) {
+      console.error('Image compression failed:', err);
+      setToast('Failed to load photos');
+    }
+
+    // Reset input
     e.target.value = '';
   };
 
@@ -115,7 +166,7 @@ export default function AddItemView({ onDone }: Props) {
           Add Item
         </h1>
         <p style={{ fontSize: 14, color: 'var(--text-muted)' }}>
-          Take a photo or pick from gallery
+          Take a photo or pick from gallery (multi-select supported)
         </p>
       </div>
 
@@ -180,7 +231,8 @@ export default function AddItemView({ onDone }: Props) {
               style={{ width: 240, height: 320, flexShrink: 0, cursor: 'pointer' }}
             >
               <span className="photo-upload__icon">📷</span>
-              <span className="photo-upload__text">Tap to add photo</span>
+              <span className="photo-upload__text">Tap to add photo(s)</span>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Auto-compressed</span>
             </div>
           )}
         </div>
@@ -196,7 +248,7 @@ export default function AddItemView({ onDone }: Props) {
           id="file-input"
           type="file"
           accept="image/*"
-          capture="environment"
+          multiple
           onChange={handleImageChange}
           style={{ display: 'none' }}
         />
@@ -231,13 +283,13 @@ export default function AddItemView({ onDone }: Props) {
 
       <div className="form-group" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-3)' }}>
         <div>
-          <label className="form-label" htmlFor="item-price">Price ($)</label>
+          <label className="form-label" htmlFor="item-price">{t('priceLabel')} ({currency === 'IDR' ? 'Rp' : (currency === 'USD' ? '$' : (currency === 'EUR' ? '€' : '£'))})</label>
           <input
             id="item-price"
             className="form-input"
             type="number"
-            step="0.01"
-            placeholder="49.99"
+            step={currency === 'IDR' ? '1000' : '0.01'}
+            placeholder={currency === 'IDR' ? '150000' : '49.99'}
             value={price}
             onChange={e => setPrice(e.target.value)}
           />

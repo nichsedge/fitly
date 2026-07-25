@@ -5,7 +5,7 @@ import { CATEGORIES, COLORS, ClothingItem } from '../lib/types';
 import { useMemo } from 'react';
 
 export default function InsightsSection() {
-  const { items, outfits } = useApp();
+  const { items, outfits, formatPrice, currency } = useApp();
 
   const stats = useMemo(() => {
     if (items.length === 0) return null;
@@ -71,7 +71,7 @@ export default function InsightsSection() {
       topColors,
       hibernating
     };
-  }, [items, outfits]);
+  }, [items, outfits, currency]);
 
   if (!stats) return null;
 
@@ -93,10 +93,10 @@ export default function InsightsSection() {
 
         <div className="insight-card">
           <div className="insight-card__title">Financials</div>
-          <div className="insight-card__main-val">${stats.totalValue.toFixed(0)}</div>
+          <div className="insight-card__main-val">{formatPrice(stats.totalValue)}</div>
           <div className="insight-card__sub-val">Wardrobe Value</div>
           <div style={{ marginTop: 8, fontSize: 11, color: 'var(--accent)', fontWeight: 700 }}>
-            AVG CPW: ${stats.avgCPW.toFixed(2)}
+            AVG CPW: {formatPrice(stats.avgCPW)}
           </div>
         </div>
       </div>
@@ -156,7 +156,7 @@ export default function InsightsSection() {
                   <div className="fav-item-placeholder">{CATEGORIES.find(c => c.value === item.category)?.emoji}</div>
                 )}
                 <div className="fav-item-badge" style={{ background: 'var(--success)' }}>
-                  ${(item.price! / Math.max(1, item.wearLogs?.length || 0)).toFixed(2)}
+                  {formatPrice(item.price! / Math.max(1, item.wearLogs?.length || 0))}
                 </div>
               </div>
             ))}

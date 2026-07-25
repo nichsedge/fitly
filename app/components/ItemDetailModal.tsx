@@ -26,7 +26,7 @@ export default function ItemDetailModal({ item, onClose }: Props) {
   const [careInput, setCareInput] = useState(item.careInstructions || '');
   const [newTagText, setNewTagText] = useState('');
   const [isAddingTag, setIsAddingTag] = useState(false);
-  const { deleteItem, updateItem, tags: dynamicTags, addTag } = useApp();
+  const { deleteItem, updateItem, tags: dynamicTags, addTag, formatPrice, t } = useApp();
   const fileRef = useRef<HTMLInputElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
@@ -436,13 +436,13 @@ export default function ItemDetailModal({ item, onClose }: Props) {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
                 <div style={{ padding: 'var(--space-3)', background: 'var(--bg-3)', borderRadius: 'var(--radius-md)' }}>
-                  <div style={{ color: 'var(--text-muted)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Price</div>
-                  <div style={{ fontSize: 18, fontWeight: 800 }}>{item.price ? `$${item.price.toFixed(2)}` : '—'}</div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>{t('priceLabel')}</div>
+                  <div style={{ fontSize: 18, fontWeight: 800 }}>{formatPrice(item.price)}</div>
                 </div>
                 <div style={{ padding: 'var(--space-3)', background: 'var(--bg-3)', borderRadius: 'var(--radius-md)' }}>
-                  <div style={{ color: 'var(--accent)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Cost per Wear</div>
+                  <div style={{ color: 'var(--accent)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>{t('costPerWear')}</div>
                   <div style={{ fontSize: 18, fontWeight: 800 }}>
-                    {item.price ? `$${(item.price / (Math.max(1, (item.wearLogs?.length || 0)))).toFixed(2)}` : '—'}
+                    {item.price ? formatPrice(item.price / Math.max(1, item.wearLogs?.length || 0)) : '—'}
                   </div>
                 </div>
               </div>

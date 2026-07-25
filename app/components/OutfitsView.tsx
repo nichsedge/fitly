@@ -6,12 +6,15 @@ import { Outfit, ClothingItem, CATEGORIES } from '../lib/types';
 import OutfitCard from './OutfitCard';
 import OutfitBuilderModal from './OutfitBuilderModal';
 import OutfitDetailModal from './OutfitDetailModal';
+import { v4 as uuidv4 } from 'uuid';
+import Toast from './Toast';
 
 export default function OutfitsView() {
-  const { outfits, items } = useApp();
+  const { outfits, items, addOutfit } = useApp();
   const [buildingOutfit, setBuildingOutfit] = useState(false);
   const [editingOutfit, setEditingOutfit] = useState<Outfit | null>(null);
   const [selectedOutfit, setSelectedOutfit] = useState<Outfit | null>(null);
+  const [toast, setToast] = useState('');
 
   // Improved suggestion: pick a random item from each core category,
   // prioritizing items worn less recently.
@@ -20,7 +23,7 @@ export default function OutfitsView() {
     const result: ClothingItem[] = [];
 
     categories.forEach(cat => {
-      const candidates = items.filter(i => i.category === cat);
+      const candidates = items.filter(i => i.category === cat && i.status === 'ready');
       if (candidates.length > 0) {
         // Sort by last worn date (oldest first or never worn)
         const sorted = [...candidates].sort((a, b) => {
@@ -40,29 +43,60 @@ export default function OutfitsView() {
     return result;
   };
 
-  const suggestion = getSuggestion();
+  const [currentSuggestion, setCurrentSuggestion] = useState<ClothingItem[]>(getSuggestion());
+
+  const handleShuffleSuggestion = () => {
+    setCurrentSuggestion(getSuggestion());
+  };
+
+  const handleSaveSuggestion = async () => {
+    if (currentSuggestion.length < 2) return;
+    const now = Date.now();
+    const outfitName = `Look: ${currentSuggestion.map(i => i.name).join(' + ')}`;
+    await addOutfit({
+      id: uuidv4(),
+      name: outfitName,
+      note: 'Auto-generated look',
+      itemIds: currentSuggestion.map(i => i.id),
+      createdAt: now,
+    });
+    setToast('✓ Outfit saved!');
+  };
 
   return (
     <div className="page-content">
-      {/* Build Button */}
-      <div style={{ marginBottom: 'var(--space-6)' }}>
+      {/* Build Button & Generator */}
+      <div style={{ display: 'flex', gap: 'var(--space-3)', marginBottom: 'var(--space-6)' }}>
         <button
           id="btn-build-outfit"
-          className="btn btn-primary btn-full"
+          className="btn btn-primary"
+          style={{ flex: 1 }}
           onClick={() => setBuildingOutfit(true)}
           disabled={items.length < 2}
         >
-          ✨ Build New Outfit
+          ✨ Build Outfit
         </button>
-        {items.length < 2 && (
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', marginTop: 8 }}>
-            Add at least 2 items to your wardrobe first
-          </p>
+        {items.length >= 2 && (
+          <button
+            id="btn-shuffle-outfit"
+            className="btn btn-ghost"
+            style={{ padding: '0 16px', fontSize: 13 }}
+            onClick={handleShuffleSuggestion}
+            title="Randomize a look from ready wardrobe items"
+          >
+            🎲 Shuffle Look
+          </button>
         )}
       </div>
 
+      {items.length < 2 && (
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', marginTop: -12, marginBottom: 20 }}>
+          Add at least 2 items to your wardrobe to start building looks
+        </p>
+      )}
+
       {/* Quick Suggestion */}
-      {suggestion.length >= 2 && outfits.length === 0 && (
+      {currentSuggestion.length >= 2 && (
         <div style={{
           background: 'var(--accent-subtle)',
           border: '1px solid var(--accent)',
@@ -70,11 +104,19 @@ export default function OutfitsView() {
           padding: 'var(--space-4)',
           marginBottom: 'var(--space-6)',
         }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 'var(--space-3)' }}>
-            💡 Suggested for today
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+              💡 Smart Look Suggestion
+            </div>
+            <button
+              onClick={handleShuffleSuggestion}
+              style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+            >
+              🔄 Refresh
+            </button>
           </div>
           <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
-            {suggestion.map(item => {
+            {currentSuggestion.map(item => {
               const cat = CATEGORIES.find(c => c.value === item.category);
               return item.images && item.images.length > 0 ? (
                 <img
@@ -93,9 +135,20 @@ export default function OutfitsView() {
               );
             })}
           </div>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-            {suggestion.map(i => i.name).join(' + ')}
-          </p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>
+              {currentSuggestion.map(i => i.name).join(' + ')}
+            </p>
+            <button
+              onClick={handleSaveSuggestion}
+              style={{
+                background: 'var(--accent)', color: 'white', border: 'none',
+                padding: '4px 10px', borderRadius: 'var(--radius-pill)', fontSize: 12, fontWeight: 600, cursor: 'pointer'
+              }}
+            >
+              + Save Look
+            </button>
+          </div>
         </div>
       )}
 
@@ -110,7 +163,7 @@ export default function OutfitsView() {
           <div className="empty-state__emoji">✨</div>
           <div className="empty-state__title">No outfits yet</div>
           <div className="empty-state__desc">
-            Build your first outfit by combining items from your wardrobe
+            Build your first outfit or tap <strong>Shuffle Look</strong> above
           </div>
         </div>
       ) : (
@@ -147,6 +200,7 @@ export default function OutfitsView() {
           }}
         />
       )}
+      {toast && <Toast message={toast} onDone={() => setToast('')} />}
     </div>
   );
 }

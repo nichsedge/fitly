@@ -1,6 +1,7 @@
 'use client';
 
 import { ClothingItem, CATEGORIES } from '../lib/types';
+import { useApp } from './AppProvider';
 
 interface Props {
   item: ClothingItem;
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export default function ItemCard({ item, onClick, selected, onSelect, selectable }: Props) {
+  const { formatPrice } = useApp();
   const category = CATEGORIES.find(c => c.value === item.category);
 
   const handleClick = () => {
@@ -20,6 +22,9 @@ export default function ItemCard({ item, onClick, selected, onSelect, selectable
       onClick();
     }
   };
+
+  const wearCount = item.wearLogs ? item.wearLogs.length : 0;
+  const cpw = item.price !== undefined && item.price > 0 && wearCount > 0 ? (item.price / wearCount) : null;
 
   return (
     <div
@@ -65,17 +70,17 @@ export default function ItemCard({ item, onClick, selected, onSelect, selectable
             style={{ backgroundColor: item.color }}
           />
           <span className="item-card__category" style={{ textTransform: 'capitalize' }}>{item.category}</span>
-          {item.price !== undefined && item.price > 0 && item.wearLogs && item.wearLogs.length > 0 && (
+          {cpw !== null && (
             <span style={{ 
               marginLeft: 'auto', 
               fontSize: 10, 
               fontWeight: 700, 
-              color: '#22c55e',
-              backgroundColor: 'rgba(34, 197, 94, 0.1)',
-              padding: '1px 5px',
+              color: 'var(--accent)',
+              backgroundColor: 'var(--accent-subtle)',
+              padding: '1px 6px',
               borderRadius: 4
             }} title="Cost Per Wear">
-              ${(item.price / item.wearLogs.length).toFixed(2)}
+              {formatPrice(cpw)}
             </span>
           )}
         </div>

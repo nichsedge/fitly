@@ -1,12 +1,15 @@
 {
-  "name": "Outfit Manager",
-  "short_name": "Wardrobe",
-  "description": "Your digital wardrobe - manage clothes and build outfits",
+  "id": "/",
+  "name": "Fitly - Digital Wardrobe",
+  "short_name": "Fitly",
+  "description": "Local-first digital wardrobe & outfit planner for Android",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0a0a0a",
   "theme_color": "#0f0f0f",
-  "orientation": "portrait",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon-192.png",
