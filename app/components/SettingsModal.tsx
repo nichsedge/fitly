@@ -4,17 +4,21 @@ import { useState, useRef, useEffect } from 'react';
 import { useApp } from './AppProvider';
 import Toast from './Toast';
 import TagsManagerModal from './TagsManagerModal';
-import { Currency, Language } from '../lib/i18n';
+import { Currency } from '../lib/i18n';
+import { v4 as uuidv4 } from 'uuid';
 
 interface Props {
   onClose: () => void;
 }
 
 export default function SettingsModal({ onClose }: Props) {
-  const { items, outfits, tags, restoreBackup, isOffline, isInstallable, promptInstallApp, currency, setCurrency, language, setLanguage, t } = useApp();
+  const { items, outfits, tags, locations, addLocation, deleteLocation, restoreBackup, isOffline, isInstallable, promptInstallApp, currency, setCurrency, language, setLanguage, t } = useApp();
   const [toast, setToast] = useState('');
   const [restoring, setRestoring] = useState(false);
   const [showTagsManager, setShowTagsManager] = useState(false);
+  const [newLocName, setNewLocName] = useState('');
+  const [newLocIcon, setNewLocIcon] = useState('📍');
+  const [isAddingLoc, setIsAddingLoc] = useState(false);
   const [storageStats, setStorageStats] = useState<{ usedMB: string; quotaMB: string; percent: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -31,6 +35,18 @@ export default function SettingsModal({ onClose }: Props) {
     }
   }, []);
 
+  const handleCreateLocation = async () => {
+    if (!newLocName.trim()) return;
+    await addLocation({
+      id: uuidv4(),
+      name: newLocName.trim(),
+      icon: newLocIcon || '📍'
+    });
+    setNewLocName('');
+    setIsAddingLoc(false);
+    setToast(`✓ Created location "${newLocName.trim()}"`);
+  };
+
   const handleBackup = () => {
     try {
       const data = {
@@ -39,6 +55,7 @@ export default function SettingsModal({ onClose }: Props) {
         items,
         outfits,
         tags,
+        locations
       };
       
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -189,6 +206,85 @@ export default function SettingsModal({ onClose }: Props) {
               </div>
             </div>
 
+            {/* Wardrobe Locations Management */}
+            <div style={{
+              background: 'var(--bg-3)',
+              padding: 'var(--space-4)',
+              borderRadius: 'var(--radius-md)',
+              marginBottom: 'var(--space-4)',
+              border: '1px solid var(--border)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <span style={{ fontSize: 13, fontWeight: 700 }}>📍 Wardrobe Locations</span>
+                <button
+                  className="btn btn-ghost"
+                  style={{ padding: '2px 8px', fontSize: 11, height: 'auto' }}
+                  onClick={() => setIsAddingLoc(!isAddingLoc)}
+                >
+                  {isAddingLoc ? 'Cancel' : '＋ Add Location'}
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {locations.map(loc => {
+                  const itemCount = items.filter(i => (i.locationId || 'loc-home') === loc.id).length;
+                  return (
+                    <div key={loc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-2)', padding: '6px 10px', borderRadius: 'var(--radius-sm)' }}>
+                      <span style={{ fontSize: 13, fontWeight: 600 }}>
+                        {loc.icon || '📍'} {loc.name}
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{itemCount} items</span>
+                        {!loc.isDefault && (
+                          <button
+                            onClick={() => deleteLocation(loc.id)}
+                            style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 12 }}
+                            title="Delete Location"
+                          >
+                            🗑
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {isAddingLoc && (
+                  <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                    <select
+                      value={newLocIcon}
+                      onChange={e => setNewLocIcon(e.target.value)}
+                      style={{ width: 50, height: 32, borderRadius: 'var(--radius-sm)', background: 'var(--bg-2)', border: '1px solid var(--border)', textAlign: 'center' }}
+                    >
+                      <option value="📍">📍</option>
+                      <option value="🏠">🏠</option>
+                      <option value="🏢">🏢</option>
+                      <option value="💼">💼</option>
+                      <option value="🧳">🧳</option>
+                      <option value="🚗">🚗</option>
+                    </select>
+                    <input
+                      type="text"
+                      className="form-input"
+                      style={{ flex: 1, height: 32, fontSize: 13, padding: '0 8px' }}
+                      placeholder="Location name (e.g. Rent Room)..."
+                      value={newLocName}
+                      onChange={e => setNewLocName(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleCreateLocation()}
+                      autoFocus
+                    />
+                    <button
+                      className="btn btn-primary"
+                      style={{ padding: '0 12px', fontSize: 12, height: 32 }}
+                      onClick={handleCreateLocation}
+                    >
+                      Save
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Offline & App Installation Status */}
             <div style={{
               background: 'var(--bg-3)',
@@ -307,12 +403,12 @@ export default function SettingsModal({ onClose }: Props) {
               <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', gap: 16 }}>
                 <span>{t('items')}: {items.length}</span>
                 <span>{t('outfits')}: {outfits.length}</span>
-                <span>{t('styles')}: {tags.length}</span>
+                <span>Locations: {locations.length}</span>
               </div>
             </div>
 
             <p style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', marginTop: 'var(--space-6)' }}>
-              Fitly v1.0.0 • Local-First Android PWA
+              Fitly v1.1.0 • Local-First Android PWA
             </p>
           </div>
         </div>

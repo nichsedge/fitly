@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { ClothingItem, Outfit, CustomTag, PlannedOutfit } from '../lib/types';
+import { ClothingItem, Outfit, CustomTag, PlannedOutfit, WardrobeLocation } from '../lib/types';
 import * as db from '../lib/db';
 import { getFreshSampleItems } from '../lib/seedData';
 import { Language, Currency, translations, formatCurrency } from '../lib/i18n';
@@ -16,6 +16,9 @@ interface AppState {
   outfits: Outfit[];
   tags: CustomTag[];
   plans: PlannedOutfit[];
+  locations: WardrobeLocation[];
+  activeLocationId: string; // 'all' or specific location id
+  setActiveLocationId: (id: string) => void;
   loading: boolean;
   isOffline: boolean;
   isInstallable: boolean;
@@ -31,9 +34,14 @@ interface AppState {
   refreshOutfits: () => Promise<void>;
   refreshTags: () => Promise<void>;
   refreshPlans: () => Promise<void>;
+  refreshLocations: () => Promise<void>;
   addItem: (item: ClothingItem) => Promise<void>;
   updateItem: (item: ClothingItem) => Promise<void>;
   deleteItem: (id: string) => Promise<void>;
+  batchMoveItemsLocation: (itemIds: string[], locationId: string) => Promise<void>;
+  addLocation: (loc: WardrobeLocation) => Promise<void>;
+  updateLocation: (loc: WardrobeLocation) => Promise<void>;
+  deleteLocation: (id: string) => Promise<void>;
   addOutfit: (outfit: Outfit) => Promise<void>;
   updateOutfit: (outfit: Outfit) => Promise<void>;
   deleteOutfit: (id: string) => Promise<void>;
@@ -55,12 +63,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [outfits, setOutfits] = useState<Outfit[]>([]);
   const [tags, setTags] = useState<CustomTag[]>([]);
   const [plans, setPlans] = useState<PlannedOutfit[]>([]);
+  const [locations, setLocations] = useState<WardrobeLocation[]>([]);
+  const [activeLocationId, setActiveLocationIdState] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [currency, setCurrencyState] = useState<Currency>('IDR');
   const [language, setLanguageState] = useState<Language>('en');
   const [isOffline, setIsOffline] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+
+  const setActiveLocationId = useCallback((id: string) => {
+    setActiveLocationIdState(id);
+    localStorage.setItem('activeLocationId', id);
+  }, []);
 
   const setCurrency = useCallback((c: Currency) => {
     setCurrencyState(c);
@@ -101,6 +116,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setPlans(all.sort((a, b) => a.date.localeCompare(b.date)));
   }, []);
 
+  const refreshLocations = useCallback(async () => {
+    const all = await db.getAllLocations();
+    setLocations(all);
+  }, []);
+
   useEffect(() => {
     const init = async () => {
       // Theme init
@@ -110,6 +130,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         document.documentElement.dataset.theme = savedTheme;
       } else {
         document.documentElement.dataset.theme = 'dark';
+      }
+
+      // Active location init
+      const savedLocation = localStorage.getItem('activeLocationId');
+      if (savedLocation) {
+        setActiveLocationIdState(savedLocation);
       }
 
       // Currency init
@@ -153,10 +179,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     init().then(async () => {
       await db.seedTagsIfEmpty();
-      await Promise.all([refreshItems(), refreshOutfits(), refreshTags(), refreshPlans()]);
+      await db.seedLocationsIfEmpty();
+      await Promise.all([refreshItems(), refreshOutfits(), refreshTags(), refreshPlans(), refreshLocations()]);
       setLoading(false);
     });
-  }, [refreshItems, refreshOutfits, refreshTags, refreshPlans]);
+  }, [refreshItems, refreshOutfits, refreshTags, refreshPlans, refreshLocations]);
 
   const loadSampleData = useCallback(async () => {
     const sampleItems = getFreshSampleItems();
@@ -194,6 +221,37 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await db.deleteItem(id);
     await refreshItems();
   }, [refreshItems]);
+
+  const batchMoveItemsLocation = useCallback(async (itemIds: string[], locationId: string) => {
+    for (const id of itemIds) {
+      const item = items.find(i => i.id === id);
+      if (item) {
+        await db.updateItem({ ...item, locationId });
+      }
+    }
+    await refreshItems();
+  }, [items, refreshItems]);
+
+  const addLocation = useCallback(async (loc: WardrobeLocation) => {
+    await db.addLocation(loc);
+    await refreshLocations();
+  }, [refreshLocations]);
+
+  const updateLocation = useCallback(async (loc: WardrobeLocation) => {
+    await db.updateLocation(loc);
+    await refreshLocations();
+  }, [refreshLocations]);
+
+  const deleteLocation = useCallback(async (id: string) => {
+    await db.deleteLocation(id);
+    // Reassign items with deleted location to default home
+    const affected = items.filter(i => i.locationId === id);
+    for (const item of affected) {
+      await db.updateItem({ ...item, locationId: 'loc-home' });
+    }
+    await refreshLocations();
+    await refreshItems();
+  }, [items, refreshLocations, refreshItems]);
 
   const addOutfit = useCallback(async (outfit: Outfit) => {
     await db.addOutfit(outfit);
@@ -265,7 +323,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AppContext.Provider value={{
-      items, outfits, tags, plans, loading,
+      items, outfits, tags, plans, locations, activeLocationId, setActiveLocationId, loading,
       isOffline,
       isInstallable: !!deferredPrompt,
       currency,
@@ -276,8 +334,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       formatPrice,
       promptInstallApp,
       loadSampleData,
-      refreshItems, refreshOutfits, refreshTags, refreshPlans,
-      addItem, updateItem, deleteItem,
+      refreshItems, refreshOutfits, refreshTags, refreshPlans, refreshLocations,
+      addItem, updateItem, deleteItem, batchMoveItemsLocation,
+      addLocation, updateLocation, deleteLocation,
       addOutfit, updateOutfit, deleteOutfit,
       addPlan, updatePlan, deletePlan,
       addTag, updateTag, deleteTag,

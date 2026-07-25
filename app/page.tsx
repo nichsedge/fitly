@@ -13,7 +13,7 @@ import { ActiveTab } from './lib/types';
 import { triggerHaptic } from './lib/haptics';
 
 export default function Home() {
-  const { loading, theme, toggleTheme, isOffline, t, language, setLanguage } = useApp();
+  const { loading, theme, toggleTheme, isOffline, t, language, setLanguage, locations, activeLocationId, setActiveLocationId } = useApp();
   const [activeTab, setActiveTab] = useState<ActiveTab>('wardrobe');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
@@ -52,7 +52,38 @@ export default function Home() {
             </span>
           )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {/* Location Selector Bar */}
+          <select
+            id="header-location-select"
+            value={activeLocationId}
+            onChange={(e) => {
+              setActiveLocationId(e.target.value);
+              triggerHaptic(8);
+            }}
+            style={{
+              background: 'var(--bg-3)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-pill)',
+              padding: '4px 10px',
+              fontSize: 12,
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              cursor: 'pointer',
+              outline: 'none',
+              maxWidth: 130
+            }}
+            title="Filter by Location (Home, Rent Room, etc.)"
+          >
+            <option value="all">📍 All Locations</option>
+            {locations.map(loc => (
+              <option key={loc.id} value={loc.id}>
+                {loc.icon || '📍'} {loc.name}
+              </option>
+            ))}
+          </select>
+
           {/* Quick Language Switcher Pill */}
           <button
             onClick={() => {
@@ -64,7 +95,7 @@ export default function Home() {
               background: 'var(--bg-3)',
               border: '1px solid var(--border)',
               borderRadius: 'var(--radius-pill)',
-              padding: '3px 9px',
+              padding: '3px 8px',
               fontSize: 11,
               fontWeight: 700,
               color: 'var(--text-secondary)',

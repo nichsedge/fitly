@@ -1,9 +1,9 @@
 import { openDB, IDBPDatabase } from 'idb';
-import { ClothingItem, Outfit, CustomTag, DEFAULT_TAG_NAMES, PlannedOutfit, Trip } from './types';
+import { ClothingItem, Outfit, CustomTag, DEFAULT_TAG_NAMES, PlannedOutfit, Trip, WardrobeLocation, DEFAULT_LOCATIONS } from './types';
 import { v4 as uuidv4 } from 'uuid';
 
 const DB_NAME = 'outfit-manager';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 type OutfitManagerDB = {
   items: {
@@ -28,6 +28,10 @@ type OutfitManagerDB = {
   trips: {
     key: string;
     value: Trip;
+  };
+  locations: {
+    key: string;
+    value: WardrobeLocation;
   };
 };
 
@@ -57,6 +61,12 @@ function getDB() {
             db.createObjectStore('trips', { keyPath: 'id' });
           }
         }
+
+        if (oldVersion < 4) {
+          if (!db.objectStoreNames.contains('locations')) {
+            db.createObjectStore('locations', { keyPath: 'id' });
+          }
+        }
       },
     });
   }
@@ -71,6 +81,19 @@ export async function seedTagsIfEmpty(): Promise<void> {
     const store = tx.objectStore('tags');
     for (const name of DEFAULT_TAG_NAMES) {
       await store.add({ id: uuidv4(), label: name });
+    }
+    await tx.done;
+  }
+}
+
+export async function seedLocationsIfEmpty(): Promise<void> {
+  const db = await getDB();
+  const existing = await db.getAll('locations');
+  if (existing.length === 0) {
+    const tx = db.transaction('locations', 'readwrite');
+    const store = tx.objectStore('locations');
+    for (const loc of DEFAULT_LOCATIONS) {
+      await store.add(loc);
     }
     await tx.done;
   }
@@ -100,6 +123,7 @@ function migrateItem(raw: any): ClothingItem {
   if (raw.material === undefined) raw.material = '';
   if (raw.careInstructions === undefined) raw.careInstructions = '';
   if (raw.lastWashedAt === undefined) raw.lastWashedAt = 0;
+  if (!raw.locationId) raw.locationId = 'loc-home'; // Default to Home location
   
   return raw as ClothingItem;
 }
@@ -153,6 +177,27 @@ export async function updateItem(item: ClothingItem): Promise<void> {
 export async function deleteItem(id: string): Promise<void> {
   const db = await getDB();
   await db.delete('items', id);
+}
+
+// Locations
+export async function getAllLocations(): Promise<WardrobeLocation[]> {
+  const db = await getDB();
+  return db.getAll('locations');
+}
+
+export async function addLocation(location: WardrobeLocation): Promise<void> {
+  const db = await getDB();
+  await db.add('locations', location);
+}
+
+export async function updateLocation(location: WardrobeLocation): Promise<void> {
+  const db = await getDB();
+  await db.put('locations', location);
+}
+
+export async function deleteLocation(id: string): Promise<void> {
+  const db = await getDB();
+  await db.delete('locations', id);
 }
 
 // Outfits

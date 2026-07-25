@@ -12,8 +12,13 @@ interface Props {
 }
 
 export default function DailyOutfitBuilder({ startingItem, onClose }: Props) {
-  const { items, addOutfit, updateItem } = useApp();
+  const { items, activeLocationId, addOutfit, updateItem } = useApp();
   
+  // Filter available items by active location if set
+  const availableItems = items.filter(i => 
+    activeLocationId === 'all' || (i.locationId || 'loc-home') === activeLocationId
+  );
+
   // Track selected items by category. Initialize with the starting item.
   const [selectedItems, setSelectedItems] = useState<Record<string, string>>({
     [startingItem.category]: startingItem.id
@@ -21,9 +26,9 @@ export default function DailyOutfitBuilder({ startingItem, onClose }: Props) {
   const [toast, setToast] = useState('');
 
   // Get categories other than the starting one for suggestions
-  const priorityCategories: Category[] = ['top', 'bottom', 'outerwear', 'shoes', 'accessory', 'bag'];
+  const priorityCategories: Category[] = ['top', 'bottom', 'underwear', 'outerwear', 'shoes', 'accessory', 'bag'];
   const categoriesToShow = priorityCategories.filter(
-    cat => cat !== startingItem.category && items.filter(i => i.category === cat).length > 0
+    cat => cat !== startingItem.category && availableItems.filter(i => i.category === cat).length > 0
   );
 
   const handleSelect = (category: Category, id: string) => {
@@ -105,7 +110,7 @@ export default function DailyOutfitBuilder({ startingItem, onClose }: Props) {
 
               {/* Suggestions row by row */}
               {categoriesToShow.map(cat => {
-                const catItems = items.filter(i => i.category === cat);
+                const catItems = availableItems.filter(i => i.category === cat);
                 if (catItems.length === 0) return null;
                 const catInfo = CATEGORIES.find(c => c.value === cat);
 

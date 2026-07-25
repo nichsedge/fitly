@@ -6,18 +6,26 @@ import { CATEGORIES, ClothingItem } from '../lib/types';
 import Toast from './Toast';
 import { triggerHaptic } from '../lib/haptics';
 
+const NON_LAUNDRY_CATEGORIES = ['shoes', 'accessory', 'bag'];
+
 export default function LaundryView() {
   const { items, updateItem, t, formatPrice } = useApp();
   const [toast, setToast] = useState('');
+  const [showAllItems, setShowAllItems] = useState(false);
 
   // Calculate wears since last wash for each item
-  const wornItems = items.map(item => {
+  const allWornItems = items.map(item => {
     const lastWash = item.lastWashedAt || 0;
     const wearsSinceWash = (item.wearLogs || []).filter(timestamp => timestamp > lastWash).length;
     return { item, wearsSinceWash };
   })
   .filter(entry => entry.wearsSinceWash > 0)
   .sort((a, b) => b.wearsSinceWash - a.wearsSinceWash);
+
+  // Filter items: exclude shoes, accessories, and bags by default unless user toggles "Show All"
+  const wornItems = allWornItems.filter(({ item }) => 
+    showAllItems || !NON_LAUNDRY_CATEGORIES.includes(item.category)
+  );
 
   const handleWashSingleItem = async (item: ClothingItem) => {
     triggerHaptic(12);
@@ -51,7 +59,7 @@ export default function LaundryView() {
             <span className="section-count">{wornItems.length}</span>
           </div>
           <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-            {t('laundryDesc')}
+            Apparel needing wash (shoes & accessories excluded by default)
           </p>
         </div>
 
@@ -75,6 +83,26 @@ export default function LaundryView() {
         )}
       </div>
 
+      {/* Filter Mode Switcher */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            className={`pill ${!showAllItems ? 'active' : ''}`}
+            onClick={() => setShowAllItems(false)}
+            style={{ fontSize: 12, padding: '4px 12px' }}
+          >
+            👕 Laundry Basket
+          </button>
+          <button
+            className={`pill ${showAllItems ? 'active' : ''}`}
+            onClick={() => setShowAllItems(true)}
+            style={{ fontSize: 12, padding: '4px 12px' }}
+          >
+            👟 All Worn Gear ({allWornItems.length})
+          </button>
+        </div>
+      </div>
+
       {/* List View */}
       {wornItems.length === 0 ? (
         <div className="empty-state animate-in" style={{ padding: 'var(--space-10) var(--space-4)', textAlign: 'center' }}>
@@ -83,15 +111,26 @@ export default function LaundryView() {
             {t('cleanNoWornTitle')}
           </div>
           <p className="empty-state__desc" style={{ fontSize: 14, color: 'var(--text-muted)', maxWidth: 360, margin: '0 auto' }}>
-            {t('cleanNoWornDesc')}
+            {!showAllItems && allWornItems.length > 0 
+              ? `Your laundry basket is empty! (${allWornItems.length} non-laundry items like shoes/accessories worn)` 
+              : t('cleanNoWornDesc')}
           </p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', marginTop: 'var(--space-4)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', marginTop: 'var(--space-2)' }}>
           {wornItems.map(({ item, wearsSinceWash }) => {
             const cat = CATEGORIES.find(c => c.value === item.category);
-            // Threshold for wash recommendation: Tops/Accessories >= 2, Bottoms/Outerwear >= 4
-            const maxThreshold = (item.category === 'top' || item.category === 'accessory') ? 2 : 4;
+            
+            // Wash recommendation thresholds:
+            // Underwear: 1 wear
+            // Tops: 2 wears
+            // Accessories / Shoes: 3 wears
+            // Bottoms / Outerwear: 4 wears
+            const maxThreshold = 
+              item.category === 'underwear' ? 1 : 
+              (item.category === 'top' ? 2 : 
+              (NON_LAUNDRY_CATEGORIES.includes(item.category) ? 3 : 4));
+
             const isThresholdExceeded = wearsSinceWash >= maxThreshold;
 
             return (

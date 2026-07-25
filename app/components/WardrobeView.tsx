@@ -14,7 +14,7 @@ interface Props {
 }
 
 export default function WardrobeView({ onNavigateToAdd }: Props) {
-  const { items, tags, loadSampleData, updateItem, t } = useApp();
+  const { items, tags, locations, activeLocationId, loadSampleData, updateItem, batchMoveItemsLocation, t } = useApp();
   const [activeCategory, setActiveCategory] = useState<Category | 'all'>('all');
   const [activeTag, setActiveTag] = useState<string>('all');
   const [activeStatus, setActiveStatus] = useState<string>('all');
@@ -29,7 +29,11 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
 
   const dirtyItems = items.filter(i => i.status === 'dirty' || i.status === 'cleaning');
 
+  const activeLocation = locations.find(l => l.id === activeLocationId);
+
   const filtered = items.filter(i => {
+    // Location Filter
+    const matchLocation = activeLocationId === 'all' || (i.locationId || 'loc-home') === activeLocationId;
     const matchCat = activeCategory === 'all' || i.category === activeCategory;
     const matchTag = activeTag === 'all' || i.tags.includes(activeTag);
     const matchStatus = activeStatus === 'all' || i.status === activeStatus;
@@ -39,7 +43,7 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
       i.material?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       i.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
     
-    return matchCat && matchTag && matchStatus && matchSearch;
+    return matchLocation && matchCat && matchTag && matchStatus && matchSearch;
   });
 
   const toggleSelection = (id: string) => {
@@ -55,6 +59,14 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
     setSelectionMode(false);
     setSelectedIds(new Set());
     setToast(`✓ Updated ${itemsToUpdate.length} item(s)`);
+  };
+
+  const handleBatchMoveLocation = async (locId: string) => {
+    const targetLoc = locations.find(l => l.id === locId);
+    await batchMoveItemsLocation(Array.from(selectedIds), locId);
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+    setToast(`✓ Relocated ${selectedIds.size} item(s) to ${targetLoc?.name || 'Location'}`);
   };
 
   const handleBatchTag = async (tag: string) => {
@@ -86,7 +98,12 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
       <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           <h2 className="section-title">{t('wardrobe')}</h2>
-          <span className="section-count">{items.length}</span>
+          <span className="section-count">{filtered.length}</span>
+          {activeLocationId !== 'all' && (
+            <span style={{ fontSize: 11, background: 'var(--accent-subtle)', color: 'var(--accent)', padding: '2px 8px', borderRadius: 'var(--radius-pill)', fontWeight: 600 }}>
+              {activeLocation?.icon} {activeLocation?.name}
+            </span>
+          )}
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {onNavigateToAdd && (
@@ -137,18 +154,18 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
       {items.length > 0 && (
         <div className="stats-row animate-in" style={{ display: searchQuery ? 'none' : 'flex' }}>
           <div className="stat-card">
-            <span className="stat-card__value">{items.length}</span>
-            <span className="stat-card__label">{t('items')}</span>
+            <span className="stat-card__value">{filtered.length}</span>
+            <span className="stat-card__label">{activeLocationId !== 'all' ? 'Here' : t('items')}</span>
           </div>
           <div className="stat-card">
             <span className="stat-card__value">
-              {new Set(items.map(i => i.category)).size}
+              {new Set(filtered.map(i => i.category)).size}
             </span>
             <span className="stat-card__label">{t('categories')}</span>
           </div>
           <div className="stat-card">
             <span className="stat-card__value">
-              {new Set(items.flatMap(i => i.tags)).size}
+              {new Set(filtered.flatMap(i => i.tags)).size}
             </span>
             <span className="stat-card__label">{t('styles')}</span>
           </div>
@@ -298,10 +315,12 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
         </div>
       ) : filtered.length === 0 ? (
         <div className="empty-state animate-in">
-          <div className="empty-state__emoji">🔍</div>
-          <div className="empty-state__title">{t('noItemsFound')}</div>
+          <div className="empty-state__emoji">📍</div>
+          <div className="empty-state__title">No items found</div>
           <div className="empty-state__desc">
-            {searchQuery ? `"${searchQuery}"` : ``}
+            {activeLocationId !== 'all' 
+              ? `No clothing items currently at ${activeLocation?.name || 'this location'}.` 
+              : `Try adjusting your search or filters.`}
           </div>
         </div>
       ) : (
@@ -320,14 +339,44 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
           </div>
 
           {selectionMode && selectedIds.size > 0 && (
-            <div className="batch-actions-bar animate-slide-up">
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'white', marginBottom: 'var(--space-2)' }}>
-                {selectedIds.size} selected
+            <div className="batch-actions-bar animate-slide-up" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'white' }}>
+                  {selectedIds.size} selected
+                </div>
+                {/* Batch Move Location Selector */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Move to:</span>
+                  <select
+                    onChange={(e) => {
+                      if (e.target.value) handleBatchMoveLocation(e.target.value);
+                    }}
+                    defaultValue=""
+                    style={{
+                      background: 'var(--bg-3)',
+                      color: 'white',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-pill)',
+                      padding: '2px 8px',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="" disabled>Select Location...</option>
+                    {locations.map(loc => (
+                      <option key={loc.id} value={loc.id}>
+                        {loc.icon || '📍'} {loc.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
+
               <div style={{ display: 'flex', gap: 'var(--space-2)', overflowX: 'auto', paddingBottom: 4 }}>
                 <button className="btn btn-ghost" style={{ background: 'rgba(34, 197, 94, 0.2)', color: '#22c55e', fontSize: 11, border: 'none' }} onClick={() => handleBatchStatus('ready')}>✅ Set Ready</button>
                 <button className="btn btn-ghost" style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', fontSize: 11, border: 'none' }} onClick={() => handleBatchStatus('dirty')}>🧺 Set Dirty</button>
-                {tags.slice(0, 5).map(tag => (
+                {tags.slice(0, 4).map(tag => (
                   <button key={tag.id} className="btn btn-ghost" style={{ background: 'rgba(255,255,255,0.1)', fontSize: 11, border: 'none' }} onClick={() => handleBatchTag(tag.label)}>🏷️ +{tag.label}</button>
                 ))}
               </div>

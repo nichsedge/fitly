@@ -50,7 +50,7 @@ function compressImage(file: File, maxWidth = 1200, maxHeight = 1200, quality = 
 }
 
 export default function AddItemView({ onDone }: Props) {
-  const { addItem, tags: dynamicTags, addTag, t, currency } = useApp();
+  const { addItem, tags: dynamicTags, addTag, locations, activeLocationId, t, currency } = useApp();
   const fileRef = useRef<HTMLInputElement>(null);
   const [images, setImages] = useState<string[]>([]);
   const [name, setName] = useState('');
@@ -58,6 +58,7 @@ export default function AddItemView({ onDone }: Props) {
   const [price, setPrice] = useState<string>('');
   const [purchaseDate, setPurchaseDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [category, setCategory] = useState<Category | ''>('');
+  const [locationId, setLocationId] = useState<string>(activeLocationId !== 'all' ? activeLocationId : 'loc-home');
   const [color, setColor] = useState('#1a1a1a');
   const [tags, setTags] = useState<string[]>([]);
   const [material, setMaterial] = useState('');
@@ -146,6 +147,7 @@ export default function AddItemView({ onDone }: Props) {
       purchaseDate: purchaseDate ? new Date(purchaseDate).getTime() : undefined,
       status: 'ready',
       category: category as Category,
+      locationId: locationId || 'loc-home',
       color,
       tags,
       images,
@@ -254,7 +256,7 @@ export default function AddItemView({ onDone }: Props) {
         />
       </div>
 
-      {/* Name */}
+      {/* Name & Brand */}
       <div className="form-group" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-3)' }}>
         <div>
           <label className="form-label" htmlFor="item-name">Name</label>
@@ -279,6 +281,23 @@ export default function AddItemView({ onDone }: Props) {
             onChange={e => setBrand(e.target.value)}
           />
         </div>
+      </div>
+
+      {/* Location Selection */}
+      <div className="form-group">
+        <label className="form-label" htmlFor="item-location">Wardrobe Location</label>
+        <select
+          id="item-location"
+          className="form-input"
+          value={locationId}
+          onChange={e => setLocationId(e.target.value)}
+        >
+          {locations.map(loc => (
+            <option key={loc.id} value={loc.id}>
+              {loc.icon || '📍'} {loc.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="form-group" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-3)' }}>

@@ -1,9 +1,21 @@
-export type Category = 'top' | 'bottom' | 'shoes' | 'outerwear' | 'accessory' | 'bag';
+export type Category = 'top' | 'bottom' | 'underwear' | 'shoes' | 'outerwear' | 'accessory' | 'bag';
 
 export interface CustomTag {
   id: string;
   label: string;
 }
+
+export interface WardrobeLocation {
+  id: string;
+  name: string;
+  icon?: string;
+  isDefault?: boolean;
+}
+
+export const DEFAULT_LOCATIONS: WardrobeLocation[] = [
+  { id: 'loc-home', name: 'Home', icon: '🏠', isDefault: true },
+  { id: 'loc-rent', name: 'Rent Room', icon: '🏢', isDefault: true },
+];
 
 export const DEFAULT_TAG_NAMES = ['Casual', 'Formal', 'Gym', 'Party', 'Work', 'Streetwear', 'Beach', 'Date Night'];
 
@@ -29,6 +41,7 @@ export interface ClothingItem {
   careInstructions?: string;
   condition?: ItemCondition;
   lastWashedAt?: number;
+  locationId?: string;
 }
 
 export interface Outfit {
@@ -59,6 +72,7 @@ export type ActiveTab = 'wardrobe' | 'outfits' | 'laundry' | 'calendar' | 'add' 
 export const CATEGORIES: { value: Category; label: string; emoji: string }[] = [
   { value: 'top', label: 'Top', emoji: '👕' },
   { value: 'bottom', label: 'Bottom', emoji: '👖' },
+  { value: 'underwear', label: 'Underwear', emoji: '🩲' },
   { value: 'shoes', label: 'Shoes', emoji: '👟' },
   { value: 'outerwear', label: 'Outerwear', emoji: '🧥' },
   { value: 'accessory', label: 'Accessory', emoji: '⌚' },
@@ -93,4 +107,3 @@ export interface Trip {
   destination?: string;
   completed?: boolean;
 }
-
