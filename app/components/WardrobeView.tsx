@@ -13,12 +13,24 @@ interface Props {
   onNavigateToAdd?: () => void;
 }
 
+export type WardrobeSortOption = 
+  | 'newest'
+  | 'oldest'
+  | 'name'
+  | 'most-worn'
+  | 'least-worn'
+  | 'recently-worn'
+  | 'price-high'
+  | 'price-low';
+
 export default function WardrobeView({ onNavigateToAdd }: Props) {
   const { items, tags, locations, activeLocationId, loadSampleData, updateItem, batchMoveItemsLocation, t } = useApp();
   const [activeCategory, setActiveCategory] = useState<Category | 'all'>('all');
   const [activeTag, setActiveTag] = useState<string>('all');
   const [activeStatus, setActiveStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<WardrobeSortOption>('newest');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedItem, setSelectedItem] = useState<ClothingItem | null>(null);
   const [loadingSample, setLoadingSample] = useState(false);
   const [toast, setToast] = useState('');
@@ -45,6 +57,49 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
     
     return matchLocation && matchCat && matchTag && matchStatus && matchSearch;
   });
+
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortBy === 'newest') {
+      return (b.createdAt || 0) - (a.createdAt || 0);
+    }
+    if (sortBy === 'oldest') {
+      return (a.createdAt || 0) - (b.createdAt || 0);
+    }
+    if (sortBy === 'name') {
+      return (a.name || '').localeCompare(b.name || '');
+    }
+    if (sortBy === 'most-worn') {
+      const aWorns = a.wearLogs?.length || (a.lastWornAt ? 1 : 0);
+      const bWorns = b.wearLogs?.length || (b.lastWornAt ? 1 : 0);
+      return bWorns - aWorns;
+    }
+    if (sortBy === 'least-worn') {
+      const aWorns = a.wearLogs?.length || (a.lastWornAt ? 1 : 0);
+      const bWorns = b.wearLogs?.length || (b.lastWornAt ? 1 : 0);
+      return aWorns - bWorns;
+    }
+    if (sortBy === 'recently-worn') {
+      const aLast = a.wearLogs && a.wearLogs.length > 0 ? Math.max(...a.wearLogs) : (a.lastWornAt || 0);
+      const bLast = b.wearLogs && b.wearLogs.length > 0 ? Math.max(...b.wearLogs) : (b.lastWornAt || 0);
+      return bLast - aLast;
+    }
+    if (sortBy === 'price-high') {
+      return (b.price || 0) - (a.price || 0);
+    }
+    if (sortBy === 'price-low') {
+      return (a.price || 0) - (b.price || 0);
+    }
+    return 0;
+  });
+
+  const hasActiveFilters = activeCategory !== 'all' || activeTag !== 'all' || activeStatus !== 'all' || searchQuery !== '';
+
+  const handleResetFilters = () => {
+    setActiveCategory('all');
+    setActiveTag('all');
+    setActiveStatus('all');
+    setSearchQuery('');
+  };
 
   const toggleSelection = (id: string) => {
     const next = new Set(selectedIds);
@@ -94,37 +149,39 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
 
   return (
     <div className="page-content" style={{ position: 'relative', paddingBottom: 'calc(var(--space-12) + 20px)' }}>
-      {/* Header with Search and Actions */}
-      <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* Header */}
+      <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           <h2 className="section-title">{t('wardrobe')}</h2>
-          <span className="section-count">{filtered.length}</span>
+          <span className="section-count">{sorted.length}</span>
           {activeLocationId !== 'all' && (
             <span style={{ fontSize: 11, background: 'var(--accent-subtle)', color: 'var(--accent)', padding: '2px 8px', borderRadius: 'var(--radius-pill)', fontWeight: 600 }}>
               {activeLocation?.icon} {activeLocation?.name}
             </span>
           )}
         </div>
+        
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {onNavigateToAdd && (
-            <button
-              className="btn btn-primary"
-              style={{ padding: '5px 12px', fontSize: 13, height: 'auto', minHeight: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}
-              onClick={() => { triggerHaptic(10); onNavigateToAdd(); }}
-            >
-              <span>+</span> <span>{t('add')}</span>
-            </button>
-          )}
           {items.length > 0 && (
             <button 
               className={`btn ${selectionMode ? 'btn-primary' : 'btn-ghost'}`} 
-              style={{ padding: '4px 12px', fontSize: 13, height: 'auto', minHeight: 'auto' }}
+              style={{ padding: '4px 12px', fontSize: 13, height: 32 }}
               onClick={() => {
                 setSelectionMode(!selectionMode);
                 setSelectedIds(new Set());
               }}
             >
               {selectionMode ? t('done') : t('selectMode')}
+            </button>
+          )}
+
+          {onNavigateToAdd && (
+            <button
+              className="btn btn-primary"
+              style={{ padding: '5px 12px', fontSize: 13, height: 32, display: 'flex', alignItems: 'center', gap: 4 }}
+              onClick={() => { triggerHaptic(10); onNavigateToAdd(); }}
+            >
+              <span>+</span> <span>{t('add')}</span>
             </button>
           )}
         </div>
@@ -150,24 +207,82 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
         )}
       </div>
 
-      {/* Stats Mini Bar */}
+      {/* Toolbar: Sort & View Toggle */}
       {items.length > 0 && (
-        <div className="stats-row animate-in" style={{ display: searchQuery ? 'none' : 'flex' }}>
-          <div className="stat-card">
-            <span className="stat-card__value">{filtered.length}</span>
-            <span className="stat-card__label">{activeLocationId !== 'all' ? 'Here' : t('items')}</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>Sort:</span>
+            <select
+              id="select-wardrobe-sort"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as WardrobeSortOption)}
+              style={{
+                padding: '4px 8px',
+                fontSize: 12,
+                height: 32,
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--bg-2)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border)',
+                outline: 'none',
+                cursor: 'pointer',
+                fontWeight: 600
+              }}
+            >
+              <option value="newest">📅 Newest</option>
+              <option value="oldest">⌛ Oldest</option>
+              <option value="name">🔤 Name (A-Z)</option>
+              <option value="most-worn">🔥 Most Worn</option>
+              <option value="least-worn">💤 Least Worn</option>
+              <option value="recently-worn">🕒 Recently Worn</option>
+              <option value="price-high">💵 Price: High → Low</option>
+              <option value="price-low">🏷️ Price: Low → High</option>
+            </select>
           </div>
-          <div className="stat-card">
-            <span className="stat-card__value">
-              {new Set(filtered.map(i => i.category)).size}
-            </span>
-            <span className="stat-card__label">{t('categories')}</span>
-          </div>
-          <div className="stat-card">
-            <span className="stat-card__value">
-              {new Set(filtered.flatMap(i => i.tags)).size}
-            </span>
-            <span className="stat-card__label">{t('styles')}</span>
+
+          <div className="view-toggle" style={{ display: 'flex', gap: 4, background: 'var(--bg-3)', padding: 3, borderRadius: 'var(--radius-md)' }}>
+            <button
+              id="view-toggle-wardrobe-grid"
+              className={`btn-icon-toggle ${viewMode === 'grid' ? 'active' : ''}`}
+              onClick={() => setViewMode('grid')}
+              title="Grid View"
+              style={{
+                background: viewMode === 'grid' ? 'var(--accent)' : 'transparent',
+                color: viewMode === 'grid' ? '#fff' : 'var(--text-secondary)',
+                border: 'none',
+                borderRadius: 'var(--radius-sm)',
+                padding: '4px 10px',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4
+              }}
+            >
+              <span>⊞</span> Grid
+            </button>
+            <button
+              id="view-toggle-wardrobe-list"
+              className={`btn-icon-toggle ${viewMode === 'list' ? 'active' : ''}`}
+              onClick={() => setViewMode('list')}
+              title="List View"
+              style={{
+                background: viewMode === 'list' ? 'var(--accent)' : 'transparent',
+                color: viewMode === 'list' ? '#fff' : 'var(--text-secondary)',
+                border: 'none',
+                borderRadius: 'var(--radius-sm)',
+                padding: '4px 10px',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4
+              }}
+            >
+              <span>☰</span> List
+            </button>
           </div>
         </div>
       )}
@@ -194,8 +309,8 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
               </button>
             ))}
           </div>
-          
-          <div className="filter-bar">
+
+          <div className="filter-bar" style={{ marginBottom: 'var(--space-2)' }}>
             <button
               id="filter-tag-all"
               className={`filter-chip ${activeTag === 'all' ? 'active' : ''}`}
@@ -215,7 +330,7 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
             ))}
           </div>
 
-          <div className="filter-bar">
+          <div className="filter-bar" style={{ marginBottom: 'var(--space-3)' }}>
             <button
               id="filter-status-all"
               className={`filter-chip ${activeStatus === 'all' ? 'active' : ''}`}
@@ -246,10 +361,43 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
             </button>
           </div>
 
+          {/* Active Filter Indicators & Reset Button */}
+          {hasActiveFilters && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 'var(--space-4)', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Active Filters:</span>
+              {activeCategory !== 'all' && (
+                <span style={{ fontSize: 11, background: 'var(--accent-subtle)', color: 'var(--accent)', padding: '2px 8px', borderRadius: 'var(--radius-pill)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  Category: {activeCategory} <button onClick={() => setActiveCategory('all')} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0 }}>✕</button>
+                </span>
+              )}
+              {activeTag !== 'all' && (
+                <span style={{ fontSize: 11, background: 'var(--accent-subtle)', color: 'var(--accent)', padding: '2px 8px', borderRadius: 'var(--radius-pill)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  Tag: {activeTag} <button onClick={() => setActiveTag('all')} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0 }}>✕</button>
+                </span>
+              )}
+              {activeStatus !== 'all' && (
+                <span style={{ fontSize: 11, background: 'var(--accent-subtle)', color: 'var(--accent)', padding: '2px 8px', borderRadius: 'var(--radius-pill)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  Status: {activeStatus} <button onClick={() => setActiveStatus('all')} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0 }}>✕</button>
+                </span>
+              )}
+              {searchQuery && (
+                <span style={{ fontSize: 11, background: 'var(--accent-subtle)', color: 'var(--accent)', padding: '2px 8px', borderRadius: 'var(--radius-pill)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  Search: "{searchQuery}" <button onClick={() => setSearchQuery('')} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0 }}>✕</button>
+                </span>
+              )}
+              <button
+                onClick={handleResetFilters}
+                style={{ fontSize: 11, background: 'none', border: 'none', color: 'var(--text-muted)', textDecoration: 'underline', cursor: 'pointer', marginLeft: 4 }}
+              >
+                Clear All
+              </button>
+            </div>
+          )}
+
           {/* Quick Laundry Reset Banner */}
           {dirtyItems.length > 0 && (
             <div style={{
-              marginTop: 'var(--space-3)',
+              marginTop: 'var(--space-2)',
               marginBottom: 'var(--space-4)',
               padding: '10px 14px',
               background: 'rgba(239, 68, 68, 0.12)',
@@ -284,7 +432,7 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
         </>
       )}
 
-      {/* Grid */}
+      {/* Grid or List View */}
       {items.length === 0 ? (
         <div className="empty-state animate-in" style={{ padding: 'var(--space-8) var(--space-4)', textAlign: 'center' }}>
           <div className="empty-state__emoji" style={{ fontSize: 56, marginBottom: 12 }}>🧥</div>
@@ -313,7 +461,7 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
             </button>
           </div>
         </div>
-      ) : filtered.length === 0 ? (
+      ) : sorted.length === 0 ? (
         <div className="empty-state animate-in">
           <div className="empty-state__emoji">📍</div>
           <div className="empty-state__title">No items found</div>
@@ -325,11 +473,12 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
         </div>
       ) : (
         <>
-          <div className="item-grid animate-in">
-            {filtered.map(item => (
+          <div className={viewMode === 'grid' ? 'item-grid animate-in' : 'item-list animate-in'}>
+            {sorted.map(item => (
               <ItemCard
                 key={item.id}
                 item={item}
+                viewMode={viewMode}
                 onClick={() => selectionMode ? toggleSelection(item.id) : setSelectedItem(item)}
                 selectable={selectionMode}
                 selected={selectedIds.has(item.id)}

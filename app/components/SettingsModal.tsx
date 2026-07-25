@@ -58,19 +58,31 @@ export default function SettingsModal({ onClose }: Props) {
         locations
       };
       
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const jsonString = JSON.stringify(data, null, 2);
+      const filename = `wardrobe-backup-${new Date().toISOString().split('T')[0]}.json`;
+
+      // Direct Blob URL download
+      const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' });
       const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      const date = new Date().toISOString().split('T')[0];
       
+      const link = document.createElement('a');
       link.href = url;
-      link.download = `wardrobe-backup-${date}.json`;
+      link.download = filename;
+      link.setAttribute('download', filename);
+      link.style.display = 'none';
+      
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
       
-      setToast('✓ Backup downloaded!');
+      // Keep URL active for 10s to ensure download completes, then clean up
+      setTimeout(() => {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+        URL.revokeObjectURL(url);
+      }, 10000);
+      
+      setToast('✓ Backup downloaded to your device!');
     } catch (err) {
       console.error('Backup failed:', err);
       setToast('❌ Backup failed');
@@ -365,7 +377,7 @@ export default function SettingsModal({ onClose }: Props) {
                 onClick={handleBackup}
                 style={{ justifyContent: 'flex-start', paddingLeft: 'var(--space-4)' }}
               >
-                {t('exportBackup')}
+                📥 {t('exportBackup')} (.json)
               </button>
               
               <button 
@@ -375,7 +387,7 @@ export default function SettingsModal({ onClose }: Props) {
                 disabled={restoring}
                 style={{ justifyContent: 'flex-start', paddingLeft: 'var(--space-4)' }}
               >
-                {restoring ? 'Restoring...' : t('restoreBackup')}
+                📤 {restoring ? 'Restoring...' : t('restoreBackup')}
               </button>
 
               <button 
@@ -384,7 +396,7 @@ export default function SettingsModal({ onClose }: Props) {
                 onClick={() => setShowTagsManager(true)}
                 style={{ justifyContent: 'flex-start', paddingLeft: 'var(--space-4)' }}
               >
-                {t('manageTags')}
+                🏷️ {t('manageTags')}
               </button>
               
               <input

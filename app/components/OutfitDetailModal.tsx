@@ -13,7 +13,7 @@ interface Props {
 }
 
 export default function OutfitDetailModal({ outfit, items, onClose, onEdit }: Props) {
-  const { deleteOutfit, updateOutfit, updateItem } = useApp();
+  const { deleteOutfit, updateOutfit, updateItem, formatPrice } = useApp();
   const [confirming, setConfirming] = useState(false);
   const [toast, setToast] = useState('');
   const [isEditingName, setIsEditingName] = useState(false);
@@ -117,20 +117,32 @@ export default function OutfitDetailModal({ outfit, items, onClose, onEdit }: Pr
             {outfitItems.length > 0 && (
               <div
                 className="outfit-detail__grid"
-                style={{ gridTemplateColumns: `repeat(${Math.min(outfitItems.length, 3)}, 1fr)` }}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: outfitItems.length === 1 ? '1fr' : outfitItems.length === 2 ? 'repeat(2, 1fr)' : 'repeat(2, 1fr)',
+                  gap: 'var(--space-2)'
+                }}
               >
-                {outfitItems.slice(0, 3).map(item => {
+                {outfitItems.slice(0, 4).map((item, idx) => {
                   const cat = CATEGORIES.find(c => c.value === item.category);
+                  const isSpanTwo = outfitItems.length === 3 && idx === 2;
                   return item.images && item.images.length > 0 ? (
                     <img
-                      key={item.id}
+                      key={`detail-${item.id}-${idx}`}
                       src={item.images[0]}
                       alt={item.name}
                       className="outfit-detail__img"
+                      style={{
+                        width: '100%', aspectRatio: '1', objectFit: 'cover',
+                        borderRadius: 'var(--radius-md)', minWidth: 0, minHeight: 0,
+                        gridColumn: isSpanTwo ? 'span 2' : undefined
+                      }}
                     />
                   ) : (
-                    <div key={item.id} className="outfit-detail__img" style={{
-                      display: 'grid', placeItems: 'center', fontSize: 40, background: 'var(--bg-3)'
+                    <div key={`detail-${item.id}-${idx}`} className="outfit-detail__img" style={{
+                      display: 'grid', placeItems: 'center', fontSize: 36, background: 'var(--bg-3)',
+                      aspectRatio: '1', borderRadius: 'var(--radius-md)', minWidth: 0, minHeight: 0,
+                      gridColumn: isSpanTwo ? 'span 2' : undefined
                     }}>
                       {cat?.emoji}
                     </div>
@@ -172,11 +184,21 @@ export default function OutfitDetailModal({ outfit, items, onClose, onEdit }: Pr
                           {cat?.emoji}
                         </div>
                       )}
-                      <div>
-                        <div style={{ fontSize: 14, fontWeight: 600 }}>{item.name}</div>
-                        <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
+                          <div style={{ fontSize: 14, fontWeight: 600 }}>{item.name}</div>
+                          {item.price !== undefined && item.price > 0 && (
+                            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', background: 'var(--bg-3)', padding: '2px 6px', borderRadius: 'var(--radius-sm)' }}>
+                              {formatPrice(item.price)}
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
                           <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: item.color }} />
-                          {cat?.label}
+                          <span>{cat?.label}</span>
+                          {item.brand && (
+                            <span style={{ color: 'var(--accent)', fontWeight: 600 }}>• 🏷️ {item.brand}</span>
+                          )}
                         </div>
                       </div>
                     </div>

@@ -63,6 +63,36 @@ export default function OutfitsView() {
     setToast('✓ Outfit saved!');
   };
 
+  type SortOption = 'newest' | 'oldest' | 'name' | 'most-worn' | 'recently-worn' | 'items-count';
+  const [sortBy, setSortBy] = useState<SortOption>('newest');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  const sortedOutfits = [...outfits].sort((a, b) => {
+    if (sortBy === 'newest') {
+      return (b.createdAt || 0) - (a.createdAt || 0);
+    }
+    if (sortBy === 'oldest') {
+      return (a.createdAt || 0) - (b.createdAt || 0);
+    }
+    if (sortBy === 'name') {
+      return (a.name || '').localeCompare(b.name || '');
+    }
+    if (sortBy === 'most-worn') {
+      const aWorns = a.wearLogs?.length || (a.lastWornAt ? 1 : 0);
+      const bWorns = b.wearLogs?.length || (b.lastWornAt ? 1 : 0);
+      return bWorns - aWorns;
+    }
+    if (sortBy === 'recently-worn') {
+      const aLast = a.wearLogs && a.wearLogs.length > 0 ? Math.max(...a.wearLogs) : (a.lastWornAt || 0);
+      const bLast = b.wearLogs && b.wearLogs.length > 0 ? Math.max(...b.wearLogs) : (b.lastWornAt || 0);
+      return bLast - aLast;
+    }
+    if (sortBy === 'items-count') {
+      return (b.itemIds?.length || 0) - (a.itemIds?.length || 0);
+    }
+    return 0;
+  });
+
   return (
     <div className="page-content">
       {/* Build Button & Generator */}
@@ -152,13 +182,92 @@ export default function OutfitsView() {
         </div>
       )}
 
-      {/* Outfits List */}
-      <div className="section-header">
-        <span className="section-title">Saved Outfits</span>
-        <span className="section-count">{outfits.length}</span>
+      {/* Outfits List Header, Sorting & Toggle */}
+      <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          <span className="section-title">Saved Outfits</span>
+          <span className="section-count">{outfits.length}</span>
+        </div>
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>Sort:</span>
+            <select
+              id="select-outfit-sort"
+              value={sortBy}
+              onChange={e => setSortBy(e.target.value as SortOption)}
+              style={{
+                padding: '4px 8px',
+                fontSize: 12,
+                height: 30,
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--bg-3)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border)',
+                outline: 'none',
+                cursor: 'pointer',
+                fontWeight: 500
+              }}
+            >
+              <option value="newest">📅 Newest</option>
+              <option value="oldest">⌛ Oldest</option>
+              <option value="name">🔤 Name (A-Z)</option>
+              <option value="most-worn">🔥 Most Worn</option>
+              <option value="recently-worn">🕒 Recently Worn</option>
+              <option value="items-count">🛍️ Most Items</option>
+            </select>
+          </div>
+
+          <div className="view-toggle" style={{ display: 'flex', gap: 4, background: 'var(--bg-3)', padding: 3, borderRadius: 'var(--radius-md)' }}>
+            <button
+              id="view-toggle-grid"
+              className={`btn-icon-toggle ${viewMode === 'grid' ? 'active' : ''}`}
+              onClick={() => setViewMode('grid')}
+              title="Grid View (4 photos)"
+              style={{
+                background: viewMode === 'grid' ? 'var(--accent)' : 'transparent',
+                color: viewMode === 'grid' ? '#fff' : 'var(--text-secondary)',
+                border: 'none',
+                borderRadius: 'var(--radius-sm)',
+                padding: '4px 10px',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <span>⊞</span> Grid
+            </button>
+            <button
+              id="view-toggle-list"
+              className={`btn-icon-toggle ${viewMode === 'list' ? 'active' : ''}`}
+              onClick={() => setViewMode('list')}
+              title="List View"
+              style={{
+                background: viewMode === 'list' ? 'var(--accent)' : 'transparent',
+                color: viewMode === 'list' ? '#fff' : 'var(--text-secondary)',
+                border: 'none',
+                borderRadius: 'var(--radius-sm)',
+                padding: '4px 10px',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <span>☰</span> List
+            </button>
+          </div>
+        </div>
       </div>
 
-      {outfits.length === 0 ? (
+      {sortedOutfits.length === 0 ? (
         <div className="empty-state animate-in">
           <div className="empty-state__emoji">✨</div>
           <div className="empty-state__title">No outfits yet</div>
@@ -167,12 +276,13 @@ export default function OutfitsView() {
           </div>
         </div>
       ) : (
-        <div className="outfit-list animate-in">
-          {outfits.map(outfit => (
+        <div className={viewMode === 'grid' ? 'outfit-grid animate-in' : 'outfit-list animate-in'}>
+          {sortedOutfits.map(outfit => (
             <OutfitCard
               key={outfit.id}
               outfit={outfit}
               items={items}
+              viewMode={viewMode}
               onClick={() => setSelectedOutfit(outfit)}
             />
           ))}

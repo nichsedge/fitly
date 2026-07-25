@@ -1,17 +1,49 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from './AppProvider';
-import { CATEGORIES, ClothingItem } from '../lib/types';
+import { CATEGORIES, Category, ClothingItem } from '../lib/types';
 import Toast from './Toast';
 import { triggerHaptic } from '../lib/haptics';
 
-const NON_LAUNDRY_CATEGORIES = ['shoes', 'accessory', 'bag'];
+const DEFAULT_LAUNDRY_CATEGORIES: Category[] = ['top', 'bottom', 'underwear', 'outerwear'];
 
 export default function LaundryView() {
   const { items, updateItem, t, formatPrice } = useApp();
   const [toast, setToast] = useState('');
   const [showAllItems, setShowAllItems] = useState(false);
+  const [showCategorySettings, setShowCategorySettings] = useState(false);
+
+  // Saved customizable laundry categories
+  const [laundryCategories, setLaundryCategories] = useState<Category[]>(DEFAULT_LAUNDRY_CATEGORIES);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('laundryCategories');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setLaundryCategories(parsed);
+        }
+      } catch (e) {
+        console.error('Failed to parse laundryCategories from localStorage', e);
+      }
+    }
+  }, []);
+
+  const toggleLaundryCategory = (cat: Category) => {
+    const next = laundryCategories.includes(cat)
+      ? laundryCategories.filter(c => c !== cat)
+      : [...laundryCategories, cat];
+    
+    if (next.length === 0) {
+      setToast('Select at least one category for laundry basket');
+      return;
+    }
+
+    setLaundryCategories(next);
+    localStorage.setItem('laundryCategories', JSON.stringify(next));
+  };
 
   // Calculate wears since last wash for each item
   const allWornItems = items.map(item => {
@@ -22,9 +54,9 @@ export default function LaundryView() {
   .filter(entry => entry.wearsSinceWash > 0)
   .sort((a, b) => b.wearsSinceWash - a.wearsSinceWash);
 
-  // Filter items: exclude shoes, accessories, and bags by default unless user toggles "Show All"
+  // Filter items based on user's customized laundry categories
   const wornItems = allWornItems.filter(({ item }) => 
-    showAllItems || !NON_LAUNDRY_CATEGORIES.includes(item.category)
+    showAllItems || laundryCategories.includes(item.category)
   );
 
   const handleWashSingleItem = async (item: ClothingItem) => {
@@ -49,6 +81,10 @@ export default function LaundryView() {
     setToast(`✓ All ${wornItems.length} item(s) marked washed & clean!`);
   };
 
+  // Active category emojis for summary label
+  const activeCategoryInfo = CATEGORIES.filter(c => laundryCategories.includes(c.value));
+  const summaryCategoriesLabel = activeCategoryInfo.map(c => c.label).join(', ');
+
   return (
     <div className="page-content animate-in">
       {/* Header */}
@@ -58,8 +94,23 @@ export default function LaundryView() {
             <h2 className="section-title">{t('laundryCounter')}</h2>
             <span className="section-count">{wornItems.length}</span>
           </div>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-            Apparel needing wash (shoes & accessories excluded by default)
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span>Tracking: {summaryCategoriesLabel}</span>
+            <button
+              onClick={() => setShowCategorySettings(!showCategorySettings)}
+              style={{
+                background: 'var(--bg-3)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-pill)',
+                padding: '2px 8px',
+                fontSize: 11,
+                fontWeight: 700,
+                color: 'var(--accent)',
+                cursor: 'pointer'
+              }}
+            >
+              ⚙️ Customize
+            </button>
           </p>
         </div>
 
@@ -82,6 +133,44 @@ export default function LaundryView() {
           </button>
         )}
       </div>
+
+      {/* Customize Laundry Categories Panel */}
+      {showCategorySettings && (
+        <div 
+          className="animate-in" 
+          style={{
+            background: 'var(--bg-3)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 'var(--space-4)',
+            marginBottom: 'var(--space-4)'
+          }}
+        >
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>
+            🧺 Laundry Basket Categories
+          </div>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+            Select which categories automatically count towards your routine laundry when worn:
+          </p>
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+            {CATEGORIES.map(cat => {
+              const isSelected = laundryCategories.includes(cat.value);
+              return (
+                <button
+                  key={cat.value}
+                  type="button"
+                  className={`pill ${isSelected ? 'active' : ''}`}
+                  onClick={() => toggleLaundryCategory(cat.value)}
+                  style={{ fontSize: 12, padding: '4px 12px' }}
+                >
+                  {cat.emoji} {cat.label} {isSelected ? '✓' : ''}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Filter Mode Switcher */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
@@ -112,7 +201,7 @@ export default function LaundryView() {
           </div>
           <p className="empty-state__desc" style={{ fontSize: 14, color: 'var(--text-muted)', maxWidth: 360, margin: '0 auto' }}>
             {!showAllItems && allWornItems.length > 0 
-              ? `Your laundry basket is empty! (${allWornItems.length} non-laundry items like shoes/accessories worn)` 
+              ? `Your customized laundry basket is empty! (${allWornItems.length} items from non-laundry categories worn)` 
               : t('cleanNoWornDesc')}
           </p>
         </div>
@@ -124,12 +213,12 @@ export default function LaundryView() {
             // Wash recommendation thresholds:
             // Underwear: 1 wear
             // Tops: 2 wears
-            // Accessories / Shoes: 3 wears
+            // Accessories / Shoes / Bags: 3 wears
             // Bottoms / Outerwear: 4 wears
             const maxThreshold = 
               item.category === 'underwear' ? 1 : 
               (item.category === 'top' ? 2 : 
-              (NON_LAUNDRY_CATEGORIES.includes(item.category) ? 3 : 4));
+              (item.category === 'shoes' || item.category === 'accessory' || item.category === 'bag' ? 3 : 4));
 
             const isThresholdExceeded = wearsSinceWash >= maxThreshold;
 
