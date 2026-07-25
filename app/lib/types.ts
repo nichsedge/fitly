@@ -41,6 +41,7 @@ export interface ClothingItem {
   careInstructions?: string;
   condition?: ItemCondition;
   lastWashedAt?: number;
+  washLogs?: number[]; // array of timestamps when washed
   locationId?: string;
 }
 
@@ -67,7 +68,7 @@ export interface PlannedOutfit {
   };
 }
 
-export type ActiveTab = 'wardrobe' | 'outfits' | 'laundry' | 'calendar' | 'add' | 'insights';
+export type ActiveTab = 'wardrobe' | 'outfits' | 'laundry' | 'calendar' | 'trips' | 'add' | 'insights';
 
 export const CATEGORIES: { value: Category; label: string; emoji: string }[] = [
   { value: 'top', label: 'Top', emoji: '👕' },
@@ -96,6 +97,39 @@ export const COLORS = [
   { value: '#1d4ed8', label: 'Navy' },
   { value: '#d4a373', label: 'Beige' },
 ];
+
+export function getColorLabel(hex: string): string {
+  if (!hex) return 'Unknown';
+  const found = COLORS.find(c => c.value.toLowerCase() === hex.toLowerCase());
+  if (found) return found.label;
+
+  const cleanHex = hex.replace('#', '');
+  if (cleanHex.length !== 6) return hex;
+
+  const r = parseInt(cleanHex.substring(0, 2), 16);
+  const g = parseInt(cleanHex.substring(2, 4), 16);
+  const b = parseInt(cleanHex.substring(4, 6), 16);
+
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return hex;
+
+  let minDistance = Infinity;
+  let closestLabel = hex;
+
+  COLORS.forEach(c => {
+    const cHex = c.value.replace('#', '');
+    const cr = parseInt(cHex.substring(0, 2), 16);
+    const cg = parseInt(cHex.substring(2, 4), 16);
+    const cb = parseInt(cHex.substring(4, 6), 16);
+
+    const dist = Math.sqrt((r - cr) ** 2 + (g - cg) ** 2 + (b - cb) ** 2);
+    if (dist < minDistance) {
+      minDistance = dist;
+      closestLabel = `${c.label} (${hex.toUpperCase()})`;
+    }
+  });
+
+  return closestLabel;
+}
 
 export interface Trip {
   id: string;

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { ClothingItem, Outfit, CustomTag, PlannedOutfit, WardrobeLocation } from '../lib/types';
+import { ClothingItem, Outfit, CustomTag, PlannedOutfit, WardrobeLocation, Trip } from '../lib/types';
 import * as db from '../lib/db';
 import { getFreshSampleItems } from '../lib/seedData';
 import { Language, Currency, translations, formatCurrency } from '../lib/i18n';
@@ -17,6 +17,7 @@ interface AppState {
   tags: CustomTag[];
   plans: PlannedOutfit[];
   locations: WardrobeLocation[];
+  trips: Trip[];
   activeLocationId: string; // 'all' or specific location id
   setActiveLocationId: (id: string) => void;
   loading: boolean;
@@ -35,6 +36,7 @@ interface AppState {
   refreshTags: () => Promise<void>;
   refreshPlans: () => Promise<void>;
   refreshLocations: () => Promise<void>;
+  refreshTrips: () => Promise<void>;
   addItem: (item: ClothingItem) => Promise<void>;
   updateItem: (item: ClothingItem) => Promise<void>;
   deleteItem: (id: string) => Promise<void>;
@@ -48,10 +50,13 @@ interface AppState {
   addPlan: (plan: PlannedOutfit) => Promise<void>;
   updatePlan: (plan: PlannedOutfit) => Promise<void>;
   deletePlan: (id: string) => Promise<void>;
+  addTrip: (trip: Trip) => Promise<void>;
+  updateTrip: (trip: Trip) => Promise<void>;
+  deleteTrip: (id: string) => Promise<void>;
   addTag: (tag: CustomTag) => Promise<void>;
   updateTag: (tag: CustomTag, oldLabel: string) => Promise<void>;
   deleteTag: (id: string, label: string) => Promise<void>;
-  restoreBackup: (items: ClothingItem[], outfits: Outfit[], tags?: CustomTag[]) => Promise<void>;
+  restoreBackup: (items: ClothingItem[], outfits: Outfit[], tags?: CustomTag[], locations?: WardrobeLocation[], trips?: Trip[]) => Promise<void>;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
 }
@@ -64,6 +69,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [tags, setTags] = useState<CustomTag[]>([]);
   const [plans, setPlans] = useState<PlannedOutfit[]>([]);
   const [locations, setLocations] = useState<WardrobeLocation[]>([]);
+  const [trips, setTrips] = useState<Trip[]>([]);
   const [activeLocationId, setActiveLocationIdState] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
@@ -119,6 +125,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const refreshLocations = useCallback(async () => {
     const all = await db.getAllLocations();
     setLocations(all);
+  }, []);
+
+  const refreshTrips = useCallback(async () => {
+    const all = await db.getAllTrips();
+    setTrips(all.sort((a, b) => a.startDate.localeCompare(b.startDate)));
   }, []);
 
   useEffect(() => {
@@ -180,10 +191,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     init().then(async () => {
       await db.seedTagsIfEmpty();
       await db.seedLocationsIfEmpty();
-      await Promise.all([refreshItems(), refreshOutfits(), refreshTags(), refreshPlans(), refreshLocations()]);
+      await Promise.all([refreshItems(), refreshOutfits(), refreshTags(), refreshPlans(), refreshLocations(), refreshTrips()]);
       setLoading(false);
     });
-  }, [refreshItems, refreshOutfits, refreshTags, refreshPlans, refreshLocations]);
+  }, [refreshItems, refreshOutfits, refreshTags, refreshPlans, refreshLocations, refreshTrips]);
 
   const loadSampleData = useCallback(async () => {
     const sampleItems = getFreshSampleItems();
@@ -283,6 +294,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await refreshPlans();
   }, [refreshPlans]);
 
+  const addTrip = useCallback(async (trip: Trip) => {
+    await db.addTrip(trip);
+    await refreshTrips();
+  }, [refreshTrips]);
+
+  const updateTrip = useCallback(async (trip: Trip) => {
+    await db.updateTrip(trip);
+    await refreshTrips();
+  }, [refreshTrips]);
+
+  const deleteTrip = useCallback(async (id: string) => {
+    await db.deleteTrip(id);
+    await refreshTrips();
+  }, [refreshTrips]);
+
   const addTag = useCallback(async (tag: CustomTag) => {
     await db.addTag(tag);
     await refreshTags();
@@ -314,16 +340,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await refreshItems();
   }, [items, refreshTags, refreshItems]);
 
-  const restoreBackup = useCallback(async (newItems: ClothingItem[], newOutfits: Outfit[], newTags?: CustomTag[]) => {
-    await db.restoreFromBackup(newItems, newOutfits, newTags);
+  const restoreBackup = useCallback(async (
+    newItems: ClothingItem[],
+    newOutfits: Outfit[],
+    newTags?: CustomTag[],
+    newLocations?: WardrobeLocation[],
+    newTrips?: Trip[]
+  ) => {
+    await db.restoreFromBackup(newItems, newOutfits, newTags, newLocations, newTrips);
     await refreshItems();
     await refreshOutfits();
     await refreshTags();
-  }, [refreshItems, refreshOutfits, refreshTags]);
+    await refreshLocations();
+    await refreshTrips();
+  }, [refreshItems, refreshOutfits, refreshTags, refreshLocations, refreshTrips]);
 
   return (
     <AppContext.Provider value={{
-      items, outfits, tags, plans, locations, activeLocationId, setActiveLocationId, loading,
+      items, outfits, tags, plans, locations, trips, activeLocationId, setActiveLocationId, loading,
       isOffline,
       isInstallable: !!deferredPrompt,
       currency,
@@ -334,11 +368,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       formatPrice,
       promptInstallApp,
       loadSampleData,
-      refreshItems, refreshOutfits, refreshTags, refreshPlans, refreshLocations,
+      refreshItems, refreshOutfits, refreshTags, refreshPlans, refreshLocations, refreshTrips,
       addItem, updateItem, deleteItem, batchMoveItemsLocation,
       addLocation, updateLocation, deleteLocation,
       addOutfit, updateOutfit, deleteOutfit,
       addPlan, updatePlan, deletePlan,
+      addTrip, updateTrip, deleteTrip,
       addTag, updateTag, deleteTag,
       restoreBackup,
       theme,

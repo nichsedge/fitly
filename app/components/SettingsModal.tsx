@@ -5,6 +5,7 @@ import { useApp } from './AppProvider';
 import Toast from './Toast';
 import TagsManagerModal from './TagsManagerModal';
 import { Currency } from '../lib/i18n';
+import { Category, ItemCondition } from '../lib/types';
 import { v4 as uuidv4 } from 'uuid';
 
 interface Props {
@@ -110,7 +111,7 @@ export default function SettingsModal({ onClose }: Props) {
         );
 
         if (confirmRestore) {
-          await restoreBackup(backup.items, backup.outfits || [], backup.tags);
+          await restoreBackup(backup.items, backup.outfits || [], backup.tags, backup.locations, backup.trips);
           setToast('✓ Restore complete!');
           setTimeout(onClose, 1000);
         }
@@ -126,10 +127,115 @@ export default function SettingsModal({ onClose }: Props) {
     reader.readAsText(file);
   };
 
+  const handleExportCSV = () => {
+    try {
+      const headers = ['id', 'name', 'category', 'brand', 'price', 'color', 'tags', 'status', 'condition', 'material', 'careInstructions', 'locationId', 'createdAt', 'wearCount'];
+      const rows = items.map(item => {
+        return [
+          item.id,
+          `"${(item.name || '').replace(/"/g, '""')}"`,
+          item.category,
+          `"${(item.brand || '').replace(/"/g, '""')}"`,
+          item.price || '',
+          item.color,
+          `"${(item.tags || []).join(';')}"`,
+          item.status,
+          item.condition || 'good',
+          `"${(item.material || '').replace(/"/g, '""')}"`,
+          `"${(item.careInstructions || '').replace(/"/g, '""')}"`,
+          item.locationId || 'loc-home',
+          item.createdAt,
+          item.wearLogs ? item.wearLogs.length : 0
+        ].join(',');
+      });
+
+      const csvContent = [headers.join(','), ...rows].join('\n');
+      const filename = `fitly-wardrobe-${new Date().toISOString().split('T')[0]}.csv`;
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        if (document.body.contains(link)) document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 10000);
+
+      setToast('✓ CSV Spreadsheet exported!');
+    } catch (err) {
+      console.error('CSV export failed:', err);
+      setToast('❌ CSV Export failed');
+    }
+  };
+
+  const csvFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try {
+        const text = ev.target?.result as string;
+        const lines = text.split('\n').filter(l => l.trim().length > 0);
+        if (lines.length <= 1) {
+          alert('CSV file is empty or missing headers');
+          return;
+        }
+
+        const { addItem } = await import('../lib/db');
+        let count = 0;
+
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i];
+          const parts = line.split(',');
+          if (parts.length < 2) continue;
+
+          const clean = (val: string) => (val || '').replace(/^"|"$/g, '').replace(/""/g, '"').trim();
+          const name = clean(parts[1] || parts[0]);
+          if (!name || name.toLowerCase() === 'name') continue;
+
+          const newItem = {
+            id: uuidv4(),
+            name,
+            category: (clean(parts[2]) as Category) || 'top',
+            brand: clean(parts[3]),
+            price: parts[4] ? parseFloat(clean(parts[4])) || undefined : undefined,
+            color: clean(parts[5]) || '#1a1a1a',
+            tags: clean(parts[6]) ? clean(parts[6]).split(';').map(t => t.trim()) : [],
+            status: 'ready' as const,
+            condition: (clean(parts[8]) as ItemCondition) || 'good',
+            material: clean(parts[9]),
+            careInstructions: clean(parts[10]),
+            locationId: clean(parts[11]) || 'loc-home',
+            createdAt: Date.now(),
+            images: [],
+            wearLogs: []
+          };
+
+          await addItem(newItem);
+          count++;
+        }
+
+        setToast(`✓ Imported ${count} item(s) from CSV!`);
+        setTimeout(() => window.location.reload(), 1200);
+      } catch (err) {
+        console.error('CSV import failed:', err);
+        alert('Failed to parse CSV file.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   return (
     <>
       <div className="modal-overlay" onClick={onClose}>
-        <div className="modal-sheet animate-scale" onClick={e => e.stopPropagation()}>
+        <div className="modal-sheet animate-slide-up" onClick={e => e.stopPropagation()}>
           <div className="modal-header">
             <span className="modal-title">{t('settings')}</span>
             <button id="settings-close" className="modal-close" onClick={onClose}>✕</button>
@@ -366,44 +472,153 @@ export default function SettingsModal({ onClose }: Props) {
               )}
             </div>
 
-            <div className="section-header" style={{ marginTop: 0 }}>
-              <span className="section-title">{t('dataManagement')}</span>
+            <div className="section-header" style={{ marginTop: 0, marginBottom: 12 }}>
+              <span className="section-title">💾 {t('dataManagement')}</span>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-              <button 
-                id="btn-backup-wardrobe"
-                className="btn btn-ghost btn-full" 
-                onClick={handleBackup}
-                style={{ justifyContent: 'flex-start', paddingLeft: 'var(--space-4)' }}
-              >
-                📥 {t('exportBackup')} (.json)
-              </button>
               
-              <button 
-                id="btn-restore-wardrobe"
-                className="btn btn-ghost btn-full" 
-                onClick={() => fileInputRef.current?.click()}
-                disabled={restoring}
-                style={{ justifyContent: 'flex-start', paddingLeft: 'var(--space-4)' }}
-              >
-                📤 {restoring ? 'Restoring...' : t('restoreBackup')}
-              </button>
+              {/* Card 1: EXPORT & BACKUP */}
+              <div style={{
+                background: 'var(--bg-3)',
+                padding: 'var(--space-4)',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--border)'
+              }}>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>
+                  📤 Export & Backup
+                </div>
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '0 0 10px 0' }}>
+                  Save your wardrobe data to your device for safekeeping or spreadsheet analysis.
+                </p>
 
-              <button 
-                id="btn-manage-tags"
-                className="btn btn-ghost btn-full" 
-                onClick={() => setShowTagsManager(true)}
-                style={{ justifyContent: 'flex-start', paddingLeft: 'var(--space-4)' }}
-              >
-                🏷️ {t('manageTags')}
-              </button>
-              
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <button 
+                    id="btn-backup-wardrobe"
+                    className="btn btn-ghost" 
+                    onClick={handleBackup}
+                    style={{
+                      justifyContent: 'flex-start',
+                      width: '100%',
+                      background: 'var(--bg-2)',
+                      border: '1px solid var(--border)',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      padding: '8px 12px'
+                    }}
+                  >
+                    📦 Full App Backup (.json)
+                  </button>
+
+                  <button 
+                    id="btn-export-csv"
+                    className="btn btn-ghost" 
+                    onClick={handleExportCSV}
+                    style={{
+                      justifyContent: 'flex-start',
+                      width: '100%',
+                      background: 'var(--bg-2)',
+                      border: '1px solid var(--border)',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      padding: '8px 12px'
+                    }}
+                  >
+                    📊 Spreadsheet Export (.csv)
+                  </button>
+                </div>
+              </div>
+
+              {/* Card 2: IMPORT & RESTORE */}
+              <div style={{
+                background: 'var(--bg-3)',
+                padding: 'var(--space-4)',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--border)'
+              }}>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>
+                  📥 Import & Restore
+                </div>
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '0 0 10px 0' }}>
+                  Restore previously saved backups or bulk import wardrobe items from Excel.
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <button 
+                    id="btn-restore-wardrobe"
+                    className="btn btn-ghost" 
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={restoring}
+                    style={{
+                      justifyContent: 'flex-start',
+                      width: '100%',
+                      background: 'var(--bg-2)',
+                      border: '1px solid var(--border)',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      padding: '8px 12px'
+                    }}
+                  >
+                    🔄 {restoring ? 'Restoring...' : 'Restore JSON Backup (.json)'}
+                  </button>
+
+                  <button 
+                    id="btn-import-csv"
+                    className="btn btn-ghost" 
+                    onClick={() => csvFileInputRef.current?.click()}
+                    style={{
+                      justifyContent: 'flex-start',
+                      width: '100%',
+                      background: 'var(--bg-2)',
+                      border: '1px solid var(--border)',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      padding: '8px 12px'
+                    }}
+                  >
+                    📥 Bulk Import CSV (.csv)
+                  </button>
+                </div>
+              </div>
+
+              {/* Card 3: STYLE TAGS */}
+              <div style={{
+                background: 'var(--bg-3)',
+                padding: 'var(--space-4)',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--border)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12
+              }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700 }}>🏷️ Style Tags</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Manage custom tags for your clothes</div>
+                </div>
+                <button 
+                  id="btn-manage-tags"
+                  className="btn btn-primary" 
+                  onClick={() => setShowTagsManager(true)}
+                  style={{ fontSize: 12, padding: '6px 12px', height: 'auto', flexShrink: 0 }}
+                >
+                  Manage Tags
+                </button>
+              </div>
+
               <input
                 ref={fileInputRef}
                 type="file"
                 accept=".json"
                 onChange={handleRestore}
+                style={{ display: 'none' }}
+              />
+
+              <input
+                ref={csvFileInputRef}
+                type="file"
+                accept=".csv"
+                onChange={handleImportCSV}
                 style={{ display: 'none' }}
               />
             </div>

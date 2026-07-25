@@ -183,7 +183,7 @@ export default function DailyOutfitBuilder({ startingItem, onClose }: Props) {
           
           <div style={{ padding: 'var(--space-4) var(--space-6)', borderTop: '1px solid var(--border)', background: 'var(--modal-bg)', position: 'sticky', bottom: 0 }}>
             <button className="btn btn-primary btn-full" onClick={handleSave}>
-              Save Today's Look ({Object.keys(selectedItems).length} items)
+              Save Today&apos;s Look ({Object.keys(selectedItems).length} items)
             </button>
             <p style={{ textAlign: 'center', marginTop: 'var(--space-2)', fontSize: 12 }}>
               <button 

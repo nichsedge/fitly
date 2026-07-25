@@ -57,7 +57,7 @@ export default function TagsManagerModal({ onClose }: Props) {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay tags-manager-overlay" onClick={onClose}>
       <div className="modal-sheet animate-slide-up" onClick={e => e.stopPropagation()} style={{ maxHeight: '80dvh' }}>
         <div className="modal-header">
           <span className="modal-title">Manage Tags</span>

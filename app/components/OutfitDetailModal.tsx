@@ -10,9 +10,11 @@ interface Props {
   items: ClothingItem[];
   onClose: () => void;
   onEdit: () => void;
+  logDateKey?: string;
+  onRemoveLogFromDate?: (dateKey: string) => Promise<void>;
 }
 
-export default function OutfitDetailModal({ outfit, items, onClose, onEdit }: Props) {
+export default function OutfitDetailModal({ outfit, items, onClose, onEdit, logDateKey, onRemoveLogFromDate }: Props) {
   const { deleteOutfit, updateOutfit, updateItem, formatPrice } = useApp();
   const [confirming, setConfirming] = useState(false);
   const [toast, setToast] = useState('');
@@ -106,7 +108,6 @@ export default function OutfitDetailModal({ outfit, items, onClose, onEdit }: Pr
                 style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
               >
                 {outfit.name || 'Untitled Outfit'}
-                <span style={{ fontSize: 12, opacity: 0.5 }}>✏️</span>
               </div>
             )}
             <button id="outfit-detail-close" className="modal-close" onClick={onClose}>✕</button>
@@ -225,13 +226,26 @@ export default function OutfitDetailModal({ outfit, items, onClose, onEdit }: Pr
               <button id="btn-edit-outfit" className="btn btn-ghost btn-full" onClick={onEdit}>
                 ✏️ Edit outfit
               </button>
-              <button
-                id="btn-delete-outfit"
-                className="btn btn-danger btn-full"
-                onClick={handleDelete}
-              >
-                {confirming ? '⚠️ Tap again to confirm delete' : '🗑 Delete outfit'}
-              </button>
+              {logDateKey && onRemoveLogFromDate ? (
+                <button
+                  id="btn-remove-log"
+                  className="btn btn-danger btn-full"
+                  onClick={async () => {
+                    await onRemoveLogFromDate(logDateKey);
+                    onClose();
+                  }}
+                >
+                  🗑 Remove log for this day
+                </button>
+              ) : (
+                <button
+                  id="btn-delete-outfit"
+                  className="btn btn-danger btn-full"
+                  onClick={handleDelete}
+                >
+                  {confirming ? '⚠️ Tap again to confirm delete outfit' : '🗑 Delete outfit'}
+                </button>
+              )}
             </div>
           </div>
         </div>

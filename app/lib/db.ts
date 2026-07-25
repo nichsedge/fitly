@@ -100,6 +100,7 @@ export async function seedLocationsIfEmpty(): Promise<void> {
 }
 
 // Items
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function migrateItem(raw: any): ClothingItem {
   if (!raw) return raw;
   
@@ -128,6 +129,7 @@ function migrateItem(raw: any): ClothingItem {
   return raw as ClothingItem;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function migrateOutfit(raw: any): Outfit {
   if (!raw) return raw;
   if (raw.lastWornAt && !raw.wearLogs) {
@@ -154,8 +156,8 @@ export async function addItem(item: ClothingItem): Promise<void> {
   try {
     const db = await getDB();
     await db.add('items', item);
-  } catch (err: any) {
-    if (err?.name === 'QuotaExceededError') {
+  } catch (err: unknown) {
+    if ((err as { name?: string })?.name === 'QuotaExceededError') {
       throw new Error('Device storage limit reached. Please clear old items or photos in Settings.');
     }
     throw err;
@@ -166,8 +168,8 @@ export async function updateItem(item: ClothingItem): Promise<void> {
   try {
     const db = await getDB();
     await db.put('items', item);
-  } catch (err: any) {
-    if (err?.name === 'QuotaExceededError') {
+  } catch (err: unknown) {
+    if ((err as { name?: string })?.name === 'QuotaExceededError') {
       throw new Error('Device storage limit reached. Please clear old items or photos in Settings.');
     }
     throw err;
@@ -217,8 +219,8 @@ export async function addOutfit(outfit: Outfit): Promise<void> {
   try {
     const db = await getDB();
     await db.add('outfits', outfit);
-  } catch (err: any) {
-    if (err?.name === 'QuotaExceededError') {
+  } catch (err: unknown) {
+    if ((err as { name?: string })?.name === 'QuotaExceededError') {
       throw new Error('Device storage limit reached.');
     }
     throw err;
@@ -229,8 +231,8 @@ export async function updateOutfit(outfit: Outfit): Promise<void> {
   try {
     const db = await getDB();
     await db.put('outfits', outfit);
-  } catch (err: any) {
-    if (err?.name === 'QuotaExceededError') {
+  } catch (err: unknown) {
+    if ((err as { name?: string })?.name === 'QuotaExceededError') {
       throw new Error('Device storage limit reached.');
     }
     throw err;
@@ -306,9 +308,17 @@ export async function deleteTag(id: string): Promise<void> {
 }
 
 // Backup & Restore
-export async function restoreFromBackup(items: ClothingItem[], outfits: Outfit[], tags?: CustomTag[]): Promise<void> {
+export async function restoreFromBackup(
+  items: ClothingItem[],
+  outfits: Outfit[],
+  tags?: CustomTag[],
+  locations?: WardrobeLocation[],
+  trips?: Trip[]
+): Promise<void> {
   const db = await getDB();
-  const storeNames: Array<"items" | "outfits" | "tags"> = ['items', 'outfits', 'tags'];
+  const storeNames: Array<"items" | "outfits" | "tags" | "locations" | "trips"> = [
+    'items', 'outfits', 'tags', 'locations', 'trips'
+  ];
   const tx = db.transaction(storeNames, 'readwrite');
   
   // 1. Clear existing data
@@ -326,11 +336,27 @@ export async function restoreFromBackup(items: ClothingItem[], outfits: Outfit[]
     await outfitStore.add(migrateOutfit(outfit));
   }
 
-  if (tags) {
+  if (tags && tags.length > 0) {
     const tagStore = tx.objectStore('tags');
     await tagStore.clear();
     for (const tag of tags) {
       await tagStore.add(tag);
+    }
+  }
+
+  if (locations && locations.length > 0) {
+    const locStore = tx.objectStore('locations');
+    await locStore.clear();
+    for (const loc of locations) {
+      await locStore.add(loc);
+    }
+  }
+
+  if (trips && trips.length > 0) {
+    const tripStore = tx.objectStore('trips');
+    await tripStore.clear();
+    for (const trip of trips) {
+      await tripStore.add(trip);
     }
   }
   

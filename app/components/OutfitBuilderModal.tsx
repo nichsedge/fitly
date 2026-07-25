@@ -78,26 +78,99 @@ export default function OutfitBuilderModal({ initialOutfit, onClose }: Props) {
           </div>
 
           <div className="modal-body">
-            {/* Selected preview */}
+            {/* Selected preview with Layered Outfit Canvas */}
             {selectedItems.length > 0 && (
               <div style={{ marginBottom: 'var(--space-5)' }}>
-                <div className="build-section__header">Selected ({selectedItems.length})</div>
-                <div className="selected-items-preview">
-                  {selectedItems.map(item => {
-                    const cat = CATEGORIES.find(c => c.value === item.category);
-                    return item.images && item.images.length > 0 ? (
-                      <img
-                        key={item.id}
-                        src={item.images[0]}
-                        alt={item.name}
-                        className="selected-item-thumb"
-                      />
-                    ) : (
-                      <div key={item.id} className="selected-item-thumb--placeholder">
-                        {cat?.emoji}
-                      </div>
-                    );
-                  })}
+                <div className="build-section__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Visual Canvas ({selectedItems.length})</span>
+                  <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>Layered Preview</span>
+                </div>
+
+                {/* Layered Canvas Box */}
+                <div
+                  style={{
+                    background: 'var(--bg-3)',
+                    border: '1px dashed var(--border)',
+                    borderRadius: 'var(--radius-lg)',
+                    padding: 14,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 8,
+                    marginBottom: 10,
+                  }}
+                >
+                  {/* Outerwear & Top Layer */}
+                  {selectedItems.filter((i) => i.category === 'outerwear' || i.category === 'top').length > 0 && (
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
+                      {selectedItems
+                        .filter((i) => i.category === 'outerwear' || i.category === 'top')
+                        .map((item) => (
+                          <div key={item.id} style={{ position: 'relative', textAlign: 'center' }}>
+                            {item.images && item.images[0] ? (
+                              <img
+                                src={item.images[0]}
+                                alt={item.name}
+                                style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '2px solid var(--accent)' }}
+                              />
+                            ) : (
+                              <div style={{ width: 64, height: 64, borderRadius: 8, background: 'var(--bg-2)', display: 'grid', placeItems: 'center', fontSize: 24 }}>
+                                👕
+                              </div>
+                            )}
+                            <span style={{ fontSize: 10, display: 'block', fontWeight: 600, marginTop: 2, color: 'var(--text-secondary)' }}>{item.name}</span>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+
+                  {/* Bottom Layer */}
+                  {selectedItems.filter((i) => i.category === 'bottom' || i.category === 'underwear').length > 0 && (
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
+                      {selectedItems
+                        .filter((i) => i.category === 'bottom' || i.category === 'underwear')
+                        .map((item) => (
+                          <div key={item.id} style={{ position: 'relative', textAlign: 'center' }}>
+                            {item.images && item.images[0] ? (
+                              <img
+                                src={item.images[0]}
+                                alt={item.name}
+                                style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '2px solid #3b82f6' }}
+                              />
+                            ) : (
+                              <div style={{ width: 64, height: 64, borderRadius: 8, background: 'var(--bg-2)', display: 'grid', placeItems: 'center', fontSize: 24 }}>
+                                👖
+                              </div>
+                            )}
+                            <span style={{ fontSize: 10, display: 'block', fontWeight: 600, marginTop: 2, color: 'var(--text-secondary)' }}>{item.name}</span>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+
+                  {/* Shoes & Accessories */}
+                  {selectedItems.filter((i) => i.category === 'shoes' || i.category === 'accessory' || i.category === 'bag').length > 0 && (
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
+                      {selectedItems
+                        .filter((i) => i.category === 'shoes' || i.category === 'accessory' || i.category === 'bag')
+                        .map((item) => (
+                          <div key={item.id} style={{ position: 'relative', textAlign: 'center' }}>
+                            {item.images && item.images[0] ? (
+                              <img
+                                src={item.images[0]}
+                                alt={item.name}
+                                style={{ width: 52, height: 52, objectFit: 'cover', borderRadius: 8, border: '2px solid #10b981' }}
+                              />
+                            ) : (
+                              <div style={{ width: 52, height: 52, borderRadius: 8, background: 'var(--bg-2)', display: 'grid', placeItems: 'center', fontSize: 20 }}>
+                                👟
+                              </div>
+                            )}
+                            <span style={{ fontSize: 10, display: 'block', fontWeight: 600, marginTop: 2, color: 'var(--text-secondary)' }}>{item.name}</span>
+                          </div>
+                        ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}

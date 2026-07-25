@@ -49,6 +49,69 @@ function compressImage(file: File, maxWidth = 1200, maxHeight = 1200, quality = 
   });
 }
 
+function extractDominantColor(dataUrl: string): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return resolve('#1a1a1a');
+
+      canvas.width = 50;
+      canvas.height = 50;
+      ctx.drawImage(img, 0, 0, 50, 50);
+
+      const imageData = ctx.getImageData(10, 10, 30, 30);
+      const data = imageData.data;
+
+      let rSum = 0, gSum = 0, bSum = 0, count = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const a = data[i + 3];
+
+        if (a > 200) {
+          // Ignore near white background if possible
+          if (!(r > 245 && g > 245 && b > 245)) {
+            rSum += r;
+            gSum += g;
+            bSum += b;
+            count++;
+          }
+        }
+      }
+
+      if (count === 0) return resolve('#1a1a1a');
+
+      const avgR = Math.round(rSum / count);
+      const avgG = Math.round(gSum / count);
+      const avgB = Math.round(bSum / count);
+
+      let closestColor = COLORS[0].value;
+      let minDistance = Infinity;
+
+      COLORS.forEach(c => {
+        const cleanHex = c.value.replace('#', '');
+        const cr = parseInt(cleanHex.substring(0, 2), 16);
+        const cg = parseInt(cleanHex.substring(2, 4), 16);
+        const cb = parseInt(cleanHex.substring(4, 6), 16);
+
+        const dist = Math.sqrt((avgR - cr) ** 2 + (avgG - cg) ** 2 + (avgB - cb) ** 2);
+        if (dist < minDistance) {
+          minDistance = dist;
+          closestColor = c.value;
+        }
+      });
+
+      resolve(closestColor);
+    };
+    img.onerror = () => resolve('#1a1a1a');
+    img.src = dataUrl;
+  });
+}
+
 export default function AddItemView({ onDone }: Props) {
   const { addItem, tags: dynamicTags, addTag, locations, activeLocationId, t, currency } = useApp();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -88,12 +151,20 @@ export default function AddItemView({ onDone }: Props) {
       
       setImages(prev => [...prev, ...validCompressed]);
 
+      if (validCompressed[0]) {
+        // Auto-extract color from first photo
+        const extractedColor = await extractDominantColor(validCompressed[0]);
+        if (extractedColor) {
+          setColor(extractedColor);
+        }
+      }
+
       // Auto-fill item name from first file if empty
       if (!name && filesToProcess[0]) {
         const base = filesToProcess[0].name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
         setName(base.charAt(0).toUpperCase() + base.slice(1));
       }
-      setToast(`✓ Added ${validCompressed.length} compressed photo(s)`);
+      setToast(`✓ Added ${validCompressed.length} compressed photo(s) & detected color`);
     } catch (err) {
       console.error('Image compression failed:', err);
       setToast('Failed to load photos');
@@ -329,7 +400,7 @@ export default function AddItemView({ onDone }: Props) {
             id="item-condition" 
             className="form-input" 
             value={condition} 
-            onChange={e => setCondition(e.target.value as any)}
+            onChange={e => setCondition(e.target.value as ClothingItem['condition'])}
             style={{ padding: '0 8px' }}
           >
             <option value="new">New</option>

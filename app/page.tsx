@@ -9,18 +9,39 @@ import AddItemView from './components/AddItemView';
 import CalendarTab from './components/CalendarTab';
 import InsightsSection from './components/InsightsSection';
 import SettingsModal from './components/SettingsModal';
+import TripsView from './components/TripsView';
+import QuickAddModal from './components/QuickAddModal';
+import MoreMenuModal from './components/MoreMenuModal';
 import { ActiveTab } from './lib/types';
 import { triggerHaptic } from './lib/haptics';
 
 export default function Home() {
-  const { loading, theme, toggleTheme, isOffline, t, language, setLanguage, locations, activeLocationId, setActiveLocationId } = useApp();
+  const { 
+    loading, 
+    items, 
+    theme, 
+    toggleTheme, 
+    isOffline, 
+    t, 
+    language, 
+    setLanguage, 
+    locations, 
+    activeLocationId, 
+    setActiveLocationId 
+  } = useApp();
+
   const [activeTab, setActiveTab] = useState<ActiveTab>('wardrobe');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
 
   const handleTabChange = (tab: ActiveTab) => {
     triggerHaptic(8);
     setActiveTab(tab);
   };
+
+  const dirtyCount = items.filter(i => i.status === 'dirty' || (i.wearLogs && i.wearLogs.length > 0)).length;
+  const isMoreActive = ['calendar', 'trips', 'insights'].includes(activeTab);
 
   if (loading) {
     return (
@@ -135,6 +156,7 @@ export default function Home() {
         {activeTab === 'outfits' && <OutfitsView />}
         {activeTab === 'laundry' && <LaundryView />}
         {activeTab === 'calendar' && <CalendarTab />}
+        {activeTab === 'trips' && <TripsView />}
         {activeTab === 'insights' && (
           <div className="page-content">
             <div className="section-header">
@@ -150,7 +172,23 @@ export default function Home() {
         <SettingsModal onClose={() => setIsSettingsOpen(false)} />
       )}
 
-      {/* Bottom Nav */}
+      {isQuickAddOpen && (
+        <QuickAddModal 
+          onClose={() => setIsQuickAddOpen(false)} 
+          onSelectAction={(tab) => handleTabChange(tab)}
+        />
+      )}
+
+      {isMoreOpen && (
+        <MoreMenuModal 
+          activeTab={activeTab}
+          onClose={() => setIsMoreOpen(false)}
+          onSelectTab={(tab) => handleTabChange(tab)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+        />
+      )}
+
+      {/* Modern 5-Slot Bottom Nav */}
       <nav className="bottom-nav">
         <button
           id="nav-wardrobe"
@@ -170,33 +208,49 @@ export default function Home() {
           <span className="nav-btn__label">{t('outfits')}</span>
         </button>
 
+        {/* Center Quick Action FAB */}
+        <div className="nav-center-slot">
+          <button
+            id="nav-quick-add"
+            className="nav-btn nav-btn--add"
+            onClick={() => {
+              triggerHaptic(12);
+              setIsQuickAddOpen(true);
+            }}
+            aria-label="Quick Add"
+            title="Quick Add Item, Outfit, or Trip"
+          >
+            <span className="nav-btn__icon">＋</span>
+          </button>
+        </div>
+
         <button
           id="nav-laundry"
           className={`nav-btn ${activeTab === 'laundry' ? 'active' : ''}`}
           onClick={() => handleTabChange('laundry')}
         >
-          <span className="nav-btn__icon">🧺</span>
+          <span className="nav-btn__icon">
+            🧺
+            {dirtyCount > 0 && (
+              <span className="nav-btn__badge">{dirtyCount > 9 ? '9+' : dirtyCount}</span>
+            )}
+          </span>
           <span className="nav-btn__label">{t('laundry')}</span>
         </button>
 
         <button
-          id="nav-calendar"
-          className={`nav-btn ${activeTab === 'calendar' ? 'active' : ''}`}
-          onClick={() => handleTabChange('calendar')}
+          id="nav-more"
+          className={`nav-btn ${isMoreActive || isMoreOpen ? 'active' : ''}`}
+          onClick={() => {
+            triggerHaptic(10);
+            setIsMoreOpen(true);
+          }}
         >
-          <span className="nav-btn__icon">📅</span>
-          <span className="nav-btn__label">{t('calendar')}</span>
-        </button>
-
-        <button
-          id="nav-insights"
-          className={`nav-btn ${activeTab === 'insights' ? 'active' : ''}`}
-          onClick={() => handleTabChange('insights')}
-        >
-          <span className="nav-btn__icon">📊</span>
-          <span className="nav-btn__label">{t('stats')}</span>
+          <span className="nav-btn__icon">•••</span>
+          <span className="nav-btn__label">More</span>
         </button>
       </nav>
     </div>
   );
 }
+

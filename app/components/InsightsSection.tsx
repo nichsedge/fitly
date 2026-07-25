@@ -1,11 +1,11 @@
 'use client';
 
 import { useApp } from './AppProvider';
-import { CATEGORIES, COLORS, ClothingItem } from '../lib/types';
+import { CATEGORIES, getColorLabel } from '../lib/types';
 import { useMemo } from 'react';
 
 export default function InsightsSection() {
-  const { items, outfits, formatPrice, currency } = useApp();
+  const { items, outfits, formatPrice } = useApp();
 
   const stats = useMemo(() => {
     if (items.length === 0) return null;
@@ -50,6 +50,7 @@ export default function InsightsSection() {
       .slice(0, 5);
 
     // Hibernating items (not worn in 6 months or 1 wear max if added > 6mo ago)
+    // eslint-disable-next-line react-hooks/purity
     const sixMonthsAgo = Date.now() - (180 * 24 * 60 * 60 * 1000);
     const hibernating = items.filter(item => {
       const lastWorn = item.wearLogs && item.wearLogs.length > 0 
@@ -71,7 +72,7 @@ export default function InsightsSection() {
       topColors,
       hibernating
     };
-  }, [items, outfits, currency]);
+  }, [items, outfits]);
 
   if (!stats) return null;
 
@@ -107,59 +108,156 @@ export default function InsightsSection() {
           <div className="insight-card__main-val">{stats.itemCount}</div>
           <div className="insight-card__sub-val">Unique Items</div>
           <div className="insight-card__mini-list">
-            {CATEGORIES.slice(0, 4).map(cat => (
-              <div key={cat.value} className="mini-stat">
-                <span title={cat.label}>{cat.emoji}</span>
-                <span className="mini-stat__bar">
-                  <div style={{ width: `${(stats.catCounts[cat.value] || 0) / Math.max(1, stats.itemCount) * 100}%` }} />
-                </span>
-              </div>
-            ))}
+            {CATEGORIES.slice(0, 4).map(cat => {
+              const count = stats.catCounts[cat.value] || 0;
+              const pct = Math.round((count / Math.max(1, stats.itemCount)) * 100);
+              return (
+                <div key={cat.value} className="mini-stat" style={{ gap: 6, alignItems: 'center' }}>
+                  <span style={{ fontSize: 13, flexShrink: 0 }} title={cat.label}>{cat.emoji}</span>
+                  <span className="mini-stat__label" style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', width: 44, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                    {cat.label}
+                  </span>
+                  <span className="mini-stat__bar">
+                    <div style={{ width: `${pct}%` }} />
+                  </span>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-primary)', minWidth: 16, textAlign: 'right', flexShrink: 0 }}>
+                    {count}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
 
       <div className="insight-card" style={{ marginTop: 'var(--space-3)' }}>
         <div className="insight-card__title">Color Palette</div>
-        <div style={{ display: 'flex', height: 24, borderRadius: 'var(--radius-pill)', overflow: 'hidden', marginTop: 12, border: '1px solid rgba(255,255,255,0.1)' }}>
-          {stats.topColors.map(([color, count]) => (
+        <div style={{ 
+          display: 'flex', 
+          height: 26, 
+          borderRadius: 'var(--radius-pill)', 
+          overflow: 'hidden', 
+          marginTop: 12, 
+          border: '1.5px solid var(--border)',
+          background: 'var(--bg-3)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+        }}>
+          {stats.topColors.map(([color, count], idx) => (
             <div 
               key={color} 
               style={{ 
                 width: `${(count / stats.itemCount) * 100}%`, 
                 backgroundColor: color,
+                boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.2), inset 0 0 0 2px rgba(0,0,0,0.15)',
+                borderRight: idx < stats.topColors.length - 1 ? '1.5px solid var(--bg-1)' : 'none',
                 transition: 'width 0.3s ease'
               }} 
-              title={`${count} items`}
+              title={`${getColorLabel(color)}: ${count} items`}
             />
           ))}
         </div>
-        <div style={{ display: 'flex', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
-          {stats.topColors.map(([color, count]) => (
-            <div key={color} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 700, color: 'var(--text-muted)' }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: color }} />
-              {Math.round((count / stats.itemCount) * 100)}%
-            </div>
-          ))}
+        <div style={{ display: 'flex', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
+          {stats.topColors.map(([color, count]) => {
+            const colorLabel = getColorLabel(color);
+            const pct = Math.round((count / stats.itemCount) * 100);
+            return (
+              <div key={color} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, color: 'var(--text-primary)' }}>
+                <div style={{ 
+                  width: 12, 
+                  height: 12, 
+                  borderRadius: '50%', 
+                  backgroundColor: color, 
+                  border: '1.5px solid rgba(255,255,255,0.4)',
+                  boxShadow: '0 0 0 1px rgba(0,0,0,0.5)',
+                  flexShrink: 0 
+                }} />
+                <span>{colorLabel} <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>{pct}%</span></span>
+              </div>
+            );
+          })}
         </div>
       </div>
 
       {stats.bestValue.length > 0 && (
         <div className="top-worn-section">
           <h3 className="insight-subtitle">Best Value (Lowest CPW)</h3>
-          <div className="fav-items-row">
-            {stats.bestValue.map(item => (
-              <div key={item.id} className="fav-item-bubble" style={{ border: '2px solid var(--success)' }}>
-                {item.images[0] ? (
-                  <img src={item.images[0]} alt={item.name} />
-                ) : (
-                  <div className="fav-item-placeholder">{CATEGORIES.find(c => c.value === item.category)?.emoji}</div>
-                )}
-                <div className="fav-item-badge" style={{ background: 'var(--success)' }}>
-                  {formatPrice(item.price! / Math.max(1, item.wearLogs?.length || 0))}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 'var(--space-2)' }}>
+            {stats.bestValue.map(item => {
+              const cpw = item.price! / Math.max(1, item.wearLogs?.length || 0);
+              const cat = CATEGORIES.find(c => c.value === item.category);
+              return (
+                <div 
+                  key={item.id} 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 10, 
+                    padding: '8px 10px', 
+                    background: 'var(--bg-2)', 
+                    border: '1px solid var(--border)', 
+                    borderRadius: 'var(--radius-md)' 
+                  }}
+                >
+                  <div style={{ width: 40, height: 40, borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', overflow: 'hidden', flexShrink: 0, display: 'grid', placeItems: 'center', fontSize: 20 }}>
+                    {item.images && item.images[0] ? (
+                      <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      cat?.emoji
+                    )}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-primary)' }}>
+                      {item.name}
+                    </div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--accent)' }}>
+                      {formatPrice(cpw)}<span style={{ fontSize: 9, fontWeight: 500, opacity: 0.8 }}> /wear</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {stats.worstValue.length > 0 && (
+        <div className="top-worn-section">
+          <h3 className="insight-subtitle" style={{ color: '#ef4444' }}>Underutilized (Highest CPW)</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 'var(--space-2)' }}>
+            {stats.worstValue.map(item => {
+              const cpw = item.price! / Math.max(1, item.wearLogs?.length || 0);
+              const cat = CATEGORIES.find(c => c.value === item.category);
+              return (
+                <div 
+                  key={item.id} 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 10, 
+                    padding: '8px 10px', 
+                    background: 'var(--bg-2)', 
+                    border: '1px solid rgba(239, 68, 68, 0.3)', 
+                    borderRadius: 'var(--radius-md)' 
+                  }}
+                >
+                  <div style={{ width: 40, height: 40, borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', overflow: 'hidden', flexShrink: 0, display: 'grid', placeItems: 'center', fontSize: 20 }}>
+                    {item.images && item.images[0] ? (
+                      <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      cat?.emoji
+                    )}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-primary)' }}>
+                      {item.name}
+                    </div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: '#ef4444' }}>
+                      {formatPrice(cpw)}<span style={{ fontSize: 9, fontWeight: 500, opacity: 0.8 }}> /wear</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -167,17 +265,41 @@ export default function InsightsSection() {
       {stats.topItems.length > 0 && (
         <div className="top-worn-section">
           <h3 className="insight-subtitle">Your Favorites</h3>
-          <div className="fav-items-row">
-            {stats.topItems.map(item => (
-              <div key={item.id} className="fav-item-bubble">
-                {item.images && item.images[0] ? (
-                  <img src={item.images[0]} alt={item.name} />
-                ) : (
-                  <div className="fav-item-placeholder">{CATEGORIES.find(c => c.value === item.category)?.emoji}</div>
-                )}
-                <div className="fav-item-badge">{item.wearLogs?.length || 0}</div>
-              </div>
-            ))}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 'var(--space-2)' }}>
+            {stats.topItems.map(item => {
+              const wears = item.wearLogs?.length || 0;
+              const cat = CATEGORIES.find(c => c.value === item.category);
+              return (
+                <div 
+                  key={item.id} 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 10, 
+                    padding: '8px 10px', 
+                    background: 'var(--bg-2)', 
+                    border: '1px solid var(--border)', 
+                    borderRadius: 'var(--radius-md)' 
+                  }}
+                >
+                  <div style={{ width: 40, height: 40, borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', overflow: 'hidden', flexShrink: 0, display: 'grid', placeItems: 'center', fontSize: 20 }}>
+                    {item.images && item.images[0] ? (
+                      <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      cat?.emoji
+                    )}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-primary)' }}>
+                      {item.name}
+                    </div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-secondary)' }}>
+                      🔥 {wears} wears
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -185,17 +307,41 @@ export default function InsightsSection() {
       {stats.hibernating.length > 0 && (
         <div className="top-worn-section">
           <h3 className="insight-subtitle" style={{ color: 'var(--text-muted)' }}>Hibernating (Declutter?)</h3>
-          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 12 }}>Items not worn in over 6 months.</p>
-          <div className="fav-items-row" style={{ opacity: 0.6 }}>
-            {stats.hibernating.map(item => (
-              <div key={item.id} className="fav-item-bubble">
-                {item.images && item.images[0] ? (
-                  <img src={item.images[0]} alt={item.name} />
-                ) : (
-                  <div className="fav-item-placeholder">{CATEGORIES.find(c => c.value === item.category)?.emoji}</div>
-                )}
-              </div>
-            ))}
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>Items not worn in over 6 months.</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 'var(--space-2)', opacity: 0.75 }}>
+            {stats.hibernating.map(item => {
+              const cat = CATEGORIES.find(c => c.value === item.category);
+              return (
+                <div 
+                  key={item.id} 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 10, 
+                    padding: '8px 10px', 
+                    background: 'var(--bg-2)', 
+                    border: '1px solid var(--border)', 
+                    borderRadius: 'var(--radius-md)' 
+                  }}
+                >
+                  <div style={{ width: 40, height: 40, borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', overflow: 'hidden', flexShrink: 0, display: 'grid', placeItems: 'center', fontSize: 20 }}>
+                    {item.images && item.images[0] ? (
+                      <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      cat?.emoji
+                    )}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-primary)' }}>
+                      {item.name}
+                    </div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                      Unworn &gt;6mo
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

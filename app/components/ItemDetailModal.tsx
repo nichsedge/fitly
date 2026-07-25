@@ -10,6 +10,8 @@ import { v4 as uuidv4 } from 'uuid';
 interface Props {
   item: ClothingItem;
   onClose: () => void;
+  logDateKey?: string;
+  onRemoveLogFromDate?: (dateKey: string) => Promise<void>;
 }
 
 const formatDateForInput = (timestamp?: number): string => {
@@ -21,7 +23,7 @@ const formatDateForInput = (timestamp?: number): string => {
   return `${year}-${month}-${day}`;
 };
 
-export default function ItemDetailModal({ item, onClose }: Props) {
+export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLogFromDate }: Props) {
   const { deleteItem, updateItem, tags: dynamicTags, locations, addTag, formatPrice, t, currency } = useApp();
 
   // Mode state
@@ -114,10 +116,12 @@ export default function ItemDetailModal({ item, onClose }: Props) {
     setUploadingPhoto(true);
     const reader = new FileReader();
     reader.onload = async (ev) => {
-      const newImageData = ev.target?.result as string;
-      const updatedImages = [...(item.images || []), newImageData];
+      const rawData = ev.target?.result as string;
+      const { compressImageDataUrl } = await import('../lib/imageUtils');
+      const compressedData = await compressImageDataUrl(rawData);
+      const updatedImages = [...(item.images || []), compressedData];
       await updateItem({ ...item, images: updatedImages });
-      setToast('✓ Photo added!');
+      setToast('✓ Photo compressed & added!');
       setUploadingPhoto(false);
     };
     reader.readAsDataURL(file);
@@ -332,7 +336,6 @@ export default function ItemDetailModal({ item, onClose }: Props) {
               id="update-photo-input"
               type="file"
               accept="image/*"
-              capture="environment"
               onChange={handlePhotoChange}
               style={{ display: 'none' }}
             />
@@ -579,7 +582,6 @@ export default function ItemDetailModal({ item, onClose }: Props) {
                   <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Location</span>
                   <span style={{ fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
                     {currentLocation?.icon || '📍'} {currentLocation?.name || 'Home'}
-                    <span style={{ fontSize: 11, opacity: 0.4 }}>✏️</span>
                   </span>
                 </div>
 
@@ -592,7 +594,6 @@ export default function ItemDetailModal({ item, onClose }: Props) {
                   <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Category</span>
                   <span style={{ fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
                     {categoryInfo?.emoji} {categoryInfo?.label}
-                    <span style={{ fontSize: 11, opacity: 0.4 }}>✏️</span>
                   </span>
                 </div>
 
@@ -605,7 +606,6 @@ export default function ItemDetailModal({ item, onClose }: Props) {
                   <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Brand</span>
                   <span style={{ fontWeight: 600, fontSize: 14, color: item.brand ? 'var(--text-primary)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
                     {item.brand || 'Set Brand'}
-                    <span style={{ fontSize: 11, opacity: 0.4 }}>✏️</span>
                   </span>
                 </div>
 
@@ -697,7 +697,6 @@ export default function ItemDetailModal({ item, onClose }: Props) {
                   <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Material</span>
                   <span style={{ fontWeight: 600, fontSize: 14, color: item.material ? 'var(--text-primary)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
                     {item.material || 'Set Material'}
-                    <span style={{ fontSize: 11, opacity: 0.4 }}>✏️</span>
                   </span>
                 </div>
 
@@ -710,7 +709,6 @@ export default function ItemDetailModal({ item, onClose }: Props) {
                   <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Care Info</span>
                   <span style={{ fontWeight: 600, fontSize: 14, color: item.careInstructions ? 'var(--text-primary)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
                     {item.careInstructions || 'Set Care Info'}
-                    <span style={{ fontSize: 11, opacity: 0.4 }}>✏️</span>
                   </span>
                 </div>
 
@@ -723,7 +721,6 @@ export default function ItemDetailModal({ item, onClose }: Props) {
                   <div style={{ padding: 'var(--space-3)', background: 'var(--bg-3)', borderRadius: 'var(--radius-md)', position: 'relative' }}>
                     <div style={{ color: 'var(--text-muted)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between' }}>
                       <span>{t('priceLabel')}</span>
-                      <span style={{ fontSize: 11, opacity: 0.5 }}>✏️</span>
                     </div>
                     <div style={{ fontSize: 18, fontWeight: 800 }}>{formatPrice(item.price)}</div>
                   </div>
@@ -744,7 +741,6 @@ export default function ItemDetailModal({ item, onClose }: Props) {
                   <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Purchased</span>
                   <span style={{ fontWeight: 600, fontSize: 14, color: item.purchaseDate ? 'var(--text-primary)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
                     {item.purchaseDate ? new Date(item.purchaseDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Set Date'}
-                    <span style={{ fontSize: 11, opacity: 0.4 }}>✏️</span>
                   </span>
                 </div>
 
@@ -773,7 +769,7 @@ export default function ItemDetailModal({ item, onClose }: Props) {
                       style={{ padding: '2px 8px', fontSize: 12, height: 'auto', minHeight: 'auto' }}
                       onClick={handleStartEdit}
                     >
-                      ✏️ Edit Tags
+                      Edit Tags
                     </button>
                   </div>
                   
@@ -811,13 +807,26 @@ export default function ItemDetailModal({ item, onClose }: Props) {
                   <button id="btn-wear-today" className="btn btn-ghost btn-full" onClick={handleWear}>
                     👕 Wearing this today
                   </button>
-                  <button
-                    id="btn-delete-item"
-                    className="btn btn-danger btn-full"
-                    onClick={handleDelete}
-                  >
-                    {confirming ? '⚠️ Tap again to confirm delete' : '🗑 Delete item'}
-                  </button>
+                  {logDateKey && onRemoveLogFromDate ? (
+                    <button
+                      id="btn-remove-log"
+                      className="btn btn-danger btn-full"
+                      onClick={async () => {
+                        await onRemoveLogFromDate(logDateKey);
+                        onClose();
+                      }}
+                    >
+                      🗑 Remove log for this day
+                    </button>
+                  ) : (
+                    <button
+                      id="btn-delete-item"
+                      className="btn btn-danger btn-full"
+                      onClick={handleDelete}
+                    >
+                      {confirming ? '⚠️ Tap again to confirm delete' : '🗑 Delete item'}
+                    </button>
+                  )}
                 </div>
               </div>
             )}

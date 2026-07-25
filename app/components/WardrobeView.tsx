@@ -2,12 +2,12 @@
 
 import { useState } from 'react';
 import { useApp } from './AppProvider';
-import { CATEGORIES, Category } from '../lib/types';
+import { CATEGORIES, Category, getColorLabel } from '../lib/types';
 import ItemCard from './ItemCard';
+import SkeletonCard from './SkeletonCard';
 import ItemDetailModal from './ItemDetailModal';
 import { ClothingItem } from '../lib/types';
 import Toast from './Toast';
-import { triggerHaptic } from '../lib/haptics';
 
 interface Props {
   onNavigateToAdd?: () => void;
@@ -21,13 +21,16 @@ export type WardrobeSortOption =
   | 'least-worn'
   | 'recently-worn'
   | 'price-high'
-  | 'price-low';
+  | 'price-low'
+  | 'cpw-best'
+  | 'cpw-worst';
 
 export default function WardrobeView({ onNavigateToAdd }: Props) {
   const { items, tags, locations, activeLocationId, loadSampleData, updateItem, batchMoveItemsLocation, t } = useApp();
   const [activeCategory, setActiveCategory] = useState<Category | 'all'>('all');
   const [activeTag, setActiveTag] = useState<string>('all');
   const [activeStatus, setActiveStatus] = useState<string>('all');
+  const [activeCondition, setActiveCondition] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<WardrobeSortOption>('newest');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -49,13 +52,18 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
     const matchCat = activeCategory === 'all' || i.category === activeCategory;
     const matchTag = activeTag === 'all' || i.tags.includes(activeTag);
     const matchStatus = activeStatus === 'all' || i.status === activeStatus;
+    const matchCondition = activeCondition === 'all' || (i.condition || 'good') === activeCondition;
+    
+    const colorLabel = getColorLabel(i.color || '');
     const matchSearch = !searchQuery || 
       i.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       i.brand?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       i.material?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      i.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      colorLabel.toLowerCase().includes(searchQuery.toLowerCase()) ||
       i.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
     
-    return matchLocation && matchCat && matchTag && matchStatus && matchSearch;
+    return matchLocation && matchCat && matchTag && matchStatus && matchCondition && matchSearch;
   });
 
   const sorted = [...filtered].sort((a, b) => {
@@ -89,15 +97,30 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
     if (sortBy === 'price-low') {
       return (a.price || 0) - (b.price || 0);
     }
+    if (sortBy === 'cpw-best') {
+      const getCPW = (item: ClothingItem) => {
+        const wears = item.wearLogs ? item.wearLogs.length : 0;
+        return (item.price && wears > 0) ? (item.price / wears) : Infinity;
+      };
+      return getCPW(a) - getCPW(b);
+    }
+    if (sortBy === 'cpw-worst') {
+      const getCPW = (item: ClothingItem) => {
+        const wears = item.wearLogs ? item.wearLogs.length : 0;
+        return (item.price && wears > 0) ? (item.price / wears) : -1;
+      };
+      return getCPW(b) - getCPW(a);
+    }
     return 0;
   });
 
-  const hasActiveFilters = activeCategory !== 'all' || activeTag !== 'all' || activeStatus !== 'all' || searchQuery !== '';
+  const hasActiveFilters = activeCategory !== 'all' || activeTag !== 'all' || activeStatus !== 'all' || activeCondition !== 'all' || searchQuery !== '';
 
   const handleResetFilters = () => {
     setActiveCategory('all');
     setActiveTag('all');
     setActiveStatus('all');
+    setActiveCondition('all');
     setSearchQuery('');
   };
 
@@ -143,7 +166,11 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
   };
 
   const handleCleanAllLaundry = async () => {
-    await Promise.all(dirtyItems.map(item => updateItem({ ...item, status: 'ready' })));
+    const now = Date.now();
+    await Promise.all(dirtyItems.map(item => {
+      const existingLogs = item.washLogs || (item.lastWashedAt ? [item.lastWashedAt] : []);
+      return updateItem({ ...item, lastWashedAt: now, washLogs: [...existingLogs, now], status: 'ready' });
+    }));
     setToast(`✓ Reset ${dirtyItems.length} item(s) to Ready!`);
   };
 
@@ -172,16 +199,6 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
               }}
             >
               {selectionMode ? t('done') : t('selectMode')}
-            </button>
-          )}
-
-          {onNavigateToAdd && (
-            <button
-              className="btn btn-primary"
-              style={{ padding: '5px 12px', fontSize: 13, height: 32, display: 'flex', alignItems: 'center', gap: 4 }}
-              onClick={() => { triggerHaptic(10); onNavigateToAdd(); }}
-            >
-              <span>+</span> <span>{t('add')}</span>
             </button>
           )}
         </div>
@@ -237,6 +254,8 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
               <option value="recently-worn">🕒 Recently Worn</option>
               <option value="price-high">💵 Price: High → Low</option>
               <option value="price-low">🏷️ Price: Low → High</option>
+              <option value="cpw-best">💎 Best Value (Lowest CPW)</option>
+              <option value="cpw-worst">💸 Highest CPW</option>
             </select>
           </div>
 
@@ -382,7 +401,7 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
               )}
               {searchQuery && (
                 <span style={{ fontSize: 11, background: 'var(--accent-subtle)', color: 'var(--accent)', padding: '2px 8px', borderRadius: 'var(--radius-pill)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  Search: "{searchQuery}" <button onClick={() => setSearchQuery('')} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0 }}>✕</button>
+                  Search: &quot;{searchQuery}&quot; <button onClick={() => setSearchQuery('')} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0 }}>✕</button>
                 </span>
               )}
               <button
@@ -433,7 +452,13 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
       )}
 
       {/* Grid or List View */}
-      {items.length === 0 ? (
+      {loadingSample ? (
+        <div className={viewMode === 'grid' ? 'item-grid animate-in' : 'item-list animate-in'}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonCard key={i} viewMode={viewMode} />
+          ))}
+        </div>
+      ) : items.length === 0 ? (
         <div className="empty-state animate-in" style={{ padding: 'var(--space-8) var(--space-4)', textAlign: 'center' }}>
           <div className="empty-state__emoji" style={{ fontSize: 56, marginBottom: 12 }}>🧥</div>
           <div className="empty-state__title" style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>{t('emptyWardrobeTitle')}</div>
@@ -534,35 +559,7 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
         </>
       )}
 
-      {/* Floating Action Button (FAB) for Wardrobe Page */}
-      {onNavigateToAdd && items.length > 0 && (
-        <button
-          onClick={() => { triggerHaptic(12); onNavigateToAdd(); }}
-          style={{
-            position: 'fixed',
-            bottom: 'calc(var(--nav-height) + max(24px, env(safe-area-inset-bottom)))',
-            right: 20,
-            width: 56,
-            height: 56,
-            borderRadius: '50%',
-            background: 'var(--accent-gradient)',
-            color: 'white',
-            border: 'none',
-            fontSize: 28,
-            fontWeight: 400,
-            display: 'grid',
-            placeItems: 'center',
-            boxShadow: '0 8px 24px rgba(99, 102, 241, 0.45)',
-            cursor: 'pointer',
-            zIndex: 45,
-            transition: 'transform 0.2s ease, boxShadow 0.2s ease'
-          }}
-          aria-label="Add item to wardrobe"
-          title="Add clothing item"
-        >
-          +
-        </button>
-      )}
+
 
       {/* Item Detail Modal */}
       {selectedItem && (
