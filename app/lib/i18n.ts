@@ -24,6 +24,7 @@ export const translations = {
 
     // Laundry Counter View
     laundryCounter: 'Laundry Counter',
+    laundryTracker: 'Laundry Tracker',
     laundryDesc: 'Track clothing usage since last wash & reset after laundry',
     wearsSinceWash: 'wears since wash',
     wearSinceWash: 'wear since wash',
@@ -121,6 +122,13 @@ export const translations = {
     condFair: 'Fair',
     condPoor: 'Poor',
     condRepair: 'Needs Repair',
+
+    // Error Boundary
+    somethingWentWrong: 'Terjadi kesalahan',
+    errorBoundaryMessage: 'Kami mengalami masalah saat memuat bagian ini. Silakan coba lagi atau hubungi dukungan jika masalah berlanjut.',
+    retry: 'Coba Lagi',
+    showDetails: 'Tampilkan Detail',
+    errorDetails: 'Detail Kesalahan',
   },
   id: {
     // Header & Navigation
@@ -137,6 +145,7 @@ export const translations = {
 
     // Laundry Counter View
     laundryCounter: 'Penghitung Cucian',
+    laundryTracker: 'Pelacak Cucian',
     laundryDesc: 'Lacak berapa kali pakaian dipakai sejak dicuci & reset setelah dicuci',
     wearsSinceWash: 'kali dipakai sejak dicuci',
     wearSinceWash: 'kali dipakai sejak dicuci',
@@ -228,13 +237,20 @@ export const translations = {
     deviceStorageUsed: 'Penyimpanan Perangkat Digunakan',
 
     // Conditions
-    condNew: 'Baru',
-    condExcellent: 'Sangat Bagus',
-    condGood: 'Bagus',
-    condFair: 'Cukup',
-    condPoor: 'Agak Rusak',
-    condRepair: 'Butuh Perbaikan',
-  }
+        condNew: 'Baru',
+        condExcellent: 'Sangat Baik',
+        condGood: 'Baik',
+        condFair: 'Cukup',
+        condPoor: 'Kurang',
+        condRepair: 'Perlu Diperbaiki',
+
+        // Error Boundary
+        somethingWentWrong: 'Terjadi Kesalahan',
+        errorBoundaryMessage: 'Kami mengalami masalah memuat bagian ini. Silakan coba lagi atau hubungi dukungan jika masalah berlanjut.',
+        retry: 'Coba Lagi',
+        showDetails: 'Tampilkan Detail',
+        errorDetails: 'Detail Kesalahan',
+      },
 };
 
 export function formatCurrency(amount: number | undefined | null, currency: Currency = 'IDR'): string {

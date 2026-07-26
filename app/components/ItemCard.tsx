@@ -1,7 +1,9 @@
 'use client';
 
+import React, { memo } from 'react';
 import { ClothingItem, CATEGORIES } from '../lib/types';
-import { useApp } from './AppProvider';
+import { useSettings } from '../contexts/SettingsContext';
+import { ImageService } from '../services/ImageService';
 
 interface Props {
   item: ClothingItem;
@@ -12,9 +14,27 @@ interface Props {
   viewMode?: 'grid' | 'list';
 }
 
-export default function ItemCard({ item, onClick, selected, onSelect, selectable, viewMode = 'grid' }: Props) {
-  const { formatPrice } = useApp();
+function ItemCardComponent({ item, onClick, selected, onSelect, selectable, viewMode = 'grid' }: Props) {
+  const { formatPrice } = useSettings();
   const category = CATEGORIES.find(c => c.value === item.category);
+  const [displayImage, setDisplayImage] = React.useState<string>('');
+
+  React.useEffect(() => {
+    let active = true;
+    if (item.images && item.images.length > 0) {
+      const imgRef = item.images[0];
+      if (imgRef.startsWith('data:') || imgRef.startsWith('http') || imgRef.startsWith('blob:')) {
+        setDisplayImage(ImageService.getDisplayUrl(item.id, imgRef));
+      } else {
+        ImageService.resolveImageUrl(imgRef).then(url => {
+          if (active) setDisplayImage(url);
+        });
+      }
+    } else {
+      setDisplayImage('');
+    }
+    return () => { active = false; };
+  }, [item.id, item.images]);
 
   const handleClick = () => {
     if (selectable && onSelect) {
@@ -24,16 +44,27 @@ export default function ItemCard({ item, onClick, selected, onSelect, selectable
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleClick();
+    }
+  };
+
   const wearCount = item.wearLogs ? item.wearLogs.length : 0;
   const cpw = item.price !== undefined && item.price > 0 && wearCount > 0 ? (item.price / wearCount) : null;
+  const imageUrl = displayImage;
 
   return (
     <div
       id={`item-card-${item.id}`}
       className={`item-card item-card--${viewMode} ${selected ? 'selected' : ''}`}
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
       role="button"
       aria-pressed={selected}
+      aria-label={`${item.name}, ${item.category}${item.brand ? `, Brand: ${item.brand}` : ''}`}
     >
       {cpw !== null && viewMode === 'grid' && (
         <div
@@ -59,7 +90,7 @@ export default function ItemCard({ item, onClick, selected, onSelect, selectable
       )}
 
       {item.status !== 'ready' && (
-        <div className={`item-card__status-badge ${item.status}`}>
+        <div className={`item-card__status-badge ${item.status}`} aria-label={`Status: ${item.status}`}>
           {item.status === 'dirty' ? '🧺' : '🧼'}
         </div>
       )}
@@ -68,14 +99,15 @@ export default function ItemCard({ item, onClick, selected, onSelect, selectable
         <div 
           className="item-card__condition-badge"
           title={item.condition === 'poor' ? 'Poor condition' : 'Needs repair'}
+          aria-label={`Condition: ${item.condition}`}
         >
           {item.condition === 'poor' ? '⚠️' : '🛠️'}
         </div>
       )}
 
-      {item.images && item.images.length > 0 ? (
+      {imageUrl ? (
         <img
-          src={item.images[0]}
+          src={imageUrl}
           alt={item.name}
           className="item-card__image"
           loading="lazy"
@@ -135,8 +167,10 @@ export default function ItemCard({ item, onClick, selected, onSelect, selectable
       </div>
 
       {selectable && (
-        <div className="item-card__check">✓</div>
+        <div className="item-card__check" aria-hidden="true">✓</div>
       )}
     </div>
   );
 }
+
+export default memo(ItemCardComponent);

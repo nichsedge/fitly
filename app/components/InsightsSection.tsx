@@ -1,11 +1,13 @@
-'use client';
-
-import { useApp } from './AppProvider';
+import { useWardrobe } from '../contexts/WardrobeContext';
+import { useOutfits } from '../contexts/OutfitContext';
+import { useSettings } from '../contexts/SettingsContext';
 import { CATEGORIES, getColorLabel } from '../lib/types';
 import { useMemo } from 'react';
 
 export default function InsightsSection() {
-  const { items, outfits, formatPrice } = useApp();
+  const { items } = useWardrobe();
+  const { outfits } = useOutfits();
+  const { formatPrice } = useSettings();
 
   const stats = useMemo(() => {
     if (items.length === 0) return null;

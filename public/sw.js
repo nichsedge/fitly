@@ -1,15 +1,13 @@
-const CACHE_NAME = 'fitly-pwa-v1';
+const CACHE_NAME = 'fitly-pwa-v2';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
   '/favicon.ico',
   '/icon-192.png',
   '/icon-512.png',
-  '/file.svg',
-  '/globe.svg',
-  '/next.svg',
-  '/window.svg'
 ];
+
+const MUTATION_QUEUE_STORE = 'mutationQueue';
 
 // Install event: Pre-cache core app shell assets
 self.addEventListener('install', (event) => {
@@ -37,20 +35,31 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event: Serve from Cache, fallback to Network, update Cache dynamically
+// Background sync for mutation queue
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'mutation-queue-sync') {
+    event.waitUntil(processMutationQueue());
+  }
+});
+
+// Periodic background sync (if supported)
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag === 'auto-backup') {
+    event.waitUntil(autoBackup());
+  }
+});
+
+// Fetch event: Cache-first for static, network-first for dynamic
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
-
-  // Skip chrome-extension and unsupported schemes
   if (!url.protocol.startsWith('http')) return;
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
-        // Fetch background update for stale-while-revalidate on navigation/HTML requests
+        // Stale-while-revalidate for navigations
         if (event.request.mode === 'navigate') {
           fetch(event.request).then((networkResponse) => {
             if (networkResponse && networkResponse.status === 200) {
@@ -58,14 +67,12 @@ self.addEventListener('fetch', (event) => {
                 cache.put(event.request, networkResponse.clone());
               });
             }
-          }).catch(() => {
-            // Ignore fetch errors while offline
-          });
+          }).catch(() => {});
         }
         return cachedResponse;
       }
 
-      // Network fallback + store in dynamic cache
+      // Network fallback + cache
       return fetch(event.request).then((networkResponse) => {
         if (
           !networkResponse ||
@@ -82,7 +89,6 @@ self.addEventListener('fetch', (event) => {
 
         return networkResponse;
       }).catch(() => {
-        // Handle offline navigation fallback
         if (event.request.mode === 'navigate') {
           return caches.match('/');
         }
@@ -93,4 +99,107 @@ self.addEventListener('fetch', (event) => {
       });
     })
   );
+});
+
+// Process mutation queue from IndexedDB
+async function processMutationQueue() {
+  try {
+    const db = await openDB();
+    if (!db.objectStoreNames.contains(MUTATION_QUEUE_STORE)) return;
+    const tx = db.transaction(MUTATION_QUEUE_STORE, 'readonly');
+    const store = tx.objectStore(MUTATION_QUEUE_STORE);
+    const mutations = await store.getAll();
+    await tx.done;
+
+    if (mutations.length === 0) return;
+
+    for (const mutation of mutations) {
+      try {
+        await sendMutationToBackup(mutation);
+        const deleteTx = db.transaction(MUTATION_QUEUE_STORE, 'readwrite');
+        await deleteTx.objectStore(MUTATION_QUEUE_STORE).delete(mutation.id);
+        await deleteTx.done;
+      } catch (err) {
+        console.error('Failed to sync mutation:', err);
+      }
+    }
+  } catch (err) {
+    console.error('Mutation queue processing failed:', err);
+  }
+}
+
+// Auto-backup: Export wardrobe data to user-chosen folder
+async function autoBackup() {
+  try {
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    if (clients.length === 0) return;
+
+    clients.forEach(client => {
+      client.postMessage({ type: 'AUTO_BACKUP_TRIGGER' });
+    });
+  } catch (err) {
+    console.error('Auto-backup failed:', err);
+  }
+}
+
+// IndexedDB helpers
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('outfit-manager', 7);
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains(MUTATION_QUEUE_STORE)) {
+        const store = db.createObjectStore(MUTATION_QUEUE_STORE, { keyPath: 'id', autoIncrement: true });
+        store.createIndex('timestamp', 'timestamp');
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+// Send mutation to backup (delegates to client)
+async function sendMutationToBackup(mutation) {
+  const clients = await self.clients.matchAll({ type: 'window' });
+  for (const client of clients) {
+    client.postMessage({ type: 'SYNC_MUTATION', payload: mutation });
+  }
+}
+
+// Push notification handling
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+
+  const data = event.data.json();
+  const options = {
+    body: data.body || 'Fitly notification',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    vibrate: [100, 50, 100],
+    data: data.data || {},
+    actions: data.actions || [],
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Fitly', options)
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  if (event.action) {
+    event.waitUntil(
+      self.clients.openWindow(`/?action=${event.action}`)
+    );
+  } else {
+    event.waitUntil(
+      self.clients.matchAll({ type: 'window' }).then((clients) => {
+        if (clients.length > 0) {
+          return clients[0].focus();
+        }
+        return self.clients.openWindow('/');
+      })
+    );
+  }
 });

@@ -1,14 +1,20 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useApp } from './AppProvider';
-import { Trip, ClothingItem } from '../lib/types';
+import React, { useState, useMemo } from 'react';
+import { useTrips } from '../contexts/TripContext';
+import { useWardrobe } from '../contexts/WardrobeContext';
+import { useOutfits } from '../contexts/OutfitContext';
+import { useSettings } from '../contexts/SettingsContext';
+import { Trip } from '../lib/types';
+import { tripService } from '../services/TripService';
 import { triggerHaptic } from '../lib/haptics';
-import ItemCard from './ItemCard';
-import { v4 as uuidv4 } from 'uuid';
 
 export default function TripsView() {
-  const { trips, items, outfits, locations, addTrip, updateTrip, deleteTrip, batchMoveItemsLocation, t } = useApp();
+  const { trips, addTrip, updateTrip, deleteTrip } = useTrips();
+  const { items, locations, batchMoveItemsLocation } = useWardrobe();
+  const { outfits } = useOutfits();
+  const { t } = useSettings();
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
@@ -65,16 +71,9 @@ export default function TripsView() {
       };
       await updateTrip(updated);
     } else {
-      const newTrip: Trip = {
-        id: uuidv4(),
-        name,
-        destination,
-        startDate,
-        endDate,
-        itemIds: selectedItemIds,
-        outfitIds: selectedOutfitIds,
-        completed: false,
-      };
+      const newTrip = tripService.createTrip(name, startDate, endDate, destination);
+      newTrip.itemIds = selectedItemIds;
+      newTrip.outfitIds = selectedOutfitIds;
       await addTrip(newTrip);
     }
 
@@ -90,21 +89,16 @@ export default function TripsView() {
     }));
   };
 
-  const activeTrip = trips.find((t) => t.id === selectedTripId) || trips[0];
+  const activeTrip = useMemo(() => {
+    return trips.find((t) => t.id === selectedTripId) || trips[0];
+  }, [trips, selectedTripId]);
 
-  // Helper to gather all unique item IDs for a trip (direct items + outfit items)
-  const getTripItemIds = (trip: Trip): string[] => {
-    const directIds = trip.itemIds || [];
-    const outfitItemIds = (trip.outfitIds || []).flatMap((oId) => {
-      const o = outfits.find((out) => out.id === oId);
-      return o ? o.itemIds : [];
-    });
-    return Array.from(new Set([...directIds, ...outfitItemIds]));
-  };
+  const packingData = useMemo(() => {
+    if (!activeTrip) return { packedItems: [], tripOutfits: [], missingCategories: [] };
+    return tripService.getPackingItems(activeTrip, items, outfits);
+  }, [activeTrip, items, outfits]);
 
-  const tripItemIds = activeTrip ? getTripItemIds(activeTrip) : [];
-  const tripItems = tripItemIds.map((id) => items.find((i) => i.id === id)).filter((i): i is ClothingItem => !!i);
-
+  const tripItems = packingData.packedItems;
   const packedCount = tripItems.filter((i) => packedItemMap[i.id]).length;
   const progressPercent = tripItems.length > 0 ? Math.round((packedCount / tripItems.length) * 100) : 0;
 
@@ -181,14 +175,16 @@ export default function TripsView() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Sleek Horizontal Trip Selector Pills */}
-          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, scrollbarWidth: 'none' }}>
+          {/* Horizontal Trip Selector Pills */}
+          <div role="tablist" aria-label="Trips list" style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, scrollbarWidth: 'none' }}>
             {trips.map((trip) => {
               const isActive = activeTrip && activeTrip.id === trip.id;
-              const allIds = getTripItemIds(trip);
+              const tripItemsCount = tripService.getPackingItems(trip, items, outfits).packedItems.length;
               return (
                 <button
                   key={trip.id}
+                  role="tab"
+                  aria-selected={isActive}
                   onClick={() => {
                     setSelectedTripId(trip.id);
                     triggerHaptic(5);
@@ -220,7 +216,7 @@ export default function TripsView() {
                       fontWeight: 800,
                     }}
                   >
-                    {allIds.length}
+                    {tripItemsCount}
                   </span>
                 </button>
               );
@@ -248,18 +244,23 @@ export default function TripsView() {
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <button className="btn-circle" onClick={() => openEditTripModal(activeTrip)} title="Edit Trip">
-                    ✏️
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() => openEditTripModal(activeTrip)}
+                    style={{ padding: '6px 10px', fontSize: 12 }}
+                    aria-label="Edit trip details"
+                  >
+                    ✏️ Edit
                   </button>
                   <button
-                    className="btn-circle"
+                    className="btn btn-ghost"
                     onClick={async () => {
                       if (confirm('Delete this trip?')) {
                         await deleteTrip(activeTrip.id);
-                        setSelectedTripId(null);
                       }
                     }}
-                    title="Delete Trip"
+                    style={{ padding: '6px 10px', fontSize: 12, color: '#ef4444' }}
+                    aria-label="Delete trip"
                   >
                     🗑️
                   </button>
@@ -269,247 +270,192 @@ export default function TripsView() {
               {/* Progress Bar */}
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>🎒 Packing Progress</span>
-                  <span style={{ color: 'var(--accent)' }}>
-                    {packedCount} / {tripItems.length} ({progressPercent}%)
-                  </span>
+                  <span>Packing Progress ({packedCount}/{tripItems.length})</span>
+                  <span>{progressPercent}%</span>
                 </div>
                 <div style={{ height: 8, background: 'var(--bg-3)', borderRadius: 4, overflow: 'hidden' }}>
                   <div
                     style={{
                       height: '100%',
                       width: `${progressPercent}%`,
-                      background: 'linear-gradient(90deg, #3b82f6, #10b981)',
+                      background: 'var(--accent)',
                       transition: 'width 0.3s ease',
-                      borderRadius: 4,
                     }}
                   />
                 </div>
               </div>
 
-              {/* Batch Transfer Bar */}
-              {packedCount > 0 && (
-                <div
-                  style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 10,
-                    padding: 12,
-                    background: 'rgba(99, 102, 241, 0.08)',
-                    border: '1px solid rgba(99, 102, 241, 0.25)',
-                    borderRadius: 'var(--radius-md)',
-                  }}
-                >
-                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>
-                    Move {packedCount} packed item(s) to location:
-                  </span>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <select
-                      value={transferLocationId}
-                      onChange={(e) => setTransferLocationId(e.target.value)}
-                      style={{
-                        padding: '6px 10px',
-                        fontSize: 12,
-                        borderRadius: 'var(--radius-sm)',
-                        background: 'var(--bg-3)',
-                        color: 'var(--text-primary)',
-                        border: '1px solid var(--border)',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {locations.map((loc) => (
-                        <option key={loc.id} value={loc.id}>
-                          {loc.icon || '📍'} {loc.name}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      className="btn btn-primary"
-                      onClick={handleBatchTransfer}
-                      style={{ padding: '6px 14px', fontSize: 12, borderRadius: 'var(--radius-pill)', fontWeight: 700 }}
-                    >
-                      🚀 Move Now
-                    </button>
-                  </div>
+              {/* Missing Categories Alert */}
+              {packingData.missingCategories.length > 0 && (
+                <div style={{ background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)', padding: '8px 12px', borderRadius: 'var(--radius-md)', fontSize: 12, color: '#eab308' }}>
+                  ⚠️ Missing essential items: <strong>{packingData.missingCategories.join(', ')}</strong>
                 </div>
               )}
 
-              {/* Checklist Items Grid */}
-              <div>
-                <h4 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12, color: 'var(--text-primary)' }}>
-                  Clothes & Outfits Checklist
-                </h4>
-                {tripItems.length === 0 ? (
-                  <p style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                    No clothes or outfits added to this trip yet. Tap ✏️ above to add items.
-                  </p>
-                ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(135px, 1fr))', gap: 12 }}>
-                    {tripItems.map((item) => {
-                      const isPacked = !!packedItemMap[item.id];
-                      return (
-                        <div key={item.id} style={{ position: 'relative' }}>
-                          <ItemCard item={item} />
-                          {/* Glassmorphic Pack Toggle Pill */}
-                          <button
-                            onClick={() => togglePacked(item.id)}
-                            style={{
-                              position: 'absolute',
-                              top: 8,
-                              right: 8,
-                              background: isPacked ? 'var(--success)' : 'rgba(18, 18, 21, 0.75)',
-                              backdropFilter: 'blur(8px)',
-                              WebkitBackdropFilter: 'blur(8px)',
-                              color: '#ffffff',
-                              border: `1px solid ${isPacked ? 'var(--success)' : 'rgba(255, 255, 255, 0.2)'}`,
-                              borderRadius: 'var(--radius-pill)',
-                              padding: '4px 10px',
-                              fontSize: 11,
-                              fontWeight: 800,
-                              cursor: 'pointer',
-                              zIndex: 10,
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                              transition: 'all 0.2s ease',
-                            }}
-                          >
-                            {isPacked ? '✓ Packed' : '＋ Pack'}
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+              {/* Checklist Items */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {tripItems.map((item) => {
+                  const isPacked = !!packedItemMap[item.id];
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => togglePacked(item.id)}
+                      role="checkbox"
+                      aria-checked={isPacked}
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          togglePacked(item.id);
+                        }
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '10px 14px',
+                        background: 'var(--bg-3)',
+                        borderRadius: 'var(--radius-md)',
+                        cursor: 'pointer',
+                        opacity: isPacked ? 0.6 : 1,
+                        textDecoration: isPacked ? 'line-through' : 'none',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ fontSize: 18 }}>{isPacked ? '✅' : '⬜'}</span>
+                        <span style={{ fontWeight: 600, fontSize: 13 }}>{item.name}</span>
+                      </div>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'capitalize' }}>
+                        {item.category}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
+
+              {/* Batch Transfer to Location */}
+              {packedCount > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>Relocate Packed Items:</span>
+                  <select
+                    value={transferLocationId}
+                    onChange={(e) => setTransferLocationId(e.target.value)}
+                    style={{ padding: '4px 8px', borderRadius: 'var(--radius-md)', background: 'var(--bg-3)', color: 'var(--text-primary)', fontSize: 12, border: '1px solid var(--border)' }}
+                  >
+                    {locations.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.icon} {l.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button className="btn btn-primary" onClick={handleBatchTransfer} style={{ padding: '4px 12px', fontSize: 12 }}>
+                    Move Packed ({packedCount})
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
       )}
 
-      {/* New / Edit Trip Modal */}
+      {/* Edit/Create Trip Modal */}
       {isModalOpen && (
-        <div className="modal-backdrop" onClick={() => setIsModalOpen(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480, width: '92%' }}>
+        <div className="modal-backdrop animate-fade-in" role="dialog" aria-modal="true" aria-label="Trip editor">
+          <div className="modal-content animate-slide-up" style={{ maxWidth: 480 }}>
             <div className="modal-header">
-              <h3 style={{ fontSize: 18, fontWeight: 800 }}>{editingTrip ? 'Edit Trip' : 'Create Trip'}</h3>
-              <button className="btn-circle" onClick={() => setIsModalOpen(false)}>
-                ✕
+              <h3 className="modal-title">{editingTrip ? 'Edit Trip' : 'New Trip'}</h3>
+              <button className="btn-close" onClick={() => setIsModalOpen(false)} aria-label="Close modal">
+                ×
               </button>
             </div>
-
             <form onSubmit={handleSaveTrip} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
-                <label className="form-label">Trip Name *</label>
+                <label style={{ fontSize: 12, fontWeight: 700 }}>Trip Name</label>
                 <input
                   type="text"
-                  className="form-input"
-                  placeholder="e.g. Summer Beach Vacation"
+                  required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  required
+                  placeholder="e.g. Bali Vacation 2026"
+                  className="search-input"
+                  style={{ marginTop: 4 }}
                 />
               </div>
 
               <div>
-                <label className="form-label">Destination</label>
+                <label style={{ fontSize: 12, fontWeight: 700 }}>Destination</label>
                 <input
                   type="text"
-                  className="form-input"
-                  placeholder="e.g. Bali, Indonesia"
                   value={destination}
                   onChange={(e) => setDestination(e.target.value)}
+                  placeholder="e.g. Denpasar, Bali"
+                  className="search-input"
+                  style={{ marginTop: 4 }}
                 />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div>
-                  <label className="form-label">Start Date</label>
-                  <input type="date" className="form-input" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                  <label style={{ fontSize: 12, fontWeight: 700 }}>Start Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="search-input"
+                    style={{ marginTop: 4 }}
+                  />
                 </div>
                 <div>
-                  <label className="form-label">End Date</label>
-                  <input type="date" className="form-input" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                  <label style={{ fontSize: 12, fontWeight: 700 }}>End Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="search-input"
+                    style={{ marginTop: 4 }}
+                  />
                 </div>
               </div>
 
-              {/* Outfit picker */}
+              {/* Item selection */}
               <div>
-                <label className="form-label">Select Outfits for Trip</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 120, overflowY: 'auto', padding: 8, background: 'var(--bg-3)', borderRadius: 'var(--radius-sm)' }}>
-                  {outfits.length === 0 ? (
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>No outfits created yet</span>
-                  ) : (
-                    outfits.map((outfit) => {
-                      const selected = selectedOutfitIds.includes(outfit.id);
-                      return (
-                        <button
-                          type="button"
-                          key={outfit.id}
-                          onClick={() => {
-                            setSelectedOutfitIds((prev) => (selected ? prev.filter((id) => id !== outfit.id) : [...prev, outfit.id]));
-                          }}
-                          style={{
-                            padding: '4px 10px',
-                            fontSize: 12,
-                            borderRadius: 'var(--radius-pill)',
-                            border: `1px solid ${selected ? 'var(--accent)' : 'var(--border)'}`,
-                            background: selected ? 'var(--accent-subtle)' : 'var(--bg-2)',
-                            color: selected ? 'var(--accent)' : 'var(--text-secondary)',
-                            fontWeight: selected ? 700 : 500,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          {selected ? '✓ ' : ''}
-                          {outfit.name}
-                        </button>
-                      );
-                    })
-                  )}
+                <label style={{ fontSize: 12, fontWeight: 700, marginBottom: 6, display: 'block' }}>
+                  Select Individual Items ({selectedItemIds.length})
+                </label>
+                <div style={{ maxHeight: 140, overflowY: 'auto', display: 'flex', flexWrap: 'wrap', gap: 6, background: 'var(--bg-3)', padding: 8, borderRadius: 'var(--radius-md)' }}>
+                  {items.map((item) => {
+                    const selected = selectedItemIds.includes(item.id);
+                    return (
+                      <button
+                        type="button"
+                        key={item.id}
+                        onClick={() => {
+                          setSelectedItemIds((prev) => (selected ? prev.filter((id) => id !== item.id) : [...prev, item.id]));
+                        }}
+                        style={{
+                          fontSize: 11,
+                          padding: '4px 8px',
+                          borderRadius: 'var(--radius-pill)',
+                          border: `1px solid ${selected ? 'var(--accent)' : 'var(--border)'}`,
+                          background: selected ? 'var(--accent-subtle)' : 'var(--bg-2)',
+                          color: selected ? 'var(--accent)' : 'var(--text-primary)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {selected ? '✓ ' : '+ '}{item.name}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Individual Item picker */}
-              <div>
-                <label className="form-label">Select Individual Clothes</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 150, overflowY: 'auto', padding: 8, background: 'var(--bg-3)', borderRadius: 'var(--radius-sm)' }}>
-                  {items.length === 0 ? (
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>No clothes in wardrobe</span>
-                  ) : (
-                    items.map((item) => {
-                      const selected = selectedItemIds.includes(item.id);
-                      return (
-                        <button
-                          type="button"
-                          key={item.id}
-                          onClick={() => {
-                            setSelectedItemIds((prev) => (selected ? prev.filter((id) => id !== item.id) : [...prev, item.id]));
-                          }}
-                          style={{
-                            padding: '4px 10px',
-                            fontSize: 12,
-                            borderRadius: 'var(--radius-sm)',
-                            border: `1px solid ${selected ? 'var(--accent)' : 'var(--border)'}`,
-                            background: selected ? 'var(--accent-subtle)' : 'var(--bg-2)',
-                            color: selected ? 'var(--accent)' : 'var(--text-secondary)',
-                            fontWeight: selected ? 700 : 500,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          {selected ? '✓ ' : ''}
-                          {item.name}
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 10 }}>
                 <button type="button" className="btn btn-ghost" onClick={() => setIsModalOpen(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary" style={{ padding: '8px 20px', borderRadius: 'var(--radius-pill)', fontWeight: 700 }}>
+                <button type="submit" className="btn btn-primary">
                   Save Trip
                 </button>
               </div>

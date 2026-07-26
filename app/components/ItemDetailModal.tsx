@@ -1,8 +1,9 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { ClothingItem, CATEGORIES, COLORS, Category, ItemStatus, ItemCondition } from '../lib/types';
-import { useApp } from './AppProvider';
+import { useWardrobe } from '../contexts/WardrobeContext';
+import { useSettings } from '../contexts/SettingsContext';
 import Toast from './Toast';
 import DailyOutfitBuilder from './DailyOutfitBuilder';
 import { v4 as uuidv4 } from 'uuid';
@@ -24,7 +25,16 @@ const formatDateForInput = (timestamp?: number): string => {
 };
 
 export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLogFromDate }: Props) {
-  const { deleteItem, updateItem, tags: dynamicTags, locations, addTag, formatPrice, t, currency } = useApp();
+  const { deleteItem, updateItem, tags: dynamicTags, locations, addTag } = useWardrobe();
+  const { formatPrice, t, currency } = useSettings();
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   // Mode state
   const [isEditing, setIsEditing] = useState(false);

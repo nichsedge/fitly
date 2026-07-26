@@ -23,6 +23,8 @@ export type ItemStatus = 'ready' | 'dirty' | 'cleaning';
 
 export type ItemCondition = 'new' | 'excellent' | 'good' | 'fair' | 'poor' | 'needs-repair' | 'retired';
 
+export type RetirementReason = 'donated' | 'sold' | 'recycled' | 'discarded';
+
 export interface ClothingItem {
   id: string;
   name: string;
@@ -43,6 +45,9 @@ export interface ClothingItem {
   lastWashedAt?: number;
   washLogs?: number[]; // array of timestamps when washed
   locationId?: string;
+  retiredAt?: number;
+  retirementReason?: RetirementReason;
+  donationTarget?: string;
 }
 
 export interface Outfit {

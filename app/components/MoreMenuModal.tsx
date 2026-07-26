@@ -1,8 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ActiveTab } from '../lib/types';
-import { useApp } from './AppProvider';
+import { useWardrobe } from '../contexts/WardrobeContext';
+import { useOutfits } from '../contexts/OutfitContext';
+import { useTrips } from '../contexts/TripContext';
+import { useSettings } from '../contexts/SettingsContext';
 import { triggerHaptic } from '../lib/haptics';
 
 interface MoreMenuModalProps {
@@ -13,7 +16,18 @@ interface MoreMenuModalProps {
 }
 
 export default function MoreMenuModal({ activeTab, onClose, onSelectTab, onOpenSettings }: MoreMenuModalProps) {
-  const { items, outfits, trips, t } = useApp();
+  const { items } = useWardrobe();
+  const { outfits } = useOutfits();
+  const { trips } = useTrips();
+  const { t } = useSettings();
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   const handleSelect = (tab: ActiveTab) => {
     triggerHaptic(10);

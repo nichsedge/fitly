@@ -1,6 +1,8 @@
 'use client';
 
+import React, { memo } from 'react';
 import { ClothingItem, Outfit, CATEGORIES } from '../lib/types';
+import { ImageService } from '../services/ImageService';
 
 interface Props {
   outfit: Outfit;
@@ -9,7 +11,7 @@ interface Props {
   viewMode?: 'grid' | 'list';
 }
 
-export default function OutfitCard({ outfit, items, onClick, viewMode = 'grid' }: Props) {
+function OutfitCardComponent({ outfit, items, onClick, viewMode = 'grid' }: Props) {
   const outfitItems = outfit.itemIds
     .map(id => items.find(i => i.id === id))
     .filter(Boolean) as ClothingItem[];
@@ -18,17 +20,48 @@ export default function OutfitCard({ outfit, items, onClick, viewMode = 'grid' }
   const displayItems = count > 0 ? outfitItems.slice(0, 4) : [];
   const defaultEmojis = ['👕', '👖', '👟', '🧥'];
 
-  // If no items in outfit, show 4 placeholders
   const slotsToRender = count === 0 
     ? [null, null, null, null] 
     : displayItems;
+
+  const [resolvedUrls, setResolvedUrls] = React.useState<Record<string, string>>({});
+
+  React.useEffect(() => {
+    let active = true;
+    const loadUrls = async () => {
+      const map: Record<string, string> = {};
+      for (const item of displayItems) {
+        if (item.images && item.images.length > 0) {
+          const imgRef = item.images[0];
+          if (imgRef.startsWith('data:') || imgRef.startsWith('http') || imgRef.startsWith('blob:')) {
+            map[item.id] = ImageService.getDisplayUrl(item.id, imgRef);
+          } else {
+            map[item.id] = await ImageService.resolveImageUrl(imgRef);
+          }
+        }
+      }
+      if (active) setResolvedUrls(map);
+    };
+    loadUrls();
+    return () => { active = false; };
+  }, [items, outfit.itemIds]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onClick();
+    }
+  };
 
   return (
     <div
       id={`outfit-card-${outfit.id}`}
       className={`outfit-card outfit-card--${viewMode} outfit-card--count-${slotsToRender.length}`}
       onClick={onClick}
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
       role="button"
+      aria-label={`${outfit.name || 'Untitled Outfit'}, containing ${outfitItems.length} items`}
     >
       <div className="outfit-card__images">
         {slotsToRender.map((item, idx) => {
@@ -42,12 +75,14 @@ export default function OutfitCard({ outfit, items, onClick, viewMode = 'grid' }
             );
           }
           const cat = CATEGORIES.find(c => c.value === item.category);
-          return item.images && item.images.length > 0 ? (
+          const imgUrl = resolvedUrls[item.id] || (item.images && item.images.length > 0 ? ImageService.getDisplayUrl(item.id, item.images[0]) : '');
+          return imgUrl ? (
             <img
               key={`item-${item.id}-${idx}`}
-              src={item.images[0]}
+              src={imgUrl}
               alt={item.name}
               className={`${slotClass} outfit-card__img-slot`}
+              loading="lazy"
             />
           ) : (
             <div key={`item-${item.id}-${idx}`} className={`${slotClass} outfit-card__img-slot--placeholder`}>
@@ -73,3 +108,5 @@ export default function OutfitCard({ outfit, items, onClick, viewMode = 'grid' }
     </div>
   );
 }
+
+export default memo(OutfitCardComponent);

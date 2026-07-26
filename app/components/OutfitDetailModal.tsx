@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ClothingItem, Outfit, CATEGORIES } from '../lib/types';
-import { useApp } from './AppProvider';
+import { useWardrobe } from '../contexts/WardrobeContext';
+import { useOutfits } from '../contexts/OutfitContext';
+import { useSettings } from '../contexts/SettingsContext';
 import Toast from './Toast';
 
 interface Props {
@@ -15,7 +17,17 @@ interface Props {
 }
 
 export default function OutfitDetailModal({ outfit, items, onClose, onEdit, logDateKey, onRemoveLogFromDate }: Props) {
-  const { deleteOutfit, updateOutfit, updateItem, formatPrice } = useApp();
+  const { updateItem } = useWardrobe();
+  const { deleteOutfit, updateOutfit } = useOutfits();
+  const { formatPrice } = useSettings();
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
   const [confirming, setConfirming] = useState(false);
   const [toast, setToast] = useState('');
   const [isEditingName, setIsEditingName] = useState(false);

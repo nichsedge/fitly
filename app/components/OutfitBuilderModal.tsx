@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useApp } from './AppProvider';
+import { useWardrobe } from '../contexts/WardrobeContext';
+import { useOutfits } from '../contexts/OutfitContext';
 import { ClothingItem, CATEGORIES, Category, Outfit } from '../lib/types';
 import ItemCard from './ItemCard';
 import Toast from './Toast';
@@ -13,7 +14,16 @@ interface Props {
 }
 
 export default function OutfitBuilderModal({ initialOutfit, onClose }: Props) {
-  const { items, addOutfit, updateOutfit } = useApp();
+  const { items } = useWardrobe();
+  const { addOutfit, updateOutfit } = useOutfits();
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
   const [selectedIds, setSelectedIds] = useState<string[]>(initialOutfit ? initialOutfit.itemIds : []);
   const [name, setName] = useState(initialOutfit ? initialOutfit.name : '');
   const [note, setNote] = useState(initialOutfit ? initialOutfit.note : '');

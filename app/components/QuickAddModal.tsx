@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ActiveTab } from '../lib/types';
 import { triggerHaptic } from '../lib/haptics';
 
@@ -10,6 +10,14 @@ interface QuickAddModalProps {
 }
 
 export default function QuickAddModal({ onClose, onSelectAction }: QuickAddModalProps) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   const handleAction = (tab: ActiveTab) => {
     triggerHaptic(12);
     onSelectAction(tab);
@@ -17,7 +25,7 @@ export default function QuickAddModal({ onClose, onSelectAction }: QuickAddModal
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 100 }}>
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 100 }} role="dialog" aria-modal="true" aria-label="Quick Actions">
       <div 
         className="quick-add-drawer"
         onClick={(e) => e.stopPropagation()}

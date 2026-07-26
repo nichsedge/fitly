@@ -1,32 +1,24 @@
 'use client';
 
-import { useState } from 'react';
-import { useApp } from './AppProvider';
-import { CATEGORIES, Category, getColorLabel } from '../lib/types';
+import React, { useState, useMemo } from 'react';
+import { useWardrobe } from '../contexts/WardrobeContext';
+import { useSettings } from '../contexts/SettingsContext';
+import { CATEGORIES, Category, ClothingItem } from '../lib/types';
+import { itemService, WardrobeSortOption } from '../services/ItemService';
 import ItemCard from './ItemCard';
 import SkeletonCard from './SkeletonCard';
 import ItemDetailModal from './ItemDetailModal';
-import { ClothingItem } from '../lib/types';
+import VirtualizedGrid from './VirtualizedGrid';
 import Toast from './Toast';
 
 interface Props {
   onNavigateToAdd?: () => void;
 }
 
-export type WardrobeSortOption = 
-  | 'newest'
-  | 'oldest'
-  | 'name'
-  | 'most-worn'
-  | 'least-worn'
-  | 'recently-worn'
-  | 'price-high'
-  | 'price-low'
-  | 'cpw-best'
-  | 'cpw-worst';
-
 export default function WardrobeView({ onNavigateToAdd }: Props) {
-  const { items, tags, locations, activeLocationId, loadSampleData, updateItem, batchMoveItemsLocation, t } = useApp();
+  const { items, tags, locations, activeLocationId, loadSampleData, updateItem, batchMoveItemsLocation } = useWardrobe();
+  const { t } = useSettings();
+
   const [activeCategory, setActiveCategory] = useState<Category | 'all'>('all');
   const [activeTag, setActiveTag] = useState<string>('all');
   const [activeStatus, setActiveStatus] = useState<string>('all');
@@ -37,82 +29,29 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
   const [selectedItem, setSelectedItem] = useState<ClothingItem | null>(null);
   const [loadingSample, setLoadingSample] = useState(false);
   const [toast, setToast] = useState('');
-  
+
   // Batch Selection
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const dirtyItems = items.filter(i => i.status === 'dirty' || i.status === 'cleaning');
+  const dirtyItems = useMemo(() => items.filter(i => i.status === 'dirty' || i.status === 'cleaning'), [items]);
+  const activeLocation = useMemo(() => locations.find(l => l.id === activeLocationId), [locations, activeLocationId]);
 
-  const activeLocation = locations.find(l => l.id === activeLocationId);
+  // Filter & Sort using ItemService
+  const filtered = useMemo(() => {
+    return itemService.filterItems(items, {
+      category: activeCategory,
+      tag: activeTag,
+      status: activeStatus,
+      condition: activeCondition,
+      locationId: activeLocationId,
+      searchQuery,
+    });
+  }, [items, activeCategory, activeTag, activeStatus, activeCondition, activeLocationId, searchQuery]);
 
-  const filtered = items.filter(i => {
-    // Location Filter
-    const matchLocation = activeLocationId === 'all' || (i.locationId || 'loc-home') === activeLocationId;
-    const matchCat = activeCategory === 'all' || i.category === activeCategory;
-    const matchTag = activeTag === 'all' || i.tags.includes(activeTag);
-    const matchStatus = activeStatus === 'all' || i.status === activeStatus;
-    const matchCondition = activeCondition === 'all' || (i.condition || 'good') === activeCondition;
-    
-    const colorLabel = getColorLabel(i.color || '');
-    const matchSearch = !searchQuery || 
-      i.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      i.brand?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      i.material?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      i.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      colorLabel.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      i.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
-    
-    return matchLocation && matchCat && matchTag && matchStatus && matchCondition && matchSearch;
-  });
-
-  const sorted = [...filtered].sort((a, b) => {
-    if (sortBy === 'newest') {
-      return (b.createdAt || 0) - (a.createdAt || 0);
-    }
-    if (sortBy === 'oldest') {
-      return (a.createdAt || 0) - (b.createdAt || 0);
-    }
-    if (sortBy === 'name') {
-      return (a.name || '').localeCompare(b.name || '');
-    }
-    if (sortBy === 'most-worn') {
-      const aWorns = a.wearLogs?.length || (a.lastWornAt ? 1 : 0);
-      const bWorns = b.wearLogs?.length || (b.lastWornAt ? 1 : 0);
-      return bWorns - aWorns;
-    }
-    if (sortBy === 'least-worn') {
-      const aWorns = a.wearLogs?.length || (a.lastWornAt ? 1 : 0);
-      const bWorns = b.wearLogs?.length || (b.lastWornAt ? 1 : 0);
-      return aWorns - bWorns;
-    }
-    if (sortBy === 'recently-worn') {
-      const aLast = a.wearLogs && a.wearLogs.length > 0 ? Math.max(...a.wearLogs) : (a.lastWornAt || 0);
-      const bLast = b.wearLogs && b.wearLogs.length > 0 ? Math.max(...b.wearLogs) : (b.lastWornAt || 0);
-      return bLast - aLast;
-    }
-    if (sortBy === 'price-high') {
-      return (b.price || 0) - (a.price || 0);
-    }
-    if (sortBy === 'price-low') {
-      return (a.price || 0) - (b.price || 0);
-    }
-    if (sortBy === 'cpw-best') {
-      const getCPW = (item: ClothingItem) => {
-        const wears = item.wearLogs ? item.wearLogs.length : 0;
-        return (item.price && wears > 0) ? (item.price / wears) : Infinity;
-      };
-      return getCPW(a) - getCPW(b);
-    }
-    if (sortBy === 'cpw-worst') {
-      const getCPW = (item: ClothingItem) => {
-        const wears = item.wearLogs ? item.wearLogs.length : 0;
-        return (item.price && wears > 0) ? (item.price / wears) : -1;
-      };
-      return getCPW(b) - getCPW(a);
-    }
-    return 0;
-  });
+  const sorted = useMemo(() => {
+    return itemService.sortItems(filtered, sortBy);
+  }, [filtered, sortBy]);
 
   const hasActiveFilters = activeCategory !== 'all' || activeTag !== 'all' || activeStatus !== 'all' || activeCondition !== 'all' || searchQuery !== '';
 
@@ -197,6 +136,7 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
                 setSelectionMode(!selectionMode);
                 setSelectedIds(new Set());
               }}
+              aria-pressed={selectionMode}
             >
               {selectionMode ? t('done') : t('selectMode')}
             </button>
@@ -213,11 +153,13 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
           placeholder={t('searchPlaceholder')}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
+          aria-label="Search items"
         />
         {searchQuery && (
           <button 
             onClick={() => setSearchQuery('')}
             style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 18 }}
+            aria-label="Clear search query"
           >
             ×
           </button>
@@ -233,6 +175,7 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
               id="select-wardrobe-sort"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as WardrobeSortOption)}
+              aria-label="Sort items"
               style={{
                 padding: '4px 8px',
                 fontSize: 12,
@@ -248,23 +191,22 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
             >
               <option value="newest">📅 Newest</option>
               <option value="oldest">⌛ Oldest</option>
-              <option value="name">🔤 Name (A-Z)</option>
               <option value="most-worn">🔥 Most Worn</option>
               <option value="least-worn">💤 Least Worn</option>
-              <option value="recently-worn">🕒 Recently Worn</option>
               <option value="price-high">💵 Price: High → Low</option>
               <option value="price-low">🏷️ Price: Low → High</option>
-              <option value="cpw-best">💎 Best Value (Lowest CPW)</option>
-              <option value="cpw-worst">💸 Highest CPW</option>
+              <option value="cpw-low">💎 Best Value (Lowest CPW)</option>
+              <option value="cpw-high">💸 Highest CPW</option>
             </select>
           </div>
 
-          <div className="view-toggle" style={{ display: 'flex', gap: 4, background: 'var(--bg-3)', padding: 3, borderRadius: 'var(--radius-md)' }}>
+          <div className="view-toggle" role="group" aria-label="View toggle" style={{ display: 'flex', gap: 4, background: 'var(--bg-3)', padding: 3, borderRadius: 'var(--radius-md)' }}>
             <button
               id="view-toggle-wardrobe-grid"
               className={`btn-icon-toggle ${viewMode === 'grid' ? 'active' : ''}`}
               onClick={() => setViewMode('grid')}
               title="Grid View"
+              aria-pressed={viewMode === 'grid'}
               style={{
                 background: viewMode === 'grid' ? 'var(--accent)' : 'transparent',
                 color: viewMode === 'grid' ? '#fff' : 'var(--text-secondary)',
@@ -286,6 +228,7 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
               className={`btn-icon-toggle ${viewMode === 'list' ? 'active' : ''}`}
               onClick={() => setViewMode('list')}
               title="List View"
+              aria-pressed={viewMode === 'list'}
               style={{
                 background: viewMode === 'list' ? 'var(--accent)' : 'transparent',
                 color: viewMode === 'list' ? '#fff' : 'var(--text-secondary)',
@@ -309,9 +252,11 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
       {/* Filter Chips */}
       {items.length > 0 && (
         <>
-          <div className="filter-bar" style={{ marginBottom: 'var(--space-2)' }}>
+          <div className="filter-bar" role="tablist" aria-label="Category filters" style={{ marginBottom: 'var(--space-2)' }}>
             <button
               id="filter-cat-all"
+              role="tab"
+              aria-selected={activeCategory === 'all'}
               className={`filter-chip ${activeCategory === 'all' ? 'active' : ''}`}
               onClick={() => setActiveCategory('all')}
             >
@@ -321,6 +266,8 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
               <button
                 id={`filter-cat-${cat.value}`}
                 key={cat.value}
+                role="tab"
+                aria-selected={activeCategory === cat.value}
                 className={`filter-chip ${activeCategory === cat.value ? 'active' : ''}`}
                 onClick={() => setActiveCategory(cat.value)}
               >
@@ -329,9 +276,11 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
             ))}
           </div>
 
-          <div className="filter-bar" style={{ marginBottom: 'var(--space-2)' }}>
+          <div className="filter-bar" role="tablist" aria-label="Tag filters" style={{ marginBottom: 'var(--space-2)' }}>
             <button
               id="filter-tag-all"
+              role="tab"
+              aria-selected={activeTag === 'all'}
               className={`filter-chip ${activeTag === 'all' ? 'active' : ''}`}
               onClick={() => setActiveTag('all')}
             >
@@ -341,6 +290,8 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
               <button
                 id={`filter-tag-${tag.id}`}
                 key={tag.id}
+                role="tab"
+                aria-selected={activeTag === tag.label}
                 className={`filter-chip ${activeTag === tag.label ? 'active' : ''}`}
                 onClick={() => setActiveTag(tag.label)}
               >
@@ -349,9 +300,11 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
             ))}
           </div>
 
-          <div className="filter-bar" style={{ marginBottom: 'var(--space-3)' }}>
+          <div className="filter-bar" role="tablist" aria-label="Status filters" style={{ marginBottom: 'var(--space-3)' }}>
             <button
               id="filter-status-all"
+              role="tab"
+              aria-selected={activeStatus === 'all'}
               className={`filter-chip ${activeStatus === 'all' ? 'active' : ''}`}
               onClick={() => setActiveStatus('all')}
             >
@@ -359,6 +312,8 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
             </button>
             <button
               id="filter-status-ready"
+              role="tab"
+              aria-selected={activeStatus === 'ready'}
               className={`filter-chip ${activeStatus === 'ready' ? 'active' : ''}`}
               onClick={() => setActiveStatus('ready')}
             >
@@ -366,6 +321,8 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
             </button>
             <button
               id="filter-status-dirty"
+              role="tab"
+              aria-selected={activeStatus === 'dirty'}
               className={`filter-chip ${activeStatus === 'dirty' ? 'active' : ''}`}
               onClick={() => setActiveStatus('dirty')}
             >
@@ -373,6 +330,8 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
             </button>
             <button
               id="filter-status-cleaning"
+              role="tab"
+              aria-selected={activeStatus === 'cleaning'}
               className={`filter-chip ${activeStatus === 'cleaning' ? 'active' : ''}`}
               onClick={() => setActiveStatus('cleaning')}
             >
@@ -380,7 +339,7 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
             </button>
           </div>
 
-          {/* Active Filter Indicators & Reset Button */}
+          {/* Active Filter Indicators */}
           {hasActiveFilters && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 'var(--space-4)', flexWrap: 'wrap' }}>
               <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Active Filters:</span>
@@ -451,7 +410,7 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
         </>
       )}
 
-      {/* Grid or List View */}
+      {/* Grid or List View with Virtualization */}
       {loadingSample ? (
         <div className={viewMode === 'grid' ? 'item-grid animate-in' : 'item-list animate-in'}>
           {Array.from({ length: 6 }).map((_, i) => (
@@ -498,8 +457,13 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
         </div>
       ) : (
         <>
-          <div className={viewMode === 'grid' ? 'item-grid animate-in' : 'item-list animate-in'}>
-            {sorted.map(item => (
+          <VirtualizedGrid
+            items={sorted}
+            keyExtractor={(item) => item.id}
+            itemHeight={viewMode === 'grid' ? 240 : 80}
+            columns={viewMode === 'grid' ? 2 : 1}
+            className={viewMode === 'grid' ? 'item-grid animate-in' : 'item-list animate-in'}
+            renderItem={(item) => (
               <ItemCard
                 key={item.id}
                 item={item}
@@ -509,8 +473,8 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
                 selected={selectedIds.has(item.id)}
                 onSelect={() => toggleSelection(item.id)}
               />
-            ))}
-          </div>
+            )}
+          />
 
           {selectionMode && selectedIds.size > 0 && (
             <div className="batch-actions-bar animate-slide-up" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -518,7 +482,6 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
                 <div style={{ fontSize: 13, fontWeight: 700, color: 'white' }}>
                   {selectedIds.size} selected
                 </div>
-                {/* Batch Move Location Selector */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Move to:</span>
                   <select
@@ -526,6 +489,7 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
                       if (e.target.value) handleBatchMoveLocation(e.target.value);
                     }}
                     defaultValue=""
+                    aria-label="Move selected items to location"
                     style={{
                       background: 'var(--bg-3)',
                       color: 'white',
@@ -558,8 +522,6 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
           )}
         </>
       )}
-
-
 
       {/* Item Detail Modal */}
       {selectedItem && (

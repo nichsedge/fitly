@@ -3,50 +3,13 @@
 import { useState, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { ClothingItem, CATEGORIES, COLORS, Category } from '../lib/types';
-import { useApp } from './AppProvider';
+import { useWardrobe } from '../contexts/WardrobeContext';
+import { useSettings } from '../contexts/SettingsContext';
+import { ImageService } from '../services/ImageService';
 import Toast from './Toast';
 
 interface Props {
   onDone: () => void;
-}
-
-function compressImage(file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.82): Promise<string> {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        let width = img.width;
-        let height = img.height;
-
-        if (width > maxWidth || height > maxHeight) {
-          if (width > height) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          } else {
-            width = Math.round((width * maxHeight) / height);
-            height = maxHeight;
-          }
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          resolve(e.target?.result as string);
-          return;
-        }
-        ctx.drawImage(img, 0, 0, width, height);
-        const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
-        resolve(compressedDataUrl);
-      };
-      img.onerror = () => resolve(e.target?.result as string);
-      img.src = e.target?.result as string;
-    };
-    reader.onerror = () => resolve('');
-    reader.readAsDataURL(file);
-  });
 }
 
 function extractDominantColor(dataUrl: string): Promise<string> {
@@ -73,7 +36,6 @@ function extractDominantColor(dataUrl: string): Promise<string> {
         const a = data[i + 3];
 
         if (a > 200) {
-          // Ignore near white background if possible
           if (!(r > 245 && g > 245 && b > 245)) {
             rSum += r;
             gSum += g;
@@ -113,9 +75,11 @@ function extractDominantColor(dataUrl: string): Promise<string> {
 }
 
 export default function AddItemView({ onDone }: Props) {
-  const { addItem, tags: dynamicTags, addTag, locations, activeLocationId, t, currency } = useApp();
+  const { addItem, tags: dynamicTags, addTag, locations, activeLocationId } = useWardrobe();
+  const { t, currency } = useSettings();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [images, setImages] = useState<string[]>([]);
+  const [imageRefs, setImageRefs] = useState<string[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [name, setName] = useState('');
   const [brand, setBrand] = useState('');
   const [price, setPrice] = useState<string>('');
@@ -136,46 +100,53 @@ export default function AddItemView({ onDone }: Props) {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    const availableSlots = 5 - images.length;
+    const availableSlots = 5 - imageRefs.length;
     if (availableSlots <= 0) {
       setToast('Maximum 5 photos allowed.');
       return;
     }
 
     const filesToProcess = Array.from(files).slice(0, availableSlots);
-    setToast('Optimizing photos...');
+    setToast('Optimizing and saving photo Blobs...');
 
     try {
-      const compressedList = await Promise.all(filesToProcess.map(f => compressImage(f)));
-      const validCompressed = compressedList.filter(Boolean);
-      
-      setImages(prev => [...prev, ...validCompressed]);
+      const newImageRefs: string[] = [];
+      const newPreviews: string[] = [];
 
-      if (validCompressed[0]) {
-        // Auto-extract color from first photo
-        const extractedColor = await extractDominantColor(validCompressed[0]);
+      for (const file of filesToProcess) {
+        const compressedBlob = await ImageService.compressImage(file);
+        const imageId = await ImageService.saveImageBlob(compressedBlob);
+        const displayUrl = ImageService.getDisplayUrl(imageId, compressedBlob);
+        newImageRefs.push(imageId);
+        newPreviews.push(displayUrl);
+      }
+      
+      setImageRefs(prev => [...prev, ...newImageRefs]);
+      setPreviewUrls(prev => [...prev, ...newPreviews]);
+
+      if (newPreviews[0]) {
+        const extractedColor = await extractDominantColor(newPreviews[0]);
         if (extractedColor) {
           setColor(extractedColor);
         }
       }
 
-      // Auto-fill item name from first file if empty
       if (!name && filesToProcess[0]) {
         const base = filesToProcess[0].name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
         setName(base.charAt(0).toUpperCase() + base.slice(1));
       }
-      setToast(`✓ Added ${validCompressed.length} compressed photo(s) & detected color`);
+      setToast(`✓ Added ${newImageRefs.length} photo Blob(s) & detected color`);
     } catch (err) {
-      console.error('Image compression failed:', err);
+      console.error('Image processing failed:', err);
       setToast('Failed to load photos');
     }
 
-    // Reset input
     e.target.value = '';
   };
 
   const removeImage = (index: number) => {
-    setImages(prev => prev.filter((_, i) => i !== index));
+    setImageRefs(prev => prev.filter((_, i) => i !== index));
+    setPreviewUrls(prev => prev.filter((_, i) => i !== index));
   };
 
   const toggleTag = (tagLabel: string) => {
@@ -221,7 +192,7 @@ export default function AddItemView({ onDone }: Props) {
       locationId: locationId || 'loc-home',
       color,
       tags,
-      images,
+      images: imageRefs,
       material: material.trim() || undefined,
       careInstructions: careInstructions.trim() || undefined,
       condition: condition || 'good',
@@ -248,12 +219,12 @@ export default function AddItemView({ onDone }: Props) {
         <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
           <span>Photos</span>
           <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>
-            {images.length}/5 (Front, back, details)
+            {previewUrls.length}/5 (Front, back, details)
           </span>
         </label>
         
         <div style={{ display: 'flex', gap: 'var(--space-3)', overflowX: 'auto', paddingBottom: 'var(--space-3)' }}>
-          {images.map((img, idx) => (
+          {previewUrls.map((img, idx) => (
             <div key={idx} style={{ position: 'relative', width: 240, height: 320, flexShrink: 0, borderRadius: 'var(--radius-xl)', overflow: 'hidden', border: '1px solid var(--border)' }}>
               <img 
                 src={img} 
@@ -296,7 +267,7 @@ export default function AddItemView({ onDone }: Props) {
             </div>
           ))}
           
-          {images.length < 5 && (
+          {previewUrls.length < 5 && (
             <div
               className="photo-upload"
               onClick={() => fileRef.current?.click()}
@@ -305,12 +276,12 @@ export default function AddItemView({ onDone }: Props) {
             >
               <span className="photo-upload__icon">📷</span>
               <span className="photo-upload__text">Tap to add photo(s)</span>
-              <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Auto-compressed</span>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Saved as Blobs</span>
             </div>
           )}
         </div>
         
-        {images.length > 0 && (
+        {previewUrls.length > 0 && (
           <p style={{ fontSize: 11, color: 'var(--accent)', marginTop: 2, fontWeight: 600, textAlign: 'center' }}>
             🎯 Tap on any image to pick a color
           </p>

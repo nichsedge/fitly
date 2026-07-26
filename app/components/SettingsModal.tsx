@@ -1,19 +1,36 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { useApp } from './AppProvider';
+import { useWardrobe } from '../contexts/WardrobeContext';
+import { useOutfits } from '../contexts/OutfitContext';
+import { useTrips } from '../contexts/TripContext';
+import { useSettings } from '../contexts/SettingsContext';
+import { useRestoreBackup } from '../contexts/AppContextProvider';
 import Toast from './Toast';
 import TagsManagerModal from './TagsManagerModal';
 import { Currency } from '../lib/i18n';
 import { Category, ItemCondition } from '../lib/types';
 import { v4 as uuidv4 } from 'uuid';
+import { exportWardrobeZip, importWardrobeZip, downloadZipBlob, restoreWardrobeData } from '../lib/zipBackup';
 
 interface Props {
   onClose: () => void;
 }
 
 export default function SettingsModal({ onClose }: Props) {
-  const { items, outfits, tags, locations, addLocation, deleteLocation, restoreBackup, isOffline, isInstallable, promptInstallApp, currency, setCurrency, language, setLanguage, t } = useApp();
+  const { items, tags, locations, addLocation, deleteLocation } = useWardrobe();
+  const { outfits } = useOutfits();
+  const { trips } = useTrips();
+  const { isOffline, isInstallable, promptInstallApp, currency, setCurrency, language, setLanguage, t } = useSettings();
+  const restoreBackup = useRestoreBackup();
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
   const [toast, setToast] = useState('');
   const [restoring, setRestoring] = useState(false);
   const [showTagsManager, setShowTagsManager] = useState(false);
@@ -22,6 +39,9 @@ export default function SettingsModal({ onClose }: Props) {
   const [isAddingLoc, setIsAddingLoc] = useState(false);
   const [storageStats, setStorageStats] = useState<{ usedMB: string; quotaMB: string; percent: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const zipFileInputRef = useRef<HTMLInputElement>(null);
+  const [exportingZip, setExportingZip] = useState(false);
+  const [importingZip, setImportingZip] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && navigator.storage && navigator.storage.estimate) {
@@ -87,6 +107,51 @@ export default function SettingsModal({ onClose }: Props) {
     } catch (err) {
       console.error('Backup failed:', err);
       setToast('❌ Backup failed');
+    }
+  };
+
+  const handleExportZip = async () => {
+    try {
+      setExportingZip(true);
+      const zipBlob = await exportWardrobeZip(items, outfits, tags, locations, trips);
+      downloadZipBlob(zipBlob);
+      setToast('✓ Full ZIP Backup (with photos) downloaded!');
+    } catch (err) {
+      console.error('ZIP export failed:', err);
+      setToast('❌ ZIP Backup failed');
+    } finally {
+      setExportingZip(false);
+    }
+  };
+
+  const handleImportZip = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImportingZip(true);
+    try {
+      const result = await importWardrobeZip(file);
+      if (!result.success || !result.data) {
+        alert(`Import failed: ${(result.errors || []).join(', ')}`);
+        return;
+      }
+
+      const confirmRestore = window.confirm(
+        'Warning: This will restore wardrobe items, outfits, photos, and settings. Continue?'
+      );
+
+      if (confirmRestore) {
+        const { items: rItems, outfits: rOutfits, tags: rTags, locations: rLocations, trips: rTrips } = result.data;
+        await restoreWardrobeData(rItems, rOutfits || [], rTags, rLocations, rTrips || []);
+        setToast('✓ Full ZIP Restore complete!');
+        setTimeout(onClose, 1000);
+      }
+    } catch (err) {
+      console.error('ZIP import failed:', err);
+      alert('ZIP restore failed: Invalid backup file');
+    } finally {
+      setImportingZip(false);
+      if (zipFileInputRef.current) zipFileInputRef.current.value = '';
     }
   };
 
@@ -494,6 +559,25 @@ export default function SettingsModal({ onClose }: Props) {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <button 
+                    id="btn-export-zip"
+                    className="btn btn-ghost" 
+                    onClick={handleExportZip}
+                    disabled={exportingZip}
+                    style={{
+                      justifyContent: 'flex-start',
+                      width: '100%',
+                      background: 'var(--bg-2)',
+                      border: '1px solid var(--accent)',
+                      color: 'var(--accent)',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      padding: '8px 12px'
+                    }}
+                  >
+                    🖼️ {exportingZip ? 'Exporting ZIP...' : 'Full Photo Backup (.zip)'}
+                  </button>
+
+                  <button 
                     id="btn-backup-wardrobe"
                     className="btn btn-ghost" 
                     onClick={handleBackup}
@@ -507,7 +591,7 @@ export default function SettingsModal({ onClose }: Props) {
                       padding: '8px 12px'
                     }}
                   >
-                    📦 Full App Backup (.json)
+                    📦 JSON Data Backup (.json)
                   </button>
 
                   <button 
@@ -544,6 +628,32 @@ export default function SettingsModal({ onClose }: Props) {
                 </p>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <button 
+                    id="btn-restore-zip"
+                    className="btn btn-ghost" 
+                    onClick={() => zipFileInputRef.current?.click()}
+                    disabled={importingZip}
+                    style={{
+                      justifyContent: 'flex-start',
+                      width: '100%',
+                      background: 'var(--bg-2)',
+                      border: '1px solid var(--accent)',
+                      color: 'var(--accent)',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      padding: '8px 12px'
+                    }}
+                  >
+                    🖼️ {importingZip ? 'Restoring ZIP...' : 'Restore Photo Backup (.zip)'}
+                  </button>
+                  <input
+                    type="file"
+                    ref={zipFileInputRef}
+                    onChange={handleImportZip}
+                    accept=".zip"
+                    style={{ display: 'none' }}
+                  />
+
                   <button 
                     id="btn-restore-wardrobe"
                     className="btn btn-ghost" 

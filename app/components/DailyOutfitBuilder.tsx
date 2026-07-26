@@ -1,8 +1,7 @@
-'use client';
-
 import { useState } from 'react';
 import { ClothingItem, Category, CATEGORIES } from '../lib/types';
-import { useApp } from './AppProvider';
+import { useWardrobe } from '../contexts/WardrobeContext';
+import { useOutfits } from '../contexts/OutfitContext';
 import { v4 as uuidv4 } from 'uuid';
 import Toast from './Toast';
 
@@ -12,7 +11,8 @@ interface Props {
 }
 
 export default function DailyOutfitBuilder({ startingItem, onClose }: Props) {
-  const { items, activeLocationId, addOutfit, updateItem } = useApp();
+  const { items, activeLocationId, updateItem } = useWardrobe();
+  const { addOutfit } = useOutfits();
   
   // Filter available items by active location if set
   const availableItems = items.filter(i => 

@@ -1,35 +1,18 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { useApp } from './AppProvider';
+import React, { useState } from 'react';
+import { useLaundry } from '../contexts/LaundryContext';
+import { useSettings } from '../contexts/SettingsContext';
 import { CATEGORIES, Category, ClothingItem } from '../lib/types';
 import Toast from './Toast';
 import { triggerHaptic } from '../lib/haptics';
 
-const DEFAULT_LAUNDRY_CATEGORIES: Category[] = ['top', 'bottom', 'underwear', 'outerwear'];
-
 export default function LaundryView() {
-  const { items, updateItem, t } = useApp();
+  const { laundryCategories, setLaundryCategories, getWornItems, getWashHistory, markWashed, markAllWashed, deleteWashSession } = useLaundry();
+  const { t } = useSettings();
   const [toast, setToast] = useState('');
   const [showAllItems, setShowAllItems] = useState(false);
   const [showCategorySettings, setShowCategorySettings] = useState(false);
-
-  // Saved customizable laundry categories
-  const [laundryCategories, setLaundryCategories] = useState<Category[]>(DEFAULT_LAUNDRY_CATEGORIES);
-
-  useEffect(() => {
-    const saved = localStorage.getItem('laundryCategories');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setLaundryCategories(parsed);
-        }
-      } catch (e) {
-        console.error('Failed to parse laundryCategories from localStorage', e);
-      }
-    }
-  }, []);
 
   const toggleLaundryCategory = (cat: Category) => {
     const next = laundryCategories.includes(cat)
@@ -42,158 +25,91 @@ export default function LaundryView() {
     }
 
     setLaundryCategories(next);
-    localStorage.setItem('laundryCategories', JSON.stringify(next));
   };
 
-  // Wash History audit logs grouped by day
-  const washHistory = useMemo(() => {
-    const historyMap: Record<string, { date: Date; items: ClothingItem[] }> = {};
-    items.forEach(item => {
-      const logs = item.washLogs || (item.lastWashedAt ? [item.lastWashedAt] : []);
-      logs.forEach(ts => {
-        const d = new Date(ts);
-        const dayKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        if (!historyMap[dayKey]) {
-          historyMap[dayKey] = { date: d, items: [] };
-        }
-        if (!historyMap[dayKey].items.find(i => i.id === item.id)) {
-          historyMap[dayKey].items.push(item);
-        }
-      });
-    });
-    return Object.entries(historyMap)
-      .map(([key, data]) => ({ key, ...data }))
-      .sort((a, b) => b.date.getTime() - a.date.getTime());
-  }, [items]);
-
-  // Calculate wears since last wash for each item
-  const allWornItems = items.map(item => {
-    const lastWash = item.lastWashedAt || 0;
-    const wearsSinceWash = (item.wearLogs || []).filter(timestamp => timestamp > lastWash).length;
-    return { item, wearsSinceWash };
-  })
-  .filter(entry => entry.wearsSinceWash > 0)
-  .sort((a, b) => b.wearsSinceWash - a.wearsSinceWash);
-
-  // Filter items based on user's customized laundry categories
-  const wornItems = allWornItems.filter(({ item }) => 
-    showAllItems || laundryCategories.includes(item.category)
-  );
+  const washHistory = getWashHistory();
+  const wornItems = getWornItems(showAllItems);
 
   const handleWashSingleItem = async (item: ClothingItem) => {
     triggerHaptic(12);
-    // eslint-disable-next-line react-hooks/purity
-    const now = Date.now();
-    const existingLogs = item.washLogs || (item.lastWashedAt ? [item.lastWashedAt] : []);
-    await updateItem({
-      ...item,
-      lastWashedAt: now,
-      washLogs: [...existingLogs, now],
-      status: 'ready'
-    });
+    await markWashed(item);
     setToast(`✓ ${item.name} marked washed & clean`);
   };
 
   const handleWashAll = async () => {
     triggerHaptic(15);
-    // eslint-disable-next-line react-hooks/purity
-    const now = Date.now();
-    await Promise.all(wornItems.map(({ item }) => {
-      const existingLogs = item.washLogs || (item.lastWashedAt ? [item.lastWashedAt] : []);
-      return updateItem({
-        ...item,
-        lastWashedAt: now,
-        washLogs: [...existingLogs, now],
-        status: 'ready'
-      });
-    }));
-    setToast(`✓ All ${wornItems.length} item(s) marked washed & clean!`);
+    const itemsToWash = wornItems.map(e => e.item);
+    await markAllWashed(itemsToWash);
+    setToast(`✓ All ${itemsToWash.length} item(s) marked washed & clean!`);
   };
 
   const handleDeleteWashSession = async (dayKey: string, washedItems: ClothingItem[]) => {
     triggerHaptic(10);
-    const getDayKey = (ts: number) => {
-      const d = new Date(ts);
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    };
-    for (const item of washedItems) {
-      const updatedWashLogs = (item.washLogs || []).filter(ts => getDayKey(ts) !== dayKey);
-      const newLastWashedAt = updatedWashLogs.length > 0 ? Math.max(...updatedWashLogs) : undefined;
-      await updateItem({
-        ...item,
-        washLogs: updatedWashLogs,
-        lastWashedAt: newLastWashedAt
-      });
-    }
-    setToast(`✓ Deleted wash log for ${dayKey}`);
+    await deleteWashSession(dayKey, washedItems);
+    setToast('✓ Wash log entry deleted');
   };
 
-  // Active category emojis for summary label
-  const activeCategoryInfo = CATEGORIES.filter(c => laundryCategories.includes(c.value));
-  const summaryCategoriesLabel = activeCategoryInfo.map(c => c.label).join(', ');
-
   return (
-    <div className="page-content animate-in">
-      {/* Header */}
-      <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-            <h2 className="section-title">{t('laundryCounter')}</h2>
-            <span className="section-count">{wornItems.length}</span>
-          </div>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span>Tracking: {summaryCategoriesLabel}</span>
-          </p>
+    <div className="page-content" style={{ paddingBottom: 'calc(var(--space-12) + 20px)' }}>
+      {/* Section Header */}
+      <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          <h2 className="section-title">🧺 {t('laundry')}</h2>
+          <span className="section-count">{wornItems.length}</span>
         </div>
 
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button
-            className="btn btn-ghost"
-            style={{ fontSize: 12, padding: '4px 10px', height: 32 }}
-            onClick={() => setShowCategorySettings(!showCategorySettings)}
-          >
-            ⚙️ Categories
-          </button>
-          <button
-            className={`btn ${showAllItems ? 'btn-primary' : 'btn-ghost'}`}
-            style={{ fontSize: 12, padding: '4px 10px', height: 32 }}
-            onClick={() => setShowAllItems(!showAllItems)}
-          >
-            {showAllItems ? 'Showing All' : 'Filter Categories'}
-          </button>
-        </div>
+        <button
+          className="btn btn-ghost"
+          style={{ padding: '4px 10px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}
+          onClick={() => setShowCategorySettings(!showCategorySettings)}
+          aria-expanded={showCategorySettings}
+          aria-label="Laundry threshold settings"
+        >
+          ⚙️ Settings
+        </button>
       </div>
 
+      {/* Category Settings Panel */}
       {showCategorySettings && (
-        <div style={{
+        <div className="animate-in" style={{
           background: 'var(--bg-2)',
           border: '1px solid var(--border)',
           borderRadius: 'var(--radius-lg)',
           padding: 'var(--space-4)',
           marginBottom: 'var(--space-4)'
         }}>
-          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>
-            🧺 Laundry Basket Categories
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, color: 'var(--text-primary)' }}>
+            Track in Laundry Basket:
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+            Items in selected categories will automatically enter the laundry basket after wearing.
+          </p>
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {CATEGORIES.map(cat => {
-              const active = laundryCategories.includes(cat.value);
+              const isTracked = laundryCategories.includes(cat.value);
               return (
                 <button
                   key={cat.value}
                   onClick={() => toggleLaundryCategory(cat.value)}
+                  aria-pressed={isTracked}
                   style={{
-                    padding: '4px 10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '6px 12px',
                     borderRadius: 'var(--radius-pill)',
                     fontSize: 12,
                     fontWeight: 600,
-                    border: active ? '2px solid var(--accent)' : '1px solid var(--border)',
-                    background: active ? 'var(--accent-subtle)' : 'var(--bg-3)',
-                    color: active ? 'var(--accent)' : 'var(--text-secondary)',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    border: isTracked ? '1px solid var(--accent)' : '1px solid var(--border)',
+                    background: isTracked ? 'var(--accent-subtle)' : 'var(--bg-3)',
+                    color: isTracked ? 'var(--accent)' : 'var(--text-secondary)'
                   }}
                 >
-                  {cat.emoji} {cat.label}
+                  <span>{cat.emoji}</span>
+                  <span>{cat.label}</span>
+                  <span>{isTracked ? '✓' : '+'}</span>
                 </button>
               );
             })}
@@ -201,134 +117,117 @@ export default function LaundryView() {
         </div>
       )}
 
-      {/* Wash All Action Header */}
-      {wornItems.length > 0 && (
-        <div style={{
-          background: 'var(--bg-2)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-lg)',
-          padding: '14px 16px',
-          marginBottom: 'var(--space-4)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: 12
-        }}>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
-              {wornItems.length} item(s) pending laundry
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              Mark all worn items washed after doing laundry
-            </div>
-          </div>
-
+      {/* Main Actions Bar */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)', flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
           <button
-            className="btn btn-primary"
-            style={{ padding: '8px 16px', fontSize: 13, fontWeight: 700 }}
-            onClick={handleWashAll}
+            className={`btn ${!showAllItems ? 'btn-primary' : 'btn-ghost'}`}
+            style={{ padding: '6px 12px', fontSize: 12 }}
+            onClick={() => setShowAllItems(false)}
+            aria-pressed={!showAllItems}
           >
-            🧼 {t('washAll')}
+            Tracked Basket ({getWornItems(false).length})
+          </button>
+          <button
+            className={`btn ${showAllItems ? 'btn-primary' : 'btn-ghost'}`}
+            style={{ padding: '6px 12px', fontSize: 12 }}
+            onClick={() => setShowAllItems(true)}
+            aria-pressed={showAllItems}
+          >
+            All Worn Items ({getWornItems(true).length})
           </button>
         </div>
-      )}
 
-      {/* Items List */}
+        {wornItems.length > 0 && (
+          <button
+            className="btn btn-primary"
+            style={{ padding: '6px 14px', fontSize: 12, background: 'var(--accent)', color: 'white', fontWeight: 700 }}
+            onClick={handleWashAll}
+          >
+            🧼 Wash All ({wornItems.length})
+          </button>
+        )}
+      </div>
+
+      {/* Worn Items List */}
       {wornItems.length === 0 ? (
-        <div className="empty-state" style={{ padding: 'var(--space-8) var(--space-4)', textAlign: 'center' }}>
-          <div className="empty-state__emoji" style={{ fontSize: 48, marginBottom: 12 }}>🧺✨</div>
+        <div className="empty-state animate-in" style={{ padding: 'var(--space-8) var(--space-4)', textAlign: 'center' }}>
+          <div className="empty-state__emoji" style={{ fontSize: 48, marginBottom: 12 }}>✨</div>
           <div className="empty-state__title" style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>
-            {t('cleanNoWornTitle')}
+            {showAllItems ? 'No worn items found' : 'Laundry basket is clean!'}
           </div>
           <p className="empty-state__desc" style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 320, margin: '0 auto' }}>
-            {t('cleanNoWornDesc')}
+            {showAllItems ? 'No clothing items have unwashed wears recorded.' : 'All tracked wardrobe items are clean and ready to wear.'}
           </p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="animate-in" style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 'var(--space-6)' }}>
           {wornItems.map(({ item, wearsSinceWash }) => {
-            const isThresholdExceeded = wearsSinceWash >= 3;
+            const cat = CATEGORIES.find(c => c.value === item.category);
             return (
               <div
                 key={item.id}
                 style={{
-                  background: 'var(--bg-2)',
-                  border: isThresholdExceeded ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid var(--border)',
-                  borderRadius: 'var(--radius-lg)',
-                  padding: '12px 14px',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 12
+                  gap: 12,
+                  background: 'var(--bg-2)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: '10px 14px'
                 }}
               >
-                {/* Photo Thumbnail */}
                 <div style={{
-                  width: 48,
-                  height: 48,
+                  width: 44,
+                  height: 44,
                   borderRadius: 'var(--radius-md)',
-                  background: 'var(--bg-3)',
                   overflow: 'hidden',
-                  flexShrink: 0,
+                  background: 'var(--bg-3)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: 24
+                  fontSize: 20,
+                  flexShrink: 0
                 }}>
                   {item.images && item.images.length > 0 ? (
-                    // eslint-disable-next-line @next/next/no-img-element
                     <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
-                    <span>👕</span>
+                    cat?.emoji || '👕'
                   )}
                 </div>
 
-                {/* Info */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
                     {item.name}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2, fontSize: 12, color: 'var(--text-muted)' }}>
+                    <span style={{ textTransform: 'capitalize' }}>{item.category}</span>
+                    <span>•</span>
                     <span style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: isThresholdExceeded ? 'var(--danger)' : 'var(--accent)',
-                      background: isThresholdExceeded ? 'rgba(239, 68, 68, 0.15)' : 'var(--accent-subtle)',
-                      padding: '2px 8px',
-                      borderRadius: 'var(--radius-pill)'
+                      color: wearsSinceWash >= 3 ? '#ef4444' : wearsSinceWash >= 2 ? '#eab308' : 'var(--accent)',
+                      fontWeight: 700
                     }}>
-                      {wearsSinceWash} {wearsSinceWash === 1 ? t('wearSinceWash') : t('wearsSinceWash')}
+                      🔥 Worn {wearsSinceWash}x since wash
                     </span>
-                    {isThresholdExceeded && (
-                      <span style={{
-                        background: 'rgba(239, 68, 68, 0.15)',
-                        color: 'var(--danger)',
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                        padding: '2px 8px',
-                        borderRadius: 'var(--radius-pill)',
-                        fontSize: 10,
-                        fontWeight: 700
-                      }}>
-                        {t('washRecommended')}
-                      </span>
-                    )}
                   </div>
                 </div>
 
                 <button
-                  onClick={() => handleWashSingleItem(item)}
+                  className="btn btn-ghost"
                   style={{
-                    background: 'var(--bg-3)',
-                    color: 'var(--text-primary)',
-                    border: '1px solid var(--border)',
-                    padding: '6px 10px',
-                    borderRadius: 'var(--radius-md)',
+                    padding: '6px 12px',
                     fontSize: 12,
                     fontWeight: 700,
+                    background: 'rgba(34, 197, 94, 0.15)',
+                    color: '#22c55e',
+                    border: 'none',
+                    borderRadius: 'var(--radius-pill)',
                     cursor: 'pointer'
                   }}
+                  onClick={() => handleWashSingleItem(item)}
+                  aria-label={`Mark ${item.name} as clean`}
                 >
-                  {t('washItem')}
+                  🧼 Wash
                 </button>
               </div>
             );
@@ -336,56 +235,47 @@ export default function LaundryView() {
         </div>
       )}
 
-      {/* Wash Audit History Section */}
+      {/* Wash History Section */}
       {washHistory.length > 0 && (
-        <div style={{ marginTop: 'var(--space-8)' }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span>📜 Laundry Wash Audit Logs</span>
-            <span style={{ fontSize: 11, background: 'var(--bg-3)', color: 'var(--text-muted)', padding: '2px 8px', borderRadius: 'var(--radius-pill)' }}>
-              {washHistory.length} sessions
-            </span>
-          </div>
+        <div style={{ marginTop: 'var(--space-6)' }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: 'var(--text-primary)' }}>
+            📜 Wash History Log ({washHistory.length} sessions)
+          </h3>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {washHistory.slice(0, 10).map(entry => (
-              <div 
-                key={entry.key} 
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {washHistory.map(({ key, date, items: washedItems }) => (
+              <div
+                key={key}
                 style={{
                   background: 'var(--bg-2)',
                   border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-md)',
+                  borderRadius: 'var(--radius-lg)',
                   padding: '12px 14px'
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
-                    🧼 Washed {entry.items.length} item(s)
-                  </span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                      {entry.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </span>
-                    <button
-                      className="btn btn-ghost"
-                      style={{ padding: '2px 6px', fontSize: 11, color: 'var(--danger)', height: 'auto' }}
-                      title="Undo / Delete this wash log session"
-                      onClick={() => handleDeleteWashSession(entry.key, entry.items)}
-                    >
-                      🗑️ Undo
-                    </button>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-primary)' }}>
+                    📅 {date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
                   </div>
+                  <button
+                    onClick={() => handleDeleteWashSession(key, washedItems)}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12 }}
+                    aria-label={`Delete wash history session for ${key}`}
+                  >
+                    🗑️ Delete Log
+                  </button>
                 </div>
+
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {entry.items.map(item => (
-                    <span 
+                  {washedItems.map(item => (
+                    <span
                       key={item.id}
                       style={{
                         fontSize: 11,
                         background: 'var(--bg-3)',
-                        color: 'var(--text-secondary)',
                         padding: '2px 8px',
                         borderRadius: 'var(--radius-pill)',
-                        border: '1px solid var(--border)'
+                        color: 'var(--text-secondary)'
                       }}
                     >
                       {item.name}

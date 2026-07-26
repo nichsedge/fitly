@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useApp } from './components/AppProvider';
+import { useWardrobe } from './contexts/WardrobeContext';
+import { useSettings } from './contexts/SettingsContext';
+import { useAppLoading } from './contexts/AppContextProvider';
 import WardrobeView from './components/WardrobeView';
 import OutfitsView from './components/OutfitsView';
 import LaundryView from './components/LaundryView';
@@ -12,23 +14,14 @@ import SettingsModal from './components/SettingsModal';
 import TripsView from './components/TripsView';
 import QuickAddModal from './components/QuickAddModal';
 import MoreMenuModal from './components/MoreMenuModal';
+import ErrorBoundary from './components/ErrorBoundary';
 import { ActiveTab } from './lib/types';
 import { triggerHaptic } from './lib/haptics';
 
 export default function Home() {
-  const { 
-    loading, 
-    items, 
-    theme, 
-    toggleTheme, 
-    isOffline, 
-    t, 
-    language, 
-    setLanguage, 
-    locations, 
-    activeLocationId, 
-    setActiveLocationId 
-  } = useApp();
+  const loading = useAppLoading();
+  const { items, locations, activeLocationId, setActiveLocationId } = useWardrobe();
+  const { theme, toggleTheme, isOffline, t, language, setLanguage } = useSettings();
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('wardrobe');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -152,20 +145,46 @@ export default function Home() {
 
       {/* Main Content */}
       <main style={{ flex: 1, overflowY: 'auto' }}>
-        {activeTab === 'wardrobe' && <WardrobeView onNavigateToAdd={() => handleTabChange('add')} />}
-        {activeTab === 'outfits' && <OutfitsView />}
-        {activeTab === 'laundry' && <LaundryView />}
-        {activeTab === 'calendar' && <CalendarTab />}
-        {activeTab === 'trips' && <TripsView />}
-        {activeTab === 'insights' && (
-          <div className="page-content">
-            <div className="section-header">
-              <h2 className="section-title">{t('stats')}</h2>
-            </div>
-            <InsightsSection />
-          </div>
+        {activeTab === 'wardrobe' && (
+          <ErrorBoundary>
+            <WardrobeView onNavigateToAdd={() => handleTabChange('add')} />
+          </ErrorBoundary>
         )}
-        {activeTab === 'add' && <AddItemView onDone={() => handleTabChange('wardrobe')} />}
+        {activeTab === 'outfits' && (
+          <ErrorBoundary>
+            <OutfitsView />
+          </ErrorBoundary>
+        )}
+        {activeTab === 'laundry' && (
+          <ErrorBoundary>
+            <LaundryView />
+          </ErrorBoundary>
+        )}
+        {activeTab === 'calendar' && (
+          <ErrorBoundary>
+            <CalendarTab />
+          </ErrorBoundary>
+        )}
+        {activeTab === 'trips' && (
+          <ErrorBoundary>
+            <TripsView />
+          </ErrorBoundary>
+        )}
+        {activeTab === 'insights' && (
+          <ErrorBoundary>
+            <div className="page-content">
+              <div className="section-header">
+                <h2 className="section-title">{t('stats')}</h2>
+              </div>
+              <InsightsSection />
+            </div>
+          </ErrorBoundary>
+        )}
+        {activeTab === 'add' && (
+          <ErrorBoundary>
+            <AddItemView onDone={() => handleTabChange('wardrobe')} />
+          </ErrorBoundary>
+        )}
       </main>
 
       {isSettingsOpen && (

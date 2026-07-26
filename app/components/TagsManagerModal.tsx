@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useApp } from './AppProvider';
+import { useWardrobe } from '../contexts/WardrobeContext';
 import { CustomTag } from '../lib/types';
 import Toast from './Toast';
 
@@ -11,7 +11,15 @@ interface Props {
 }
 
 export default function TagsManagerModal({ onClose }: Props) {
-  const { tags, addTag, updateTag, deleteTag } = useApp();
+  const { tags, addTag, updateTag, deleteTag } = useWardrobe();
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
   const [newTagLabel, setNewTagLabel] = useState('');
   const [editingTag, setEditingTag] = useState<CustomTag | null>(null);
   const [editLabel, setEditLabel] = useState('');
