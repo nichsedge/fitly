@@ -1,7 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Disable server-side features we don't need for local-only PWA
+  // Static HTML export for 0-compute serverless execution on Vercel
+  output: "export",
+  images: {
+    unoptimized: true,
+  },
   reactStrictMode: true,
 };
 

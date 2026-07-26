@@ -1,6 +1,7 @@
-const CACHE_NAME = 'fitly-pwa-v2';
+const CACHE_NAME = 'fitly-pwa-v3';
 const STATIC_ASSETS = [
   '/',
+  '/index.html',
   '/manifest.json',
   '/favicon.ico',
   '/icon-192.png',
@@ -49,7 +50,7 @@ self.addEventListener('periodicsync', (event) => {
   }
 });
 
-// Fetch event: Cache-first for static, network-first for dynamic
+// Fetch event: Offline-first with Stale-While-Revalidate for static & pages
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
@@ -58,9 +59,12 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
+      // 1. Immutable / static Next.js assets: Cache-First
+      const isNextStatic = url.pathname.startsWith('/_next/static/');
+
       if (cachedResponse) {
-        // Stale-while-revalidate for navigations
-        if (event.request.mode === 'navigate') {
+        // If it's a navigation or static shell file, revalidate silently in background
+        if (event.request.mode === 'navigate' || !isNextStatic) {
           fetch(event.request).then((networkResponse) => {
             if (networkResponse && networkResponse.status === 200) {
               caches.open(CACHE_NAME).then((cache) => {
@@ -72,12 +76,12 @@ self.addEventListener('fetch', (event) => {
         return cachedResponse;
       }
 
-      // Network fallback + cache
+      // 2. Network fallback + cache for un-cached requests
       return fetch(event.request).then((networkResponse) => {
         if (
           !networkResponse ||
           networkResponse.status !== 200 ||
-          networkResponse.type !== 'basic'
+          (networkResponse.type !== 'basic' && networkResponse.type !== 'cors')
         ) {
           return networkResponse;
         }
@@ -90,7 +94,7 @@ self.addEventListener('fetch', (event) => {
         return networkResponse;
       }).catch(() => {
         if (event.request.mode === 'navigate') {
-          return caches.match('/');
+          return caches.match('/') || caches.match('/index.html');
         }
         return new Response('Offline content unavailable', {
           status: 533,
