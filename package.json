@@ -1,7 +1,16 @@
 {
-  "name": "outfit_manager",
+  "name": "fitly",
   "version": "0.1.0",
   "private": true,
+  "description": "A modern, privacy-focused digital wardrobe and outfit manager.",
+  "keywords": [
+    "digital-wardrobe",
+    "outfit-planner",
+    "local-first",
+    "indexeddb",
+    "nextjs",
+    "react"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
