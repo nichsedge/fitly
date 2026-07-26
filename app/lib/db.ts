@@ -1,77 +1,6 @@
-import { openDB, IDBPDatabase } from 'idb';
 import { ClothingItem, Outfit, CustomTag, DEFAULT_TAG_NAMES, PlannedOutfit, Trip, WardrobeLocation, DEFAULT_LOCATIONS } from './types';
 import { v4 as uuidv4 } from 'uuid';
-
-const DB_NAME = 'outfit-manager';
-const DB_VERSION = 4;
-
-type OutfitManagerDB = {
-  items: {
-    key: string;
-    value: ClothingItem;
-    indexes: { byCategory: string; byCreatedAt: number };
-  };
-  outfits: {
-    key: string;
-    value: Outfit;
-    indexes: { byCreatedAt: number };
-  };
-  tags: {
-    key: string;
-    value: CustomTag;
-  };
-  plans: {
-    key: string;
-    value: PlannedOutfit;
-    indexes: { byDate: string };
-  };
-  trips: {
-    key: string;
-    value: Trip;
-  };
-  locations: {
-    key: string;
-    value: WardrobeLocation;
-  };
-};
-
-let dbPromise: Promise<IDBPDatabase<OutfitManagerDB>> | null = null;
-
-function getDB() {
-  if (!dbPromise) {
-    dbPromise = openDB<OutfitManagerDB>(DB_NAME, DB_VERSION, {
-      upgrade(db, oldVersion) {
-        if (oldVersion < 1) {
-          const itemStore = db.createObjectStore('items', { keyPath: 'id' });
-          itemStore.createIndex('byCategory', 'category');
-          itemStore.createIndex('byCreatedAt', 'createdAt');
-          
-          const outfitStore = db.createObjectStore('outfits', { keyPath: 'id' });
-          outfitStore.createIndex('byCreatedAt', 'createdAt');
-          
-          db.createObjectStore('tags', { keyPath: 'id' });
-        }
-        
-        if (oldVersion < 3) {
-          if (!db.objectStoreNames.contains('plans')) {
-            const planStore = db.createObjectStore('plans', { keyPath: 'id' });
-            planStore.createIndex('byDate', 'date');
-          }
-          if (!db.objectStoreNames.contains('trips')) {
-            db.createObjectStore('trips', { keyPath: 'id' });
-          }
-        }
-
-        if (oldVersion < 4) {
-          if (!db.objectStoreNames.contains('locations')) {
-            db.createObjectStore('locations', { keyPath: 'id' });
-          }
-        }
-      },
-    });
-  }
-  return dbPromise;
-}
+import { clearAllDBData, getDB } from '../repositories/RepositoryFactory';
 
 export async function seedTagsIfEmpty(): Promise<void> {
   const db = await getDB();
@@ -321,44 +250,57 @@ export async function restoreFromBackup(
   ];
   const tx = db.transaction(storeNames, 'readwrite');
   
+  const itemStore = tx.objectStore('items');
+  const outfitStore = tx.objectStore('outfits');
+  const tagStore = tx.objectStore('tags');
+  const locStore = tx.objectStore('locations');
+  const tripStore = tx.objectStore('trips');
+
   // 1. Clear existing data
-  await tx.objectStore('items').clear();
-  await tx.objectStore('outfits').clear();
+  itemStore.clear();
+  outfitStore.clear();
   
   // 2. Add new data from backup
-  const itemStore = tx.objectStore('items');
   for (const item of items) {
-    await itemStore.add(migrateItem(item));
+    itemStore.put(migrateItem(item));
   }
   
-  const outfitStore = tx.objectStore('outfits');
   for (const outfit of outfits) {
-    await outfitStore.add(migrateOutfit(outfit));
+    outfitStore.put(migrateOutfit(outfit));
   }
 
   if (tags && tags.length > 0) {
-    const tagStore = tx.objectStore('tags');
-    await tagStore.clear();
+    tagStore.clear();
     for (const tag of tags) {
-      await tagStore.add(tag);
+      tagStore.put(tag);
     }
   }
 
   if (locations && locations.length > 0) {
-    const locStore = tx.objectStore('locations');
-    await locStore.clear();
+    locStore.clear();
     for (const loc of locations) {
-      await locStore.add(loc);
+      locStore.put(loc);
     }
   }
 
   if (trips && trips.length > 0) {
-    const tripStore = tx.objectStore('trips');
-    await tripStore.clear();
+    tripStore.clear();
     for (const trip of trips) {
-      await tripStore.add(trip);
+      tripStore.put(trip);
     }
   }
   
   await tx.done;
+}
+
+export async function clearAllAppData(): Promise<void> {
+  await clearAllDBData();
+  if (typeof window !== 'undefined') {
+    localStorage.clear();
+    sessionStorage.clear();
+  }
+  if (typeof caches !== 'undefined') {
+    const keys = await caches.keys();
+    await Promise.all(keys.map(key => caches.delete(key)));
+  }
 }

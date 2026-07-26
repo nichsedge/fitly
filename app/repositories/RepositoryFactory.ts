@@ -97,6 +97,18 @@ export function getDB(): Promise<IDBPDatabase<OutfitManagerDB>> {
           }
         }
       },
+      blocked(currentVersion, blockedVersion) {
+        console.warn(`IndexedDB upgrade blocked: current ${currentVersion}, target ${blockedVersion}`);
+      },
+      blocking() {
+        if (dbPromise) {
+          dbPromise.then(db => db.close()).catch(() => {});
+          dbPromise = null;
+        }
+      },
+      terminated() {
+        dbPromise = null;
+      }
     });
   }
   return dbPromise;
@@ -107,5 +119,17 @@ export async function closeDB(): Promise<void> {
     const db = await dbPromise;
     db.close();
     dbPromise = null;
+  }
+}
+
+export async function clearAllDBData(): Promise<void> {
+  const db = await getDB();
+  const stores = Array.from(db.objectStoreNames);
+  if (stores.length > 0) {
+    const tx = db.transaction(stores, 'readwrite');
+    for (const name of stores) {
+      await tx.objectStore(name).clear();
+    }
+    await tx.done;
   }
 }

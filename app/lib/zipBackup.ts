@@ -24,13 +24,13 @@ export interface ZipBackupData extends WardrobeBackupData {
  */
 export function validateBackupData(data: unknown): { valid: boolean; errors: string[]; data?: WardrobeBackupData } {
   const schema = z.object({
-    version: z.number(),
-    timestamp: z.number(),
-    items: z.array(ClothingItemSchema),
-    outfits: z.array(OutfitSchema),
-    tags: z.array(CustomTagSchema),
-    locations: z.array(WardrobeLocationSchema),
-    trips: z.array(TripSchema),
+    version: z.number().optional().default(1),
+    timestamp: z.number().optional().default(Date.now),
+    items: z.array(ClothingItemSchema).optional().default([]),
+    outfits: z.array(OutfitSchema).optional().default([]),
+    tags: z.array(CustomTagSchema).optional().default([]),
+    locations: z.array(WardrobeLocationSchema).optional().default([]),
+    trips: z.array(TripSchema).optional().default([]),
   });
 
   const result = schema.safeParse(data);
@@ -127,7 +127,8 @@ export async function exportWardrobeZip(
 export async function importWardrobeZip(file: File): Promise<{ success: boolean; errors: string[]; data?: WardrobeBackupData }> {
   try {
     const zip = new JSZip();
-    const zipContent = await zip.loadAsync(file);
+    const arrayBuffer = await file.arrayBuffer();
+    const zipContent = await zip.loadAsync(arrayBuffer);
 
     // Read wardrobe.json
     const wardrobeFile = zipContent.file('wardrobe.json');
@@ -144,23 +145,26 @@ export async function importWardrobeZip(file: File): Promise<{ success: boolean;
       return { success: false, errors: validation.errors };
     }
 
-    // Restore images to IndexedDB from embedded base64
-    await imageRepository.clear(); // Clear existing images first
-    
-    for (const [id, base64] of Object.entries(backupData.images)) {
-      if (base64 && base64.startsWith('data:')) {
-        const blob = await base64ToBlob(base64);
-        await imageRepository.add(id, blob);
+    // Restore images to IndexedDB from embedded base64 if present
+    if (backupData.images && typeof backupData.images === 'object') {
+      await imageRepository.clear(); // Clear existing images first
+      
+      for (const [id, base64] of Object.entries(backupData.images)) {
+        if (base64 && typeof base64 === 'string' && base64.startsWith('data:')) {
+          const blob = await base64ToBlob(base64);
+          await imageRepository.add(id, blob);
+        }
       }
     }
 
     // Also try to load images from the images/ folder as fallback
     const imagesFolder = zipContent.folder('images');
     if (imagesFolder) {
-      for (const [filename, file] of Object.entries(imagesFolder.files)) {
-        const id = filename.replace(/\.[^/.]+$/, ''); // Remove extension
-        if (!backupData.images[id]) { // Only if not already loaded from JSON
-          const blob = await file.async('blob');
+      for (const [filename, zipFile] of Object.entries(imagesFolder.files)) {
+        if (zipFile.dir) continue;
+        const id = filename.replace(/^images\//, '').replace(/\.[^/.]+$/, ''); // Remove path and extension
+        if (id && (!backupData.images || !backupData.images[id])) {
+          const blob = await zipFile.async('blob');
           await imageRepository.add(id, blob);
         }
       }

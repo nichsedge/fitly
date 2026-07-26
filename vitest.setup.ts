@@ -51,15 +51,7 @@ global.Headers = dom.window.Headers;
 global.fetch = vi.fn();
 global.localStorage = dom.window.localStorage;
 global.sessionStorage = dom.window.sessionStorage;
-global.indexedDB = dom.window.indexedDB;
-global.IDBFactory = dom.window.IDBFactory;
-global.IDBDatabase = dom.window.IDBDatabase;
-global.IDBTransaction = dom.window.IDBTransaction;
-global.IDBObjectStore = dom.window.IDBObjectStore;
-global.IDBIndex = dom.window.IDBIndex;
-global.IDBCursor = dom.window.IDBCursor;
-global.IDBKeyRange = dom.window.IDBKeyRange;
-global.DOMException = dom.window.DOMException;
+// fake-indexeddb handles IndexedDB globals automatically
 
 // Mock crypto.randomUUID
 Object.defineProperty(global, 'crypto', {

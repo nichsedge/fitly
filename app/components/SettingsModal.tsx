@@ -9,9 +9,10 @@ import { useRestoreBackup } from '../contexts/AppContextProvider';
 import Toast from './Toast';
 import TagsManagerModal from './TagsManagerModal';
 import { Currency } from '../lib/i18n';
-import { Category, ItemCondition } from '../lib/types';
+import { Category, ItemCondition, ClothingItem, Outfit, CustomTag, WardrobeLocation, Trip } from '../lib/types';
 import { v4 as uuidv4 } from 'uuid';
 import { exportWardrobeZip, importWardrobeZip, downloadZipBlob, restoreWardrobeData } from '../lib/zipBackup';
+import { clearAllAppData } from '../lib/db';
 
 interface Props {
   onClose: () => void;
@@ -39,9 +40,7 @@ export default function SettingsModal({ onClose }: Props) {
   const [isAddingLoc, setIsAddingLoc] = useState(false);
   const [storageStats, setStorageStats] = useState<{ usedMB: string; quotaMB: string; percent: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const zipFileInputRef = useRef<HTMLInputElement>(null);
   const [exportingZip, setExportingZip] = useState(false);
-  const [importingZip, setImportingZip] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && navigator.storage && navigator.storage.estimate) {
@@ -52,7 +51,7 @@ export default function SettingsModal({ onClose }: Props) {
           const percent = Math.min(100, Math.round((estimate.usage / estimate.quota) * 100));
           setStorageStats({ usedMB, quotaMB, percent });
         }
-      }).catch(() => {});
+      }).catch(() => { });
     }
   }, []);
 
@@ -68,47 +67,7 @@ export default function SettingsModal({ onClose }: Props) {
     setToast(`✓ Created location "${newLocName.trim()}"`);
   };
 
-  const handleBackup = () => {
-    try {
-      const data = {
-        version: 2,
-        timestamp: Date.now(),
-        items,
-        outfits,
-        tags,
-        locations
-      };
-      
-      const jsonString = JSON.stringify(data, null, 2);
-      const filename = `wardrobe-backup-${new Date().toISOString().split('T')[0]}.json`;
 
-      // Direct Blob URL download
-      const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      link.setAttribute('download', filename);
-      link.style.display = 'none';
-      
-      document.body.appendChild(link);
-      link.click();
-      
-      // Keep URL active for 10s to ensure download completes, then clean up
-      setTimeout(() => {
-        if (document.body.contains(link)) {
-          document.body.removeChild(link);
-        }
-        URL.revokeObjectURL(url);
-      }, 10000);
-      
-      setToast('✓ Backup downloaded to your device!');
-    } catch (err) {
-      console.error('Backup failed:', err);
-      setToast('❌ Backup failed');
-    }
-  };
 
   const handleExportZip = async () => {
     try {
@@ -124,72 +83,85 @@ export default function SettingsModal({ onClose }: Props) {
     }
   };
 
-  const handleImportZip = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setImportingZip(true);
-    try {
-      const result = await importWardrobeZip(file);
-      if (!result.success || !result.data) {
-        alert(`Import failed: ${(result.errors || []).join(', ')}`);
-        return;
-      }
-
-      const confirmRestore = window.confirm(
-        'Warning: This will restore wardrobe items, outfits, photos, and settings. Continue?'
-      );
-
-      if (confirmRestore) {
-        const { items: rItems, outfits: rOutfits, tags: rTags, locations: rLocations, trips: rTrips } = result.data;
-        await restoreWardrobeData(rItems, rOutfits || [], rTags, rLocations, rTrips || []);
-        setToast('✓ Full ZIP Restore complete!');
-        setTimeout(onClose, 1000);
-      }
-    } catch (err) {
-      console.error('ZIP import failed:', err);
-      alert('ZIP restore failed: Invalid backup file');
-    } finally {
-      setImportingZip(false);
-      if (zipFileInputRef.current) zipFileInputRef.current.value = '';
-    }
-  };
-
   const handleRestore = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setRestoring(true);
-    const reader = new FileReader();
+    try {
+      const isZip = file.name.toLowerCase().endsWith('.zip') || file.type.includes('zip');
 
-    reader.onload = async (ev) => {
-      try {
-        const content = ev.target?.result as string;
+      let items: ClothingItem[] = [];
+      let outfits: Outfit[] = [];
+      let tags: CustomTag[] = [];
+      let locations: WardrobeLocation[] = [];
+      let trips: Trip[] = [];
+
+      if (isZip) {
+        const result = await importWardrobeZip(file);
+        if (!result.success || !result.data) {
+          alert(`Restore failed: ${(result.errors || []).join(', ')}`);
+          return;
+        }
+        items = result.data.items;
+        outfits = result.data.outfits || [];
+        tags = result.data.tags || [];
+        locations = result.data.locations || [];
+        trips = result.data.trips || [];
+      } else {
+        const content = await file.text();
         const backup = JSON.parse(content);
-        
-        if (!backup.items || !Array.isArray(backup.items)) {
-          throw new Error('Invalid backup format: missing items');
-        }
 
-        const confirmRestore = window.confirm(
-          'Warning: This will overwrite ALL current wardrobe data with the backup. Continue?'
-        );
-
-        if (confirmRestore) {
-          await restoreBackup(backup.items, backup.outfits || [], backup.tags, backup.locations, backup.trips);
-          setToast('✓ Restore complete!');
-          setTimeout(onClose, 1000);
+        items = backup.items || backup.wardrobe || (Array.isArray(backup) ? backup : undefined);
+        if (!items || !Array.isArray(items)) {
+          alert('Restore failed: Invalid backup file format (missing items array)');
+          return;
         }
-      } catch (err) {
-        console.error('Restore failed:', err);
-        alert('Restore failed: Invalid backup file');
-      } finally {
-        setRestoring(false);
-        if (fileInputRef.current) fileInputRef.current.value = '';
+        outfits = backup.outfits || [];
+        tags = backup.tags || backup.categories || [];
+        locations = backup.locations || [];
+        trips = backup.trips || [];
       }
-    };
 
-    reader.readAsText(file);
+      const confirmRestore = window.confirm(
+        `Warning: This will overwrite ALL current wardrobe data with the backup (${items.length} items). Continue?`
+      );
+
+      if (confirmRestore) {
+        await restoreBackup(items, outfits, tags, locations, trips);
+        setToast('✓ Restore complete!');
+        setTimeout(onClose, 1000);
+      }
+    } catch (err) {
+      console.error('Restore failed:', err);
+      alert('Restore failed: Invalid or corrupt backup file');
+    } finally {
+      setRestoring(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleClearAllData = async () => {
+    const confirm1 = window.confirm(
+      '⚠️ WARNING: This will permanently delete ALL clothing items, photos, outfits, calendar plans, trips, and custom settings stored on this device.\n\nAre you sure you want to reset Fitly?'
+    );
+    if (!confirm1) return;
+
+    const confirm2 = window.confirm(
+      '🔴 FINAL CONFIRMATION: This action CANNOT be undone unless you have a backup file.\n\nClick OK to wipe all app data and restart.'
+    );
+    if (!confirm2) return;
+
+    try {
+      await clearAllAppData();
+      setToast('✓ App data cleared. Reloading...');
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } catch (err) {
+      console.error('Clear data failed:', err);
+      alert('Failed to clear app data. Please try again.');
+    }
   };
 
   const handleExportCSV = () => {
@@ -542,7 +514,7 @@ export default function SettingsModal({ onClose }: Props) {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-              
+
               {/* Card 1: EXPORT & BACKUP */}
               <div style={{
                 background: 'var(--bg-3)',
@@ -551,16 +523,16 @@ export default function SettingsModal({ onClose }: Props) {
                 border: '1px solid var(--border)'
               }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>
-                  📤 Export & Backup
+                  📦 Backup Data
                 </div>
                 <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '0 0 10px 0' }}>
-                  Save your wardrobe data to your device for safekeeping or spreadsheet analysis.
+                  Save a complete backup file containing all your clothes, outfits, tags, locations, and photos.
                 </p>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <button 
+                  <button
                     id="btn-export-zip"
-                    className="btn btn-ghost" 
+                    className="btn btn-ghost"
                     onClick={handleExportZip}
                     disabled={exportingZip}
                     style={{
@@ -574,29 +546,12 @@ export default function SettingsModal({ onClose }: Props) {
                       padding: '8px 12px'
                     }}
                   >
-                    🖼️ {exportingZip ? 'Exporting ZIP...' : 'Full Photo Backup (.zip)'}
+                    📦 {exportingZip ? 'Creating Backup...' : 'Backup All'}
                   </button>
 
-                  <button 
-                    id="btn-backup-wardrobe"
-                    className="btn btn-ghost" 
-                    onClick={handleBackup}
-                    style={{
-                      justifyContent: 'flex-start',
-                      width: '100%',
-                      background: 'var(--bg-2)',
-                      border: '1px solid var(--border)',
-                      fontSize: 12,
-                      fontWeight: 600,
-                      padding: '8px 12px'
-                    }}
-                  >
-                    📦 JSON Data Backup (.json)
-                  </button>
-
-                  <button 
+                  <button
                     id="btn-export-csv"
-                    className="btn btn-ghost" 
+                    className="btn btn-ghost"
                     onClick={handleExportCSV}
                     style={{
                       justifyContent: 'flex-start',
@@ -624,15 +579,15 @@ export default function SettingsModal({ onClose }: Props) {
                   📥 Import & Restore
                 </div>
                 <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '0 0 10px 0' }}>
-                  Restore previously saved backups or bulk import wardrobe items from Excel.
+                  Restore a previously saved backup file or bulk import items from CSV.
                 </p>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <button 
-                    id="btn-restore-zip"
-                    className="btn btn-ghost" 
-                    onClick={() => zipFileInputRef.current?.click()}
-                    disabled={importingZip}
+                  <button
+                    id="btn-restore-backup"
+                    className="btn btn-ghost"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={restoring}
                     style={{
                       justifyContent: 'flex-start',
                       width: '100%',
@@ -644,37 +599,19 @@ export default function SettingsModal({ onClose }: Props) {
                       padding: '8px 12px'
                     }}
                   >
-                    🖼️ {importingZip ? 'Restoring ZIP...' : 'Restore Photo Backup (.zip)'}
+                    🔄 {restoring ? 'Restoring Backup...' : 'Restore Backup'}
                   </button>
                   <input
                     type="file"
-                    ref={zipFileInputRef}
-                    onChange={handleImportZip}
-                    accept=".zip"
+                    ref={fileInputRef}
+                    onChange={handleRestore}
+                    accept=".zip,.json,application/zip,application/json"
                     style={{ display: 'none' }}
                   />
 
-                  <button 
-                    id="btn-restore-wardrobe"
-                    className="btn btn-ghost" 
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={restoring}
-                    style={{
-                      justifyContent: 'flex-start',
-                      width: '100%',
-                      background: 'var(--bg-2)',
-                      border: '1px solid var(--border)',
-                      fontSize: 12,
-                      fontWeight: 600,
-                      padding: '8px 12px'
-                    }}
-                  >
-                    🔄 {restoring ? 'Restoring...' : 'Restore JSON Backup (.json)'}
-                  </button>
-
-                  <button 
+                  <button
                     id="btn-import-csv"
-                    className="btn btn-ghost" 
+                    className="btn btn-ghost"
                     onClick={() => csvFileInputRef.current?.click()}
                     style={{
                       justifyContent: 'flex-start',
@@ -686,7 +623,7 @@ export default function SettingsModal({ onClose }: Props) {
                       padding: '8px 12px'
                     }}
                   >
-                    📥 Bulk Import CSV (.csv)
+                    📊 Bulk Import CSV (.csv)
                   </button>
                 </div>
               </div>
@@ -706,13 +643,46 @@ export default function SettingsModal({ onClose }: Props) {
                   <div style={{ fontSize: 13, fontWeight: 700 }}>🏷️ Style Tags</div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Manage custom tags for your clothes</div>
                 </div>
-                <button 
+                <button
                   id="btn-manage-tags"
-                  className="btn btn-primary" 
+                  className="btn btn-primary"
                   onClick={() => setShowTagsManager(true)}
                   style={{ fontSize: 12, padding: '6px 12px', height: 'auto', flexShrink: 0 }}
                 >
                   Manage Tags
+                </button>
+              </div>
+
+              {/* Card 4: DANGER ZONE - CLEAR ALL DATA */}
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.08)',
+                padding: 'var(--space-4)',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                marginTop: 8
+              }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#ef4444', marginBottom: 4 }}>
+                  ⚠️ Danger Zone
+                </div>
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '0 0 10px 0' }}>
+                  Permanently delete all clothing items, photos, outfits, and settings stored on this device.
+                </p>
+                <button
+                  id="btn-clear-all-data"
+                  className="btn btn-ghost"
+                  onClick={handleClearAllData}
+                  style={{
+                    justifyContent: 'center',
+                    width: '100%',
+                    background: 'rgba(239, 68, 68, 0.15)',
+                    color: '#ef4444',
+                    border: '1px solid rgba(239, 68, 68, 0.4)',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    padding: '8px 12px'
+                  }}
+                >
+                  🗑️ Clear All App Data & Reset
                 </button>
               </div>
 
@@ -734,7 +704,7 @@ export default function SettingsModal({ onClose }: Props) {
             </div>
 
             <div className="divider" />
-            
+
             <div style={{ padding: 'var(--space-4)', background: 'var(--bg-3)', borderRadius: 'var(--radius-md)' }}>
               <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>Fitly Storage Info</div>
               <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', gap: 16 }}>

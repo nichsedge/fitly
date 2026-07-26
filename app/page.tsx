@@ -17,6 +17,7 @@ import MoreMenuModal from './components/MoreMenuModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ActiveTab } from './lib/types';
 import { triggerHaptic } from './lib/haptics';
+import { laundryService } from './services/LaundryService';
 
 export default function Home() {
   const loading = useAppLoading();
@@ -33,7 +34,7 @@ export default function Home() {
     setActiveTab(tab);
   };
 
-  const dirtyCount = items.filter(i => i.status === 'dirty' || (i.wearLogs && i.wearLogs.length > 0)).length;
+  const dirtyCount = laundryService.getWornItems(items, undefined, true).length;
   const isMoreActive = ['calendar', 'trips', 'insights'].includes(activeTab);
 
   if (loading) {

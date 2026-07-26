@@ -14,7 +14,7 @@ export class LaundryService {
         const wearsSinceWash = (item.wearLogs || []).filter(ts => ts > lastWash).length;
         return { item, wearsSinceWash };
       })
-      .filter(entry => entry.wearsSinceWash > 0)
+      .filter(entry => entry.wearsSinceWash > 0 || entry.item.status === 'dirty' || entry.item.status === 'cleaning')
       .sort((a, b) => b.wearsSinceWash - a.wearsSinceWash);
 
     if (showAll) return allWorn;
