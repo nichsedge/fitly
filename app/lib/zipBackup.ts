@@ -124,14 +124,26 @@ export async function exportWardrobeZip(
 /**
  * Imports wardrobe data from a ZIP file
  */
-export async function importWardrobeZip(file: File): Promise<{ success: boolean; errors: string[]; data?: WardrobeBackupData }> {
+export async function importWardrobeZip(file: File): Promise<{
+  success: boolean;
+  errors: string[];
+  data?: WardrobeBackupData;
+  images?: Record<string, Blob>;
+}> {
   try {
     const zip = new JSZip();
     const arrayBuffer = await file.arrayBuffer();
     const zipContent = await zip.loadAsync(arrayBuffer);
 
-    // Read wardrobe.json
-    const wardrobeFile = zipContent.file('wardrobe.json');
+    // Read wardrobe.json - look at root or any subfolder
+    let wardrobeFile = zipContent.file('wardrobe.json');
+    if (!wardrobeFile) {
+      const found = Object.keys(zipContent.files).find(name => name.endsWith('wardrobe.json'));
+      if (found) {
+        wardrobeFile = zipContent.file(found);
+      }
+    }
+
     if (!wardrobeFile) {
       return { success: false, errors: ['ZIP file missing wardrobe.json'] };
     }
@@ -145,38 +157,58 @@ export async function importWardrobeZip(file: File): Promise<{ success: boolean;
       return { success: false, errors: validation.errors };
     }
 
-    // Restore images to IndexedDB from embedded base64 if present
+    const extractedImages: Record<string, Blob> = {};
+
+    // 1. Extract images from embedded base64 if present
     if (backupData.images && typeof backupData.images === 'object') {
-      await imageRepository.clear(); // Clear existing images first
-      
       for (const [id, base64] of Object.entries(backupData.images)) {
         if (base64 && typeof base64 === 'string' && base64.startsWith('data:')) {
-          const blob = await base64ToBlob(base64);
-          await imageRepository.add(id, blob);
+          try {
+            const blob = await base64ToBlob(base64);
+            extractedImages[id] = blob;
+          } catch (err) {
+            console.warn(`Failed to parse base64 image ${id}:`, err);
+          }
         }
       }
     }
 
-    // Also try to load images from the images/ folder as fallback
-    const imagesFolder = zipContent.folder('images');
-    if (imagesFolder) {
-      for (const [filename, zipFile] of Object.entries(imagesFolder.files)) {
-        if (zipFile.dir) continue;
-        const id = filename.replace(/^images\//, '').replace(/\.[^/.]+$/, ''); // Remove path and extension
-        if (id && (!backupData.images || !backupData.images[id])) {
-          const blob = await zipFile.async('blob');
-          await imageRepository.add(id, blob);
+    // 2. Extract images from any images/ folder at any depth as fallback
+    for (const [filename, zipFile] of Object.entries(zipContent.files)) {
+      if (zipFile.dir) continue;
+      const isImageFile = filename.includes('/images/') || filename.startsWith('images/');
+      if (isImageFile) {
+        const parts = filename.split('/');
+        const imgName = parts[parts.length - 1];
+        const id = imgName.replace(/\.[^/.]+$/, ''); // Remove extension
+        if (id && !extractedImages[id]) {
+          try {
+            const blob = await zipFile.async('blob');
+            extractedImages[id] = blob;
+          } catch (err) {
+            console.warn(`Failed to parse image file ${filename}:`, err);
+          }
         }
       }
     }
 
-    return { success: true, errors: [], data: validation.data };
+    return { success: true, errors: [], data: validation.data, images: extractedImages };
   } catch (error) {
     console.error('ZIP import failed:', error);
     return { 
       success: false, 
       errors: [error instanceof Error ? error.message : 'Unknown error during ZIP import'] 
     };
+  }
+}
+
+/**
+ * Restores wardrobe images to IndexedDB
+ */
+export async function restoreZipImages(images: Record<string, Blob>): Promise<void> {
+  await imageRepository.clear();
+  for (const [id, blob] of Object.entries(images)) {
+    await imageRepository.add(id, blob);
   }
 }
 

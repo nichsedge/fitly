@@ -30,8 +30,8 @@ export const CustomTagSchema = z.object({
 export const WardrobeLocationSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
-  icon: z.string().optional(),
-  isDefault: z.boolean().optional(),
+  icon: z.string().nullable().optional(),
+  isDefault: z.boolean().nullable().optional(),
 });
 
 export const ClothingItemSchema = z.object({
@@ -42,18 +42,21 @@ export const ClothingItemSchema = z.object({
   tags: z.array(z.string()).default([]),
   images: z.array(z.string()).default([]),
   createdAt: z.number(),
-  lastWornAt: z.number().optional(),
-  wearLogs: z.array(z.number()).optional(),
-  brand: z.string().optional(),
-  price: z.number().nonnegative().optional(),
-  purchaseDate: z.number().optional(),
+  lastWornAt: z.number().nullable().optional(),
+  wearLogs: z.array(z.number()).nullable().optional(),
+  brand: z.string().nullable().optional(),
+  price: z.number().nonnegative().nullable().optional(),
+  purchaseDate: z.number().nullable().optional(),
   status: ItemStatusSchema.default('ready'),
-  material: z.string().optional(),
-  careInstructions: z.string().optional(),
-  condition: ItemConditionSchema.optional(),
-  lastWashedAt: z.number().optional(),
-  washLogs: z.array(z.number()).optional(),
-  locationId: z.string().optional(),
+  material: z.string().nullable().optional(),
+  careInstructions: z.string().nullable().optional(),
+  condition: ItemConditionSchema.nullable().optional(),
+  lastWashedAt: z.number().nullable().optional(),
+  washLogs: z.array(z.number()).nullable().optional(),
+  locationId: z.string().nullable().optional(),
+  retiredAt: z.number().nullable().optional(),
+  retirementReason: z.enum(['donated', 'sold', 'recycled', 'discarded']).nullable().optional(),
+  donationTarget: z.string().nullable().optional(),
 });
 
 export const OutfitSchema = z.object({
@@ -62,23 +65,23 @@ export const OutfitSchema = z.object({
   note: z.string().default(''),
   itemIds: z.array(z.string()).default([]),
   createdAt: z.number(),
-  lastWornAt: z.number().optional(),
-  wearLogs: z.array(z.number()).optional(),
+  lastWornAt: z.number().nullable().optional(),
+  wearLogs: z.array(z.number()).nullable().optional(),
 });
 
 export const PlannedOutfitSchema = z.object({
   id: z.string().min(1),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD'),
-  outfitId: z.string().optional(),
+  outfitId: z.string().nullable().optional(),
   itemIds: z.array(z.string()).default([]),
-  note: z.string().optional(),
+  note: z.string().nullable().optional(),
   weather: z
     .object({
-      temp: z.number().optional(),
-      icon: z.string().optional(),
-      description: z.string().optional(),
+      temp: z.number().nullable().optional(),
+      icon: z.string().nullable().optional(),
+      description: z.string().nullable().optional(),
     })
-    .optional(),
+    .nullable().optional(),
 });
 
 export const TripSchema = z.object({
@@ -87,9 +90,9 @@ export const TripSchema = z.object({
   startDate: z.string().min(1),
   endDate: z.string().min(1),
   itemIds: z.array(z.string()).default([]),
-  outfitIds: z.array(z.string()).optional(),
-  destination: z.string().optional(),
-  completed: z.boolean().optional(),
+  outfitIds: z.array(z.string()).nullable().optional(),
+  destination: z.string().nullable().optional(),
+  completed: z.boolean().nullable().optional(),
 });
 
 export const BackupDataSchema = z.object({

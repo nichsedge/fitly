@@ -11,7 +11,7 @@ import TagsManagerModal from './TagsManagerModal';
 import { Currency } from '../lib/i18n';
 import { Category, ItemCondition, ClothingItem, Outfit, CustomTag, WardrobeLocation, Trip } from '../lib/types';
 import { v4 as uuidv4 } from 'uuid';
-import { exportWardrobeZip, importWardrobeZip, downloadZipBlob, restoreWardrobeData } from '../lib/zipBackup';
+import { exportWardrobeZip, importWardrobeZip, downloadZipBlob, restoreWardrobeData, restoreZipImages } from '../lib/zipBackup';
 import { clearAllAppData } from '../lib/db';
 
 interface Props {
@@ -96,6 +96,7 @@ export default function SettingsModal({ onClose }: Props) {
       let tags: CustomTag[] = [];
       let locations: WardrobeLocation[] = [];
       let trips: Trip[] = [];
+      let zipImages: Record<string, Blob> | undefined = undefined;
 
       if (isZip) {
         const result = await importWardrobeZip(file);
@@ -108,6 +109,7 @@ export default function SettingsModal({ onClose }: Props) {
         tags = result.data.tags || [];
         locations = result.data.locations || [];
         trips = result.data.trips || [];
+        zipImages = result.images;
       } else {
         const content = await file.text();
         const backup = JSON.parse(content);
@@ -128,6 +130,9 @@ export default function SettingsModal({ onClose }: Props) {
       );
 
       if (confirmRestore) {
+        if (isZip && zipImages) {
+          await restoreZipImages(zipImages);
+        }
         await restoreBackup(items, outfits, tags, locations, trips);
         setToast('✓ Restore complete!');
         setTimeout(onClose, 1000);
