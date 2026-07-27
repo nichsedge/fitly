@@ -1,27 +1,34 @@
-const CACHE_NAME = 'fitly-pwa-v3';
+const CACHE_NAME = 'fitly-pwa-v4';
 const STATIC_ASSETS = [
   '/',
-  '/index.html',
   '/manifest.json',
+  '/manifest.webmanifest',
   '/favicon.ico',
   '/icon-192.png',
   '/icon-512.png',
+  '/icon.png',
 ];
 
 const MUTATION_QUEUE_STORE = 'mutationQueue';
 
-// Install event: Pre-cache core app shell assets
+// Install event: Pre-cache core app shell assets safely
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
+    caches.open(CACHE_NAME).then(async (cache) => {
+      await Promise.allSettled(
+        STATIC_ASSETS.map((asset) =>
+          cache.add(asset).catch((err) => {
+            console.warn(`[SW] Pre-cache failed for ${asset}:`, err);
+          })
+        )
+      );
     }).then(() => {
       return self.skipWaiting();
     })
   );
 });
 
-// Activate event: Clean up legacy caches
+// Activate event: Clean up legacy caches and claim clients immediately
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -50,57 +57,77 @@ self.addEventListener('periodicsync', (event) => {
   }
 });
 
-// Fetch event: Offline-first with Stale-While-Revalidate for static & pages
+// Fetch event: Reliable Offline-First PWA caching
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
   if (!url.protocol.startsWith('http')) return;
 
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      // 1. Immutable / static Next.js assets: Cache-First
-      const isNextStatic = url.pathname.startsWith('/_next/static/');
-
-      if (cachedResponse) {
-        // If it's a navigation or static shell file, revalidate silently in background
-        if (event.request.mode === 'navigate' || !isNextStatic) {
-          fetch(event.request).then((networkResponse) => {
+  // 1. Navigation requests (Page loading / App launching)
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      caches.match('/', { ignoreSearch: true }).then((cachedAppShell) => {
+        const networkFetch = fetch(event.request)
+          .then((networkResponse) => {
             if (networkResponse && networkResponse.status === 200) {
+              const responseToCache = networkResponse.clone();
               caches.open(CACHE_NAME).then((cache) => {
-                cache.put(event.request, networkResponse.clone());
+                cache.put('/', responseToCache);
               });
             }
-          }).catch(() => {});
+            return networkResponse;
+          })
+          .catch(() => null);
+
+        // If app shell is cached, serve instantly for offline access
+        if (cachedAppShell) {
+          // Revalidate in background when online
+          networkFetch.catch(() => {});
+          return cachedAppShell;
         }
+
+        // If not cached yet, wait for network fetch
+        return networkFetch.then((res) => {
+          if (res) return res;
+          return new Response('Offline - Fitly App Shell Unavailable', {
+            status: 503,
+            statusText: 'Service Unavailable',
+            headers: { 'Content-Type': 'text/plain' },
+          });
+        });
+      })
+    );
+    return;
+  }
+
+  // 2. Static assets and resources (JS, CSS, images, icons)
+  event.respondWith(
+    caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
+      if (cachedResponse) {
         return cachedResponse;
       }
 
-      // 2. Network fallback + cache for un-cached requests
-      return fetch(event.request).then((networkResponse) => {
-        if (
-          !networkResponse ||
-          networkResponse.status !== 200 ||
-          (networkResponse.type !== 'basic' && networkResponse.type !== 'cors')
-        ) {
+      return fetch(event.request)
+        .then((networkResponse) => {
+          if (
+            networkResponse &&
+            networkResponse.status === 200 &&
+            (networkResponse.type === 'basic' || networkResponse.type === 'cors')
+          ) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
           return networkResponse;
-        }
-
-        const responseToCache = networkResponse.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
+        })
+        .catch(() => {
+          return new Response('Asset unavailable offline', {
+            status: 503,
+            statusText: 'Service Unavailable',
+          });
         });
-
-        return networkResponse;
-      }).catch(() => {
-        if (event.request.mode === 'navigate') {
-          return caches.match('/') || caches.match('/index.html');
-        }
-        return new Response('Offline content unavailable', {
-          status: 533,
-          statusText: 'Offline',
-        });
-      });
     })
   );
 });

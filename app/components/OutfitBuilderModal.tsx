@@ -110,11 +110,35 @@ export default function OutfitBuilderModal({ initialOutfit, onClose }: Props) {
                     marginBottom: 10,
                   }}
                 >
-                  {/* Outerwear & Top Layer */}
-                  {selectedItems.filter((i) => i.category === 'outerwear' || i.category === 'top').length > 0 && (
+                  {/* Outerwear Layer */}
+                  {selectedItems.filter((i) => i.category === 'outerwear').length > 0 && (
                     <div style={{ display: 'flex', gap: 8, justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
                       {selectedItems
-                        .filter((i) => i.category === 'outerwear' || i.category === 'top')
+                        .filter((i) => i.category === 'outerwear')
+                        .map((item) => (
+                          <div key={item.id} style={{ position: 'relative', textAlign: 'center' }}>
+                            {item.images && item.images[0] ? (
+                              <img
+                                src={item.images[0]}
+                                alt={item.name}
+                                style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '2px solid #8b5cf6' }}
+                              />
+                            ) : (
+                              <div style={{ width: 64, height: 64, borderRadius: 8, background: 'var(--bg-2)', display: 'grid', placeItems: 'center', fontSize: 24 }}>
+                                🧥
+                              </div>
+                            )}
+                            <span style={{ fontSize: 10, display: 'block', fontWeight: 600, marginTop: 2, color: 'var(--text-secondary)' }}>{item.name}</span>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+
+                  {/* Top Layer */}
+                  {selectedItems.filter((i) => i.category === 'top').length > 0 && (
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
+                      {selectedItems
+                        .filter((i) => i.category === 'top')
                         .map((item) => (
                           <div key={item.id} style={{ position: 'relative', textAlign: 'center' }}>
                             {item.images && item.images[0] ? (

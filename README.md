@@ -2,7 +2,7 @@
 
 A modern, privacy-focused digital wardrobe and outfit manager built with [Next.js](https://nextjs.org/) and IndexedDB.
 
-🔗 **Live Demo**: [fitly-five.vercel.app](https://fitly-five.vercel.app)
+🔗 **Live Demo**: [fitly-ruddy.vercel.app](https://fitly-ruddy.vercel.app/)
 
 ---
 
