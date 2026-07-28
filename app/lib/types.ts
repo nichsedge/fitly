@@ -13,8 +13,8 @@ export interface WardrobeLocation {
 }
 
 export const DEFAULT_LOCATIONS: WardrobeLocation[] = [
-  { id: 'loc-home', name: 'Home', icon: '🏠', isDefault: true },
-  { id: 'loc-rent', name: 'Rent Room', icon: '🏢', isDefault: true },
+  { id: 'loc-home', name: 'Home', icon: 'home', isDefault: true },
+  { id: 'loc-rent', name: 'Rent Room', icon: 'building-2', isDefault: true },
 ];
 
 export const DEFAULT_TAG_NAMES = ['Casual', 'Formal', 'Gym', 'Party', 'Work', 'Streetwear', 'Beach', 'Date Night'];
@@ -75,14 +75,14 @@ export interface PlannedOutfit {
 
 export type ActiveTab = 'wardrobe' | 'outfits' | 'laundry' | 'calendar' | 'trips' | 'add' | 'insights';
 
-export const CATEGORIES: { value: Category; label: string; emoji: string }[] = [
-  { value: 'top', label: 'Top', emoji: '👕' },
-  { value: 'bottom', label: 'Bottom', emoji: '👖' },
-  { value: 'underwear', label: 'Underwear', emoji: '🩲' },
-  { value: 'shoes', label: 'Shoes', emoji: '👟' },
-  { value: 'outerwear', label: 'Outerwear', emoji: '🧥' },
-  { value: 'accessory', label: 'Accessory', emoji: '⌚' },
-  { value: 'bag', label: 'Bag', emoji: '👜' },
+export const CATEGORIES: { value: Category; label: string }[] = [
+  { value: 'top', label: 'Top' },
+  { value: 'bottom', label: 'Bottom' },
+  { value: 'underwear', label: 'Underwear' },
+  { value: 'shoes', label: 'Shoes' },
+  { value: 'outerwear', label: 'Outerwear' },
+  { value: 'accessory', label: 'Accessory' },
+  { value: 'bag', label: 'Bag' },
 ];
 
 

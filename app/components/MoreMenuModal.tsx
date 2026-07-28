@@ -7,6 +7,7 @@ import { useOutfits } from '../contexts/OutfitContext';
 import { useTrips } from '../contexts/TripContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { triggerHaptic } from '../lib/haptics';
+import { Calendar, Luggage, BarChart3, Settings, ChevronRight, X } from './AppIcon';
 
 interface MoreMenuModalProps {
   activeTab: ActiveTab;
@@ -52,7 +53,9 @@ export default function MoreMenuModal({ activeTab, onClose, onSelectTab, onOpenS
             <h3 className="more-menu-title">More Features</h3>
             <p className="more-menu-sub">Planning, trips, analytics & settings</p>
           </div>
-          <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
+          <button className="modal-close" onClick={onClose} aria-label="Close">
+            <X size={18} />
+          </button>
         </div>
 
         {/* Quick Stats Banner */}
@@ -79,7 +82,9 @@ export default function MoreMenuModal({ activeTab, onClose, onSelectTab, onOpenS
             className={`more-nav-card ${activeTab === 'calendar' ? 'active' : ''}`}
             onClick={() => handleSelect('calendar')}
           >
-            <div className="more-nav-card__icon calendar-bg">📅</div>
+            <div className="more-nav-card__icon calendar-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Calendar size={22} color="#6366f1" />
+            </div>
             <div className="more-nav-card__info">
               <span className="more-nav-card__title">{t('calendar')}</span>
               <span className="more-nav-card__desc">Daily wear history & planner</span>
@@ -91,7 +96,9 @@ export default function MoreMenuModal({ activeTab, onClose, onSelectTab, onOpenS
             className={`more-nav-card ${activeTab === 'trips' ? 'active' : ''}`}
             onClick={() => handleSelect('trips')}
           >
-            <div className="more-nav-card__icon trips-bg">🧳</div>
+            <div className="more-nav-card__icon trips-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Luggage size={22} color="#10b981" />
+            </div>
             <div className="more-nav-card__info">
               <span className="more-nav-card__title">{t('trips')}</span>
               <span className="more-nav-card__desc">Packing lists & travel planning</span>
@@ -103,7 +110,9 @@ export default function MoreMenuModal({ activeTab, onClose, onSelectTab, onOpenS
             className={`more-nav-card ${activeTab === 'insights' ? 'active' : ''}`}
             onClick={() => handleSelect('insights')}
           >
-            <div className="more-nav-card__icon insights-bg">📊</div>
+            <div className="more-nav-card__icon insights-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <BarChart3 size={22} color="#ec4899" />
+            </div>
             <div className="more-nav-card__info">
               <span className="more-nav-card__title">{t('stats')}</span>
               <span className="more-nav-card__desc">Cost per wear & closet statistics</span>
@@ -121,8 +130,11 @@ export default function MoreMenuModal({ activeTab, onClose, onSelectTab, onOpenS
               onOpenSettings();
             }}
           >
-            <span>⚙️ {t('settings')}</span>
-            <span>→</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Settings size={18} />
+              <span>{t('settings')}</span>
+            </span>
+            <ChevronRight size={18} />
           </button>
         </div>
       </div>

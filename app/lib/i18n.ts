@@ -28,9 +28,9 @@ export const translations = {
     laundryDesc: 'Track clothing usage since last wash & reset after laundry',
     wearsSinceWash: 'wears since wash',
     wearSinceWash: 'wear since wash',
-    washItem: '🧼 Mark Washed',
-    washAll: '🧺 Wash All Worn Items',
-    washRecommended: '⚠️ Wash Recommended',
+    washItem: 'Mark Washed',
+    washAll: 'Wash All Worn Items',
+    washRecommended: 'Wash Recommended',
     cleanNoWornTitle: 'All Clothes Are Clean',
     cleanNoWornDesc: 'No worn clothes pending laundry right now. Wear an item or outfit to start tracking usage!',
 
@@ -52,7 +52,7 @@ export const translations = {
     emptyWardrobeTitle: 'Your Wardrobe is Empty',
     emptyWardrobeDesc: 'Start by adding your clothes or load sample items to explore. Everything is stored 100% locally on your device.',
     addFirstItem: '+ Add Your First Item',
-    loadSampleWardrobe: '✨ Load Sample Wardrobe',
+    loadSampleWardrobe: 'Load Sample Wardrobe',
     noItemsFound: 'No items found',
 
     // Add Item View
@@ -62,7 +62,7 @@ export const translations = {
     maxPhotos: '5 photos max',
     tapAddPhoto: 'Tap to add photo(s)',
     autoCompressed: 'Auto-compressed',
-    tapPickColor: '🎯 Tap on any photo to pick a color',
+    tapPickColor: 'Tap on any photo to pick a color',
     nameLabel: 'Name',
     namePlaceholder: 'e.g. White Oxford Shirt',
     brandLabel: 'Brand',
@@ -79,14 +79,14 @@ export const translations = {
     styleTagsLabel: 'Style Tags',
     newTag: '＋ New Tag',
     cancel: 'Cancel',
-    addToWardrobe: '✓ Add to Wardrobe',
+    addToWardrobe: 'Add to Wardrobe',
     saving: 'Saving…',
 
     // Outfit Builder & View
-    buildOutfit: '✨ Build Outfit',
-    shuffleLook: '🎲 Shuffle Look',
-    smartLookSuggestion: '💡 Smart Look Suggestion',
-    refresh: '🔄 Refresh',
+    buildOutfit: 'Build Outfit',
+    shuffleLook: 'Shuffle Look',
+    smartLookSuggestion: 'Smart Look Suggestion',
+    refresh: 'Refresh',
     saveLook: '+ Save Look',
     savedOutfits: 'Saved Outfits',
     noOutfitsTitle: 'No outfits yet',
@@ -95,22 +95,22 @@ export const translations = {
 
     // Item Detail
     costPerWear: 'Cost per Wear',
-    greatValue: '★ Great Value',
+    greatValue: 'Great Value',
     purchased: 'Purchased',
     timesWorn: 'Times Worn',
     addedDate: 'Added',
     deleteItem: 'Delete Item',
     confirmDelete: 'Confirm Delete?',
-    wearToday: '⚡ Wore This Today',
+    wearToday: 'Wore This Today',
 
     // Settings Modal
     dataManagement: 'Data Management',
-    exportBackup: '📥 Backup Wardrobe JSON',
-    restoreBackup: '📤 Restore Wardrobe',
-    manageTags: '🏷️ Manage Style Tags',
+    exportBackup: 'Backup Wardrobe JSON',
+    restoreBackup: 'Restore Wardrobe',
+    manageTags: 'Manage Style Tags',
     localAppStatus: 'Local-First App Status',
     localStatusDesc: '100% stored in browser IndexedDB. No external servers or API calls are used.',
-    installAndroid: '📱 Install Fitly on Android',
+    installAndroid: 'Install Fitly on Android',
     languageLabel: 'Language / Bahasa',
     currencyLabel: 'Currency',
     deviceStorageUsed: 'Device Storage Used',
@@ -124,11 +124,11 @@ export const translations = {
     condRepair: 'Needs Repair',
 
     // Error Boundary
-    somethingWentWrong: 'Terjadi kesalahan',
-    errorBoundaryMessage: 'Kami mengalami masalah saat memuat bagian ini. Silakan coba lagi atau hubungi dukungan jika masalah berlanjut.',
-    retry: 'Coba Lagi',
-    showDetails: 'Tampilkan Detail',
-    errorDetails: 'Detail Kesalahan',
+    somethingWentWrong: 'Something went wrong',
+    errorBoundaryMessage: 'We ran into a problem loading this section. Please try again or contact support if the issue persists.',
+    retry: 'Retry',
+    showDetails: 'Show Details',
+    errorDetails: 'Error Details',
   },
   id: {
     // Header & Navigation
@@ -149,9 +149,9 @@ export const translations = {
     laundryDesc: 'Lacak berapa kali pakaian dipakai sejak dicuci & reset setelah dicuci',
     wearsSinceWash: 'kali dipakai sejak dicuci',
     wearSinceWash: 'kali dipakai sejak dicuci',
-    washItem: '🧼 Sudah Dicuci',
-    washAll: '🧺 Cuci Semua Pakaian',
-    washRecommended: '⚠️ Disarankan Dicuci',
+    washItem: 'Sudah Dicuci',
+    washAll: 'Cuci Semua Pakaian',
+    washRecommended: 'Disarankan Dicuci',
     cleanNoWornTitle: 'Semua Pakaian Bersih',
     cleanNoWornDesc: 'Tidak ada pakaian yang baru dipakai. Pakai pakaian atau setelan untuk melacak pemakaian di sini!',
 
@@ -173,7 +173,7 @@ export const translations = {
     emptyWardrobeTitle: 'Lemari Pakaian Kosong',
     emptyWardrobeDesc: 'Mulai dengan menambahkan pakaian Anda atau muat contoh pakaian. Semua data tersimpan 100% lokal di perangkat Anda.',
     addFirstItem: '+ Tambah Pakaian Pertama',
-    loadSampleWardrobe: '✨ Muat Contoh Pakaian',
+    loadSampleWardrobe: 'Muat Contoh Pakaian',
     noItemsFound: 'Pakaian tidak ditemukan',
 
     // Add Item View
@@ -183,7 +183,7 @@ export const translations = {
     maxPhotos: 'Maksimal 5 foto',
     tapAddPhoto: 'Ketuk untuk tambah foto',
     autoCompressed: 'Terkompresi otomatis',
-    tapPickColor: '🎯 Ketuk foto untuk memilih warna otomatis',
+    tapPickColor: 'Ketuk foto untuk memilih warna otomatis',
     nameLabel: 'Nama Pakaian',
     namePlaceholder: 'misal. Kemeja Putih Uniqlo',
     brandLabel: 'Merek',
@@ -200,14 +200,14 @@ export const translations = {
     styleTagsLabel: 'Tag Gaya',
     newTag: '＋ Tag Baru',
     cancel: 'Batal',
-    addToWardrobe: '✓ Simpan ke Lemari',
+    addToWardrobe: 'Simpan ke Lemari',
     saving: 'Menyimpan…',
 
     // Outfit Builder & View
-    buildOutfit: '✨ Buat Setelan Baru',
-    shuffleLook: '🎲 Acak Setelan',
-    smartLookSuggestion: '💡 Rekomendasi Setelan Hari Ini',
-    refresh: '🔄 Acak Lagi',
+    buildOutfit: 'Buat Setelan Baru',
+    shuffleLook: 'Acak Setelan',
+    smartLookSuggestion: 'Rekomendasi Setelan Hari Ini',
+    refresh: 'Acak Lagi',
     saveLook: '+ Simpan Setelan',
     savedOutfits: 'Setelan Tersimpan',
     noOutfitsTitle: 'Belum ada setelan',
@@ -216,41 +216,41 @@ export const translations = {
 
     // Item Detail
     costPerWear: 'Biaya per Pemakaian',
-    greatValue: '★ Hemat Sekali',
+    greatValue: 'Hemat Sekali',
     purchased: 'Dibeli Pada',
     timesWorn: 'Total Dipakai',
     addedDate: 'Ditambahkan',
     deleteItem: 'Hapus Pakaian',
     confirmDelete: 'Yakin Hapus?',
-    wearToday: '⚡ Pakai Hari Ini',
+    wearToday: 'Pakai Hari Ini',
 
     // Settings Modal
     dataManagement: 'Manajemen Data',
-    exportBackup: '📥 Cadangkan Data (JSON)',
-    restoreBackup: '📤 Pulihkan Data',
-    manageTags: '🏷️ Kelola Tag Gaya',
+    exportBackup: 'Cadangkan Data (JSON)',
+    restoreBackup: 'Pulihkan Data',
+    manageTags: 'Kelola Tag Gaya',
     localAppStatus: 'Status Aplikasi Lokal',
     localStatusDesc: '100% tersimpan di IndexedDB browser Anda. Tanpa server atau internet.',
-    installAndroid: '📱 Pasang Fitly di Android',
+    installAndroid: 'Pasang Fitly di Android',
     languageLabel: 'Bahasa / Language',
     currencyLabel: 'Mata Uang / Currency',
     deviceStorageUsed: 'Penyimpanan Perangkat Digunakan',
 
     // Conditions
-        condNew: 'Baru',
-        condExcellent: 'Sangat Baik',
-        condGood: 'Baik',
-        condFair: 'Cukup',
-        condPoor: 'Kurang',
-        condRepair: 'Perlu Diperbaiki',
+    condNew: 'Baru',
+    condExcellent: 'Sangat Baik',
+    condGood: 'Baik',
+    condFair: 'Cukup',
+    condPoor: 'Kurang',
+    condRepair: 'Perlu Diperbaiki',
 
-        // Error Boundary
-        somethingWentWrong: 'Terjadi Kesalahan',
-        errorBoundaryMessage: 'Kami mengalami masalah memuat bagian ini. Silakan coba lagi atau hubungi dukungan jika masalah berlanjut.',
-        retry: 'Coba Lagi',
-        showDetails: 'Tampilkan Detail',
-        errorDetails: 'Detail Kesalahan',
-      },
+    // Error Boundary
+    somethingWentWrong: 'Terjadi Kesalahan',
+    errorBoundaryMessage: 'Kami mengalami masalah memuat bagian ini. Silakan coba lagi atau hubungi dukungan jika masalah berlanjut.',
+    retry: 'Coba Lagi',
+    showDetails: 'Tampilkan Detail',
+    errorDetails: 'Detail Kesalahan',
+  },
 };
 
 export function formatCurrency(amount: number | undefined | null, currency: Currency = 'IDR'): string {

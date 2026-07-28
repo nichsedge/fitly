@@ -18,7 +18,7 @@ function TestComponent() {
       <span data-testid="categories">{JSON.stringify(laundryCategories)}</span>
       <button
         data-testid="update-btn"
-        onClick={() => setLaundryCategories(['shoes', 'accessories'])}
+        onClick={() => setLaundryCategories(['shoes', 'accessory'])}
       >
         Update
       </button>
@@ -68,6 +68,6 @@ describe('LaundryContext persistence', () => {
 
     const saved = localStorage.getItem('laundryCategories');
     expect(saved).not.toBeNull();
-    expect(JSON.parse(saved!)).toEqual(['shoes', 'accessories']);
+    expect(JSON.parse(saved!)).toEqual(['shoes', 'accessory']);
   });
 });

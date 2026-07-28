@@ -6,6 +6,7 @@ import { useWardrobe } from '../contexts/WardrobeContext';
 import { useOutfits } from '../contexts/OutfitContext';
 import { useSettings } from '../contexts/SettingsContext';
 import Toast from './Toast';
+import { Sparkles, Edit, Trash2, Tag, X, CategoryIcon } from './AppIcon';
 
 interface Props {
   outfit: Outfit;
@@ -153,11 +154,11 @@ export default function OutfitDetailModal({ outfit, items, onClose, onEdit, logD
                     />
                   ) : (
                     <div key={`detail-${item.id}-${idx}`} className="outfit-detail__img" style={{
-                      display: 'grid', placeItems: 'center', fontSize: 36, background: 'var(--bg-3)',
+                      display: 'grid', placeItems: 'center', background: 'var(--bg-3)',
                       aspectRatio: '1', borderRadius: 'var(--radius-md)', minWidth: 0, minHeight: 0,
                       gridColumn: isSpanTwo ? 'span 2' : undefined
                     }}>
-                      {cat?.emoji}
+                      <CategoryIcon category={item.category} size={28} />
                     </div>
                   );
                 })}
@@ -178,7 +179,6 @@ export default function OutfitDetailModal({ outfit, items, onClose, onEdit, logD
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
                 {outfitItems.map(item => {
-                  const cat = CATEGORIES.find(c => c.value === item.category);
                   return (
                     <div key={item.id} style={{
                       display: 'flex', alignItems: 'center', gap: 'var(--space-3)',
@@ -192,9 +192,9 @@ export default function OutfitDetailModal({ outfit, items, onClose, onEdit, logD
                       ) : (
                         <div style={{
                           width: 44, height: 44, background: 'var(--bg-3)', borderRadius: 8,
-                          display: 'grid', placeItems: 'center', fontSize: 22, flexShrink: 0
+                          display: 'grid', placeItems: 'center', flexShrink: 0
                         }}>
-                          {cat?.emoji}
+                          <CategoryIcon category={item.category} size={20} />
                         </div>
                       )}
                       <div style={{ flex: 1 }}>
@@ -208,9 +208,13 @@ export default function OutfitDetailModal({ outfit, items, onClose, onEdit, logD
                         </div>
                         <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
                           <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: item.color }} />
-                          <span>{cat?.label}</span>
+                          <span>{CATEGORIES.find(c => c.value === item.category)?.label}</span>
                           {item.brand && (
-                            <span style={{ color: 'var(--accent)', fontWeight: 600 }}>• 🏷️ {item.brand}</span>
+                            <span style={{ color: 'var(--accent)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                              <span>•</span>
+                              <Tag size={12} />
+                              <span>{item.brand}</span>
+                            </span>
                           )}
                         </div>
                       </div>
@@ -232,11 +236,13 @@ export default function OutfitDetailModal({ outfit, items, onClose, onEdit, logD
 
             {/* Actions */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-              <button id="btn-wear-outfit" className="btn btn-primary btn-full" onClick={handleWear}>
-                ✨ Wearing this today
+              <button id="btn-wear-outfit" className="btn btn-primary btn-full" onClick={handleWear} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <Sparkles size={16} />
+                <span>Wearing this today</span>
               </button>
-              <button id="btn-edit-outfit" className="btn btn-ghost btn-full" onClick={onEdit}>
-                ✏️ Edit outfit
+              <button id="btn-edit-outfit" className="btn btn-ghost btn-full" onClick={onEdit} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <Edit size={16} />
+                <span>Edit outfit</span>
               </button>
               {logDateKey && onRemoveLogFromDate ? (
                 <button
@@ -246,16 +252,20 @@ export default function OutfitDetailModal({ outfit, items, onClose, onEdit, logD
                     await onRemoveLogFromDate(logDateKey);
                     onClose();
                   }}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                 >
-                  🗑 Remove log for this day
+                  <Trash2 size={16} />
+                  <span>Remove log for this day</span>
                 </button>
               ) : (
                 <button
                   id="btn-delete-outfit"
                   className="btn btn-danger btn-full"
                   onClick={handleDelete}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                 >
-                  {confirming ? '⚠️ Tap again to confirm delete outfit' : '🗑 Delete outfit'}
+                  <Trash2 size={16} />
+                  <span>{confirming ? 'Tap again to confirm delete outfit' : 'Delete outfit'}</span>
                 </button>
               )}
             </div>

@@ -6,6 +6,7 @@ import { useSettings } from '../contexts/SettingsContext';
 import { CATEGORIES, Category, ClothingItem } from '../lib/types';
 import Toast from './Toast';
 import { triggerHaptic } from '../lib/haptics';
+import { CategoryIcon, WashingMachine, Settings, Sparkles, CheckCircle2, Trash2, Calendar, History } from './AppIcon';
 
 export default function LaundryView() {
   const { laundryCategories, setLaundryCategories, getWornItems, getWashHistory, markWashed, markAllWashed, deleteWashSession } = useLaundry();
@@ -54,18 +55,22 @@ export default function LaundryView() {
       {/* Section Header */}
       <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-          <h2 className="section-title">🧺 {t('laundry')}</h2>
+          <h2 className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <WashingMachine size={22} color="var(--accent)" />
+            <span>{t('laundry')}</span>
+          </h2>
           <span className="section-count">{wornItems.length}</span>
         </div>
 
         <button
           className="btn btn-ghost"
-          style={{ padding: '4px 10px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}
+          style={{ padding: '4px 10px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}
           onClick={() => setShowCategorySettings(!showCategorySettings)}
           aria-expanded={showCategorySettings}
           aria-label="Laundry threshold settings"
         >
-          ⚙️ Settings
+          <Settings size={14} />
+          <span>Settings</span>
         </button>
       </div>
 
@@ -107,7 +112,7 @@ export default function LaundryView() {
                     color: isTracked ? 'var(--accent)' : 'var(--text-secondary)'
                   }}
                 >
-                  <span>{cat.emoji}</span>
+                  <CategoryIcon category={cat.value} size={14} />
                   <span>{cat.label}</span>
                   <span>{isTracked ? '✓' : '+'}</span>
                 </button>
@@ -141,10 +146,11 @@ export default function LaundryView() {
         {wornItems.length > 0 && (
           <button
             className="btn btn-primary"
-            style={{ padding: '6px 14px', fontSize: 12, background: 'var(--accent)', color: 'white', fontWeight: 700 }}
+            style={{ padding: '6px 14px', fontSize: 12, background: 'var(--accent)', color: 'white', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}
             onClick={handleWashAll}
           >
-            🧼 Wash All ({wornItems.length})
+            <WashingMachine size={16} />
+            <span>Wash All ({wornItems.length})</span>
           </button>
         )}
       </div>
@@ -152,7 +158,9 @@ export default function LaundryView() {
       {/* Worn Items List */}
       {wornItems.length === 0 ? (
         <div className="empty-state animate-in" style={{ padding: 'var(--space-8) var(--space-4)', textAlign: 'center' }}>
-          <div className="empty-state__emoji" style={{ fontSize: 48, marginBottom: 12 }}>✨</div>
+          <div className="empty-state__emoji" style={{ fontSize: 40, marginBottom: 12, display: 'flex', justifyContent: 'center' }}>
+            <Sparkles size={40} color="var(--accent)" />
+          </div>
           <div className="empty-state__title" style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>
             {showAllItems ? 'No worn items found' : 'Laundry basket is clean!'}
           </div>
@@ -163,7 +171,6 @@ export default function LaundryView() {
       ) : (
         <div className="animate-in" style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 'var(--space-6)' }}>
           {wornItems.map(({ item, wearsSinceWash }) => {
-            const cat = CATEGORIES.find(c => c.value === item.category);
             return (
               <div
                 key={item.id}
@@ -192,7 +199,7 @@ export default function LaundryView() {
                   {item.images && item.images.length > 0 ? (
                     <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
-                    cat?.emoji || '👕'
+                    <CategoryIcon category={item.category} size={22} />
                   )}
                 </div>
 
@@ -207,7 +214,7 @@ export default function LaundryView() {
                       color: wearsSinceWash >= 3 ? '#ef4444' : wearsSinceWash >= 2 ? '#eab308' : 'var(--accent)',
                       fontWeight: 700
                     }}>
-                      🔥 Worn {wearsSinceWash}x since wash
+                      Worn {wearsSinceWash}x since wash
                     </span>
                   </div>
                 </div>
@@ -222,12 +229,16 @@ export default function LaundryView() {
                     color: '#22c55e',
                     border: 'none',
                     borderRadius: 'var(--radius-pill)',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6
                   }}
                   onClick={() => handleWashSingleItem(item)}
                   aria-label={`Mark ${item.name} as clean`}
                 >
-                  🧼 Wash
+                  <CheckCircle2 size={14} />
+                  <span>Wash</span>
                 </button>
               </div>
             );
@@ -238,8 +249,9 @@ export default function LaundryView() {
       {/* Wash History Section */}
       {washHistory.length > 0 && (
         <div style={{ marginTop: 'var(--space-6)' }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: 'var(--text-primary)' }}>
-            📜 Wash History Log ({washHistory.length} sessions)
+          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <History size={18} />
+            <span>Wash History Log ({washHistory.length} sessions)</span>
           </h3>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -254,15 +266,17 @@ export default function LaundryView() {
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-primary)' }}>
-                    📅 {date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                  <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Calendar size={14} />
+                    <span>{date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
                   </div>
                   <button
                     onClick={() => handleDeleteWashSession(key, washedItems)}
-                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12 }}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}
                     aria-label={`Delete wash history session for ${key}`}
                   >
-                    🗑️ Delete Log
+                    <Trash2 size={14} />
+                    <span>Delete Log</span>
                   </button>
                 </div>
 

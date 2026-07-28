@@ -7,6 +7,8 @@ import { useWardrobe } from '../contexts/WardrobeContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { ImageService } from '../services/ImageService';
 import Toast from './Toast';
+import TagsManagerModal from './TagsManagerModal';
+import { CategoryIcon, Camera, LocationIcon, CheckCircle2, X } from './AppIcon';
 
 interface Props {
   onDone: () => void;
@@ -269,13 +271,12 @@ export default function AddItemView({ onDone }: Props) {
           
           {previewUrls.length < 5 && (
             <div
-              className="photo-upload"
+              className="photo-upload-placeholder"
               onClick={() => fileRef.current?.click()}
-              role="button"
-              style={{ width: 240, height: 320, flexShrink: 0, cursor: 'pointer' }}
+              style={{ width: 240, height: 320, flexShrink: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
             >
-              <span className="photo-upload__icon">📷</span>
-              <span className="photo-upload__text">Tap to add photo(s)</span>
+              <Camera size={40} color="var(--text-muted)" />
+              <span className="photo-upload__text" style={{ marginTop: 8 }}>Tap to add photo(s)</span>
               <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Saved as Blobs</span>
             </div>
           )}
@@ -283,7 +284,7 @@ export default function AddItemView({ onDone }: Props) {
         
         {previewUrls.length > 0 && (
           <p style={{ fontSize: 11, color: 'var(--accent)', marginTop: 2, fontWeight: 600, textAlign: 'center' }}>
-            🎯 Tap on any image to pick a color
+            Tap on any image to pick a color
           </p>
         )}
         
@@ -336,7 +337,7 @@ export default function AddItemView({ onDone }: Props) {
         >
           {locations.map(loc => (
             <option key={loc.id} value={loc.id}>
-              {loc.icon || '📍'} {loc.name}
+              {loc.name}
             </option>
           ))}
         </select>
@@ -419,8 +420,10 @@ export default function AddItemView({ onDone }: Props) {
               key={cat.value}
               className={`pill ${category === cat.value ? 'active' : ''}`}
               onClick={() => setCategory(cat.value)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
             >
-              {cat.emoji} {cat.label}
+              <CategoryIcon category={cat.value} size={14} />
+              <span>{cat.label}</span>
             </button>
           ))}
         </div>
@@ -537,7 +540,7 @@ export default function AddItemView({ onDone }: Props) {
           onClick={handleSave}
           disabled={!canSave || saving}
         >
-          {saving ? 'Saving…' : '✓ Add to Wardrobe'}
+          {saving ? 'Saving…' : 'Add to Wardrobe'}
         </button>
       </div>
 

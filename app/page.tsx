@@ -18,6 +18,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { ActiveTab } from './lib/types';
 import { triggerHaptic } from './lib/haptics';
 import { laundryService } from './services/LaundryService';
+import { Shirt, Sparkles, Plus, WashingMachine, MoreHorizontal, Sun, Moon, Settings, Zap } from './components/AppIcon';
 
 export default function Home() {
   const loading = useAppLoading();
@@ -50,7 +51,9 @@ export default function Home() {
       {/* Header */}
       <header className="app-header">
         <div className="app-header__logo">
-          <div className="app-header__logo-icon">🧥</div>
+          <div className="app-header__logo-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Shirt size={22} color="var(--accent)" />
+          </div>
           <span className="app-header__title">Fitly</span>
           {isOffline && (
             <span style={{
@@ -61,9 +64,13 @@ export default function Home() {
               padding: '2px 8px',
               borderRadius: 12,
               fontWeight: 600,
-              marginLeft: 6
+              marginLeft: 6,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4
             }}>
-              ⚡ {t('offline')}
+              <Zap size={10} />
+              <span>{t('offline')}</span>
             </span>
           )}
         </div>
@@ -91,10 +98,10 @@ export default function Home() {
             }}
             title="Filter by Location (Home, Rent Room, etc.)"
           >
-            <option value="all">📍 All Locations</option>
+            <option value="all">All Locations</option>
             {locations.map(loc => (
               <option key={loc.id} value={loc.id}>
-                {loc.icon || '📍'} {loc.name}
+                {loc.name}
               </option>
             ))}
           </select>
@@ -121,7 +128,7 @@ export default function Home() {
             }}
             title="Switch Language / Ubah Bahasa"
           >
-            {language === 'en' ? '🇮🇩 ID' : '🇬🇧 EN'}
+            {language === 'en' ? 'ID' : 'EN'}
           </button>
 
           <button 
@@ -129,8 +136,9 @@ export default function Home() {
             onClick={() => { toggleTheme(); triggerHaptic(10); }}
             aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
             title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
-            {theme === 'dark' ? '🌞' : '🌙'}
+            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
           </button>
           <button 
             id="btn-settings"
@@ -138,8 +146,9 @@ export default function Home() {
             onClick={() => { setIsSettingsOpen(true); triggerHaptic(10); }}
             aria-label="Settings"
             title="Settings & Storage"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
-            ⚙️
+            <Settings size={16} />
           </button>
         </div>
       </header>
@@ -215,7 +224,7 @@ export default function Home() {
           className={`nav-btn ${activeTab === 'wardrobe' ? 'active' : ''}`}
           onClick={() => handleTabChange('wardrobe')}
         >
-          <span className="nav-btn__icon">👕</span>
+          <span className="nav-btn__icon"><Shirt size={20} /></span>
           <span className="nav-btn__label">{t('wardrobe')}</span>
         </button>
 
@@ -224,7 +233,7 @@ export default function Home() {
           className={`nav-btn ${activeTab === 'outfits' ? 'active' : ''}`}
           onClick={() => handleTabChange('outfits')}
         >
-          <span className="nav-btn__icon">✨</span>
+          <span className="nav-btn__icon"><Sparkles size={20} /></span>
           <span className="nav-btn__label">{t('outfits')}</span>
         </button>
 
@@ -240,7 +249,7 @@ export default function Home() {
             aria-label="Quick Add"
             title="Quick Add Item, Outfit, or Trip"
           >
-            <span className="nav-btn__icon">＋</span>
+            <span className="nav-btn__icon"><Plus size={22} /></span>
           </button>
         </div>
 
@@ -249,8 +258,8 @@ export default function Home() {
           className={`nav-btn ${activeTab === 'laundry' ? 'active' : ''}`}
           onClick={() => handleTabChange('laundry')}
         >
-          <span className="nav-btn__icon">
-            🧺
+          <span className="nav-btn__icon" style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+            <WashingMachine size={20} />
             {dirtyCount > 0 && (
               <span className="nav-btn__badge">{dirtyCount > 9 ? '9+' : dirtyCount}</span>
             )}
@@ -266,7 +275,7 @@ export default function Home() {
             setIsMoreOpen(true);
           }}
         >
-          <span className="nav-btn__icon">•••</span>
+          <span className="nav-btn__icon"><MoreHorizontal size={20} /></span>
           <span className="nav-btn__label">More</span>
         </button>
       </nav>

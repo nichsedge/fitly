@@ -24,6 +24,7 @@ import {
   createPlanFromOutfit,
   createPlanFromItems,
 } from '../lib/domain/calendar';
+import { Sparkles, Shirt, WashingMachine, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Trash2, Plus, X, CategoryIcon } from './AppIcon';
 import {
   DndContext,
   closestCenter,
@@ -78,7 +79,7 @@ function DraggableOutfit({ outfit, dateKey, onDragStart }: DraggableOutfitProps)
       }}
     >
       <div {...attributes} {...listeners} style={{ padding: '8px 12px', background: 'var(--surface)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 20 }}>👗</span>
+        <Sparkles size={16} color="var(--accent)" />
         <span style={{ fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{outfit.name}</span>
         {dateKey && <span style={{ fontSize: 10, color: 'var(--text-muted)', background: 'var(--bg-3)', padding: '1px 6px', borderRadius: 4 }}>Planned: {dateKey}</span>}
       </div>
@@ -124,7 +125,9 @@ function DraggableItem({ item, dateKey, onDragStart }: DraggableItemProps) {
         {item.images && item.images.length > 0 ? (
           <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
-          <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%', fontSize: 24 }}>{cat?.emoji}</div>
+          <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}>
+            <CategoryIcon category={item.category} size={24} />
+          </div>
         )}
       </div>
       <div style={{ fontSize: 10, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center', width: 60 }}>{item.name}</div>
@@ -213,7 +216,7 @@ function CalendarDayCell({ day, onDrop, onClick, isDragOver }: CalendarDayCellPr
             borderRadius: 'var(--radius-sm)',
             textAlign: 'center',
           }}>
-            {isPast ? '📭 No plans' : '+ Plan outfit'}
+            {isPast ? 'No plans' : '+ Plan outfit'}
           </div>
         )}
         
@@ -231,7 +234,9 @@ function CalendarDayCell({ day, onDrop, onClick, isDragOver }: CalendarDayCellPr
               gap: 6,
             }}
           >
-            <span style={{ fontSize: 14 }}>{plan.outfitId ? '👗' : '👕'}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+              {plan.outfitId ? <Sparkles size={12} color="#8b5cf6" /> : <Shirt size={12} color="#10b981" />}
+            </span>
             <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {plan.outfitId ? 'Outfit' : 'Custom items'}
             </span>
@@ -415,7 +420,9 @@ function OutfitPickerModal({ isOpen, onClose, dateKey, outfits, items, onSelectO
                       {item.images && item.images.length > 0 ? (
                         <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       ) : (
-                        <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%', fontSize: 24 }}>{cat?.emoji}</div>
+                        <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}>
+                          <CategoryIcon category={item.category} size={24} />
+                        </div>
                       )}
                     </div>
                     <div style={{ fontSize: 10, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center', color: isSelected ? 'var(--accent)' : 'var(--text-primary)' }}>
@@ -775,8 +782,9 @@ export default function CalendarTab() {
             <button className="btn btn-ghost" onClick={goToThisWeek} style={{ padding: '6px 12px', fontSize: 13 }}>
               This Week
             </button>
-            <button className="btn btn-primary" onClick={() => { setPickerDateKey(formatDateKey(new Date())); setIsPickerOpen(true); }} style={{ padding: '6px 12px', fontSize: 13 }}>
-              📅 Plan Outfit
+            <button className="btn btn-primary" onClick={() => { setPickerDateKey(formatDateKey(new Date())); setIsPickerOpen(true); }} style={{ padding: '6px 12px', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <CalendarIcon size={14} />
+              <span>Plan Outfit</span>
             </button>
           </div>
         </div>
@@ -883,7 +891,9 @@ export default function CalendarTab() {
                                   {item.images && item.images.length > 0 ? (
                                     <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                   ) : (
-                                    <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%', fontSize: 24 }}>{cat?.emoji}</div>
+                                    <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}>
+                                      <CategoryIcon category={item.category} size={24} />
+                                    </div>
                                   )}
                                 </div>
                                 <div style={{ fontSize: 10, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>{item.name}</div>
@@ -898,7 +908,6 @@ export default function CalendarTab() {
                     {day.items.length > 0 && (
                       <div style={{ display: 'flex', gap: 'var(--space-2)', overflowX: 'auto', scrollbarWidth: 'none' }}>
                         {day.items.map(item => {
-                          const cat = CATEGORIES.find(c => c.value === item.category);
                           return (
                             <div
                               key={`single-${item.id}-${day.key}`}
@@ -926,7 +935,9 @@ export default function CalendarTab() {
                                 {item.images && item.images.length > 0 ? (
                                   <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                 ) : (
-                                  <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%', fontSize: 28 }}>{cat?.emoji}</div>
+                                  <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}>
+                                    <CategoryIcon category={item.category} size={24} />
+                                  </div>
                                 )}
                               </div>
                               <div style={{ fontSize: 11, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>{item.name}</div>
@@ -950,7 +961,7 @@ export default function CalendarTab() {
                         gap: 12
                       }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <span style={{ fontSize: 20 }}>🧺</span>
+                          <WashingMachine size={18} color="var(--accent)" />
                           <div>
                             <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
                               Laundry Audit — Washed {day.washedItems.length} item(s)
@@ -966,11 +977,11 @@ export default function CalendarTab() {
                           </span>
                           <button
                             className="btn btn-ghost"
-                            style={{ padding: '2px 6px', fontSize: 11, color: 'var(--text-muted)', height: 'auto' }}
+                            style={{ padding: '2px 6px', fontSize: 11, color: 'var(--text-muted)', height: 'auto', display: 'flex', alignItems: 'center' }}
                             title="Delete wash log entry for this day"
                             onClick={() => handleRemoveWashLogForDay(day.key, day.washedItems)}
                           >
-                            🗑️
+                            <Trash2 size={13} />
                           </button>
                         </div>
                       </div>

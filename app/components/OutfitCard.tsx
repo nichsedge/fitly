@@ -3,6 +3,7 @@
 import React, { memo } from 'react';
 import { ClothingItem, Outfit, CATEGORIES } from '../lib/types';
 import { ImageService } from '../services/ImageService';
+import { CategoryIcon, Shirt } from './AppIcon';
 
 interface Props {
   outfit: Outfit;
@@ -18,7 +19,6 @@ function OutfitCardComponent({ outfit, items, onClick, viewMode = 'grid' }: Prop
 
   const count = outfitItems.length;
   const displayItems = count > 0 ? outfitItems.slice(0, 4) : [];
-  const defaultEmojis = ['👕', '👖', '👟', '🧥'];
 
   const slotsToRender = count === 0 
     ? [null, null, null, null] 
@@ -70,11 +70,10 @@ function OutfitCardComponent({ outfit, items, onClick, viewMode = 'grid' }: Prop
           if (!item) {
             return (
               <div key={`empty-${idx}`} className={`${slotClass} outfit-card__img-slot--placeholder`}>
-                {defaultEmojis[idx]}
+                <Shirt size={20} color="var(--text-muted)" />
               </div>
             );
           }
-          const cat = CATEGORIES.find(c => c.value === item.category);
           const imgUrl = resolvedUrls[item.id] || (item.images && item.images.length > 0 ? ImageService.getDisplayUrl(item.id, item.images[0]) : '');
           return imgUrl ? (
             <img
@@ -86,7 +85,7 @@ function OutfitCardComponent({ outfit, items, onClick, viewMode = 'grid' }: Prop
             />
           ) : (
             <div key={`item-${item.id}-${idx}`} className={`${slotClass} outfit-card__img-slot--placeholder`}>
-              {cat?.emoji || defaultEmojis[idx]}
+              <CategoryIcon category={item.category} size={20} />
             </div>
           );
         })}

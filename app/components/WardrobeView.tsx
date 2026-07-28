@@ -10,6 +10,7 @@ import SkeletonCard from './SkeletonCard';
 import ItemDetailModal from './ItemDetailModal';
 import VirtualizedGrid from './VirtualizedGrid';
 import Toast from './Toast';
+import { CategoryIcon, LocationIcon, Shirt, Search, Grid, List, CheckCircle2, WashingMachine, Tag, MapPin, X } from './AppIcon';
 
 interface Props {
   onNavigateToAdd?: () => void;
@@ -121,8 +122,9 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
           <h2 className="section-title">{t('wardrobe')}</h2>
           <span className="section-count">{sorted.length}</span>
           {activeLocationId !== 'all' && (
-            <span style={{ fontSize: 11, background: 'var(--accent-subtle)', color: 'var(--accent)', padding: '2px 8px', borderRadius: 'var(--radius-pill)', fontWeight: 600 }}>
-              {activeLocation?.icon} {activeLocation?.name}
+            <span style={{ fontSize: 11, background: 'var(--accent-subtle)', color: 'var(--accent)', padding: '2px 8px', borderRadius: 'var(--radius-pill)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <LocationIcon icon={activeLocation?.icon} size={13} />
+              <span>{activeLocation?.name}</span>
             </span>
           )}
         </div>
@@ -146,7 +148,9 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
 
       {/* Search Bar */}
       <div className="search-container animate-in">
-        <span className="search-icon">🔍</span>
+        <span className="search-icon" style={{ display: 'flex', alignItems: 'center' }}>
+          <Search size={16} />
+        </span>
         <input
           type="text"
           className="search-input"
@@ -189,14 +193,14 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
                 fontWeight: 600
               }}
             >
-              <option value="newest">📅 Newest</option>
-              <option value="oldest">⌛ Oldest</option>
-              <option value="most-worn">🔥 Most Worn</option>
-              <option value="least-worn">💤 Least Worn</option>
-              <option value="price-high">💵 Price: High → Low</option>
-              <option value="price-low">🏷️ Price: Low → High</option>
-              <option value="cpw-low">💎 Best Value (Lowest CPW)</option>
-              <option value="cpw-high">💸 Highest CPW</option>
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="most-worn">Most Worn</option>
+              <option value="least-worn">Least Worn</option>
+              <option value="price-high">Price: High → Low</option>
+              <option value="price-low">Price: Low → High</option>
+              <option value="cpw-low">Best Value (Lowest CPW)</option>
+              <option value="cpw-high">Highest CPW</option>
             </select>
           </div>
 
@@ -221,7 +225,8 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
                 gap: 4
               }}
             >
-              <span>⊞</span> Grid
+              <Grid size={14} />
+              <span>Grid</span>
             </button>
             <button
               id="view-toggle-wardrobe-list"
@@ -243,7 +248,8 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
                 gap: 4
               }}
             >
-              <span>☰</span> List
+              <List size={14} />
+              <span>List</span>
             </button>
           </div>
         </div>
@@ -270,8 +276,10 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
                 aria-selected={activeCategory === cat.value}
                 className={`filter-chip ${activeCategory === cat.value ? 'active' : ''}`}
                 onClick={() => setActiveCategory(cat.value)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
               >
-                {cat.emoji} {cat.label}
+                <CategoryIcon category={cat.value} size={14} />
+                <span>{cat.label}</span>
               </button>
             ))}
           </div>
@@ -283,8 +291,10 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
               aria-selected={activeTag === 'all'}
               className={`filter-chip ${activeTag === 'all' ? 'active' : ''}`}
               onClick={() => setActiveTag('all')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
             >
-              🏷️ {t('allStyles')}
+              <Tag size={14} />
+              <span>{t('allStyles')}</span>
             </button>
             {tags.map(tag => (
               <button
@@ -419,7 +429,9 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
         </div>
       ) : items.length === 0 ? (
         <div className="empty-state animate-in" style={{ padding: 'var(--space-8) var(--space-4)', textAlign: 'center' }}>
-          <div className="empty-state__emoji" style={{ fontSize: 56, marginBottom: 12 }}>🧥</div>
+          <div className="empty-state__emoji" style={{ fontSize: 48, marginBottom: 12, display: 'flex', justifyContent: 'center' }}>
+            <Shirt size={48} color="var(--accent)" />
+          </div>
           <div className="empty-state__title" style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>{t('emptyWardrobeTitle')}</div>
           <p className="empty-state__desc" style={{ fontSize: 14, color: 'var(--text-muted)', maxWidth: 360, margin: '0 auto 20px auto' }}>
             {t('emptyWardrobeDesc')}
@@ -447,7 +459,9 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
         </div>
       ) : sorted.length === 0 ? (
         <div className="empty-state animate-in">
-          <div className="empty-state__emoji">📍</div>
+          <div className="empty-state__emoji" style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+            <MapPin size={48} color="var(--accent)" />
+          </div>
           <div className="empty-state__title">No items found</div>
           <div className="empty-state__desc">
             {activeLocationId !== 'all' 
@@ -504,7 +518,7 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
                     <option value="" disabled>Select Location...</option>
                     {locations.map(loc => (
                       <option key={loc.id} value={loc.id}>
-                        {loc.icon || '📍'} {loc.name}
+                        {loc.name}
                       </option>
                     ))}
                   </select>
@@ -512,10 +526,19 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
               </div>
 
               <div style={{ display: 'flex', gap: 'var(--space-2)', overflowX: 'auto', paddingBottom: 4 }}>
-                <button className="btn btn-ghost" style={{ background: 'rgba(34, 197, 94, 0.2)', color: '#22c55e', fontSize: 11, border: 'none' }} onClick={() => handleBatchStatus('ready')}>✅ Set Ready</button>
-                <button className="btn btn-ghost" style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', fontSize: 11, border: 'none' }} onClick={() => handleBatchStatus('dirty')}>🧺 Set Dirty</button>
+                <button className="btn btn-ghost" style={{ background: 'rgba(34, 197, 94, 0.2)', color: '#22c55e', fontSize: 11, border: 'none', display: 'flex', alignItems: 'center', gap: 4 }} onClick={() => handleBatchStatus('ready')}>
+                  <CheckCircle2 size={12} />
+                  <span>Set Ready</span>
+                </button>
+                <button className="btn btn-ghost" style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', fontSize: 11, border: 'none', display: 'flex', alignItems: 'center', gap: 4 }} onClick={() => handleBatchStatus('dirty')}>
+                  <WashingMachine size={12} />
+                  <span>Set Dirty</span>
+                </button>
                 {tags.slice(0, 4).map(tag => (
-                  <button key={tag.id} className="btn btn-ghost" style={{ background: 'rgba(255,255,255,0.1)', fontSize: 11, border: 'none' }} onClick={() => handleBatchTag(tag.label)}>🏷️ +{tag.label}</button>
+                  <button key={tag.id} className="btn btn-ghost" style={{ background: 'rgba(255,255,255,0.1)', fontSize: 11, border: 'none', display: 'flex', alignItems: 'center', gap: 4 }} onClick={() => handleBatchTag(tag.label)}>
+                    <Tag size={12} />
+                    <span>+{tag.label}</span>
+                  </button>
                 ))}
               </div>
             </div>

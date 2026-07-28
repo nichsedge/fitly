@@ -7,6 +7,7 @@ import { useOutfits } from '../contexts/OutfitContext';
 import { ClothingItem, CATEGORIES, Category, Outfit } from '../lib/types';
 import ItemCard from './ItemCard';
 import Toast from './Toast';
+import { CategoryIcon } from './AppIcon';
 
 interface Props {
   initialOutfit?: Outfit | null;
@@ -224,8 +225,10 @@ export default function OutfitBuilderModal({ initialOutfit, onClose }: Props) {
                   key={cat.value}
                   className={`filter-chip ${filterCat === cat.value ? 'active' : ''}`}
                   onClick={() => setFilterCat(cat.value)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                 >
-                  {cat.emoji} {cat.label}
+                  <CategoryIcon category={cat.value} size={14} />
+                  <span>{cat.label}</span>
                 </button>
               ))}
             </div>

@@ -33,7 +33,7 @@ describe('ItemRepository', () => {
       const raw: Record<string, unknown> = { id: '1', imageData: 'data:image/png;base64,abc', name: 'Test' };
       const migrated = migrateItem(raw);
       expect(migrated.images).toEqual(['data:image/png;base64,abc']);
-      expect((migrated as Record<string, unknown>).imageData).toBeUndefined();
+      expect((migrated as unknown as Record<string, unknown>).imageData).toBeUndefined();
     });
 
     it('should handle missing imageData', () => {

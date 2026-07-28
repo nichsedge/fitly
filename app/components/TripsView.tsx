@@ -8,6 +8,7 @@ import { useSettings } from '../contexts/SettingsContext';
 import { Trip } from '../lib/types';
 import { tripService } from '../services/TripService';
 import { triggerHaptic } from '../lib/haptics';
+import { Luggage, Calendar, MapPin, Edit, Trash2, AlertTriangle, Plus, X } from './AppIcon';
 
 export default function TripsView() {
   const { trips, addTrip, updateTrip, deleteTrip } = useTrips();
@@ -133,9 +134,13 @@ export default function TripsView() {
             fontWeight: 700,
             whiteSpace: 'nowrap',
             boxShadow: '0 4px 14px var(--accent-glow)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6
           }}
         >
-          ＋ New Trip
+          <Plus size={16} />
+          <span>New Trip</span>
         </button>
       </div>
 
@@ -152,7 +157,9 @@ export default function TripsView() {
             alignItems: 'center',
           }}
         >
-          <div style={{ fontSize: 52, marginBottom: 14 }}>🌴</div>
+          <div style={{ marginBottom: 14, display: 'flex', justifyContent: 'center' }}>
+            <Luggage size={52} color="var(--accent)" />
+          </div>
           <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 6, color: 'var(--text-primary)' }}>
             No Trips Planned Yet
           </h3>
@@ -168,9 +175,13 @@ export default function TripsView() {
               fontSize: 14,
               fontWeight: 700,
               boxShadow: '0 6px 20px var(--accent-glow)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8
             }}
           >
-            ✈️ Create First Trip
+            <Luggage size={18} />
+            <span>Create First Trip</span>
           </button>
         </div>
       ) : (
@@ -205,7 +216,8 @@ export default function TripsView() {
                     transition: 'all 0.2s ease',
                   }}
                 >
-                  <span>✈️ {trip.name}</span>
+                  <Luggage size={14} />
+                  <span>{trip.name}</span>
                   <span
                     style={{
                       fontSize: 11,
@@ -239,18 +251,27 @@ export default function TripsView() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>{activeTrip.name}</h3>
-                  <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>
-                    📍 {activeTrip.destination || 'Destination'} • 🗓️ {activeTrip.startDate} to {activeTrip.endDate}
+                  <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <MapPin size={12} />
+                      <span>{activeTrip.destination || 'Destination'}</span>
+                    </span>
+                    <span>•</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <Calendar size={12} />
+                      <span>{activeTrip.startDate} to {activeTrip.endDate}</span>
+                    </span>
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
                   <button
                     className="btn btn-ghost"
                     onClick={() => openEditTripModal(activeTrip)}
-                    style={{ padding: '6px 10px', fontSize: 12 }}
+                    style={{ padding: '6px 10px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}
                     aria-label="Edit trip details"
                   >
-                    ✏️ Edit
+                    <Edit size={14} />
+                    <span>Edit</span>
                   </button>
                   <button
                     className="btn btn-ghost"
@@ -259,10 +280,10 @@ export default function TripsView() {
                         await deleteTrip(activeTrip.id);
                       }
                     }}
-                    style={{ padding: '6px 10px', fontSize: 12, color: '#ef4444' }}
+                    style={{ padding: '6px 10px', fontSize: 12, color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     aria-label="Delete trip"
                   >
-                    🗑️
+                    <Trash2 size={14} color="#ef4444" />
                   </button>
                 </div>
               </div>
@@ -287,8 +308,9 @@ export default function TripsView() {
 
               {/* Missing Categories Alert */}
               {packingData.missingCategories.length > 0 && (
-                <div style={{ background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)', padding: '8px 12px', borderRadius: 'var(--radius-md)', fontSize: 12, color: '#eab308' }}>
-                  ⚠️ Missing essential items: <strong>{packingData.missingCategories.join(', ')}</strong>
+                <div style={{ background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)', padding: '8px 12px', borderRadius: 'var(--radius-md)', fontSize: 12, color: '#eab308', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <AlertTriangle size={14} color="#eab308" />
+                  <span>Missing essential items: <strong>{packingData.missingCategories.join(', ')}</strong></span>
                 </div>
               )}
 
@@ -344,7 +366,7 @@ export default function TripsView() {
                   >
                     {locations.map((l) => (
                       <option key={l.id} value={l.id}>
-                        {l.icon} {l.name}
+                        {l.name}
                       </option>
                     ))}
                   </select>

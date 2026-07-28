@@ -7,6 +7,7 @@ import { useSettings } from '../contexts/SettingsContext';
 import Toast from './Toast';
 import DailyOutfitBuilder from './DailyOutfitBuilder';
 import { v4 as uuidv4 } from 'uuid';
+import { CategoryIcon, LocationIcon, Camera, Wand2, Shirt, Sparkles, Trash2, Edit, CheckCircle2, X } from './AppIcon';
 
 interface Props {
   item: ClothingItem;
@@ -208,15 +209,17 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
           <div className="modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             {isEditing ? (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 8 }}>
-                <span className="modal-title" style={{ fontSize: 18, fontWeight: 700 }}>
-                  ✏️ Edit Item Details
+                <span className="modal-title" style={{ fontSize: 18, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Edit size={18} />
+                  <span>Edit Item Details</span>
                 </span>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <button className="btn btn-ghost" style={{ padding: '4px 10px', fontSize: 12, height: 32 }} onClick={handleCancelEdit}>
                     Cancel
                   </button>
-                  <button className="btn btn-primary" style={{ padding: '4px 12px', fontSize: 12, height: 32 }} onClick={handleSaveAll}>
-                    ✓ Save
+                  <button className="btn btn-primary" style={{ padding: '4px 12px', fontSize: 12, height: 32, display: 'flex', alignItems: 'center', gap: 4 }} onClick={handleSaveAll}>
+                    <CheckCircle2 size={14} />
+                    <span>Save</span>
                   </button>
                 </div>
               </div>
@@ -233,9 +236,12 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
                     onClick={handleStartEdit}
                     title="Edit Item Details"
                   >
-                    ✏️ Edit
+                    <Edit size={14} />
+                    <span>Edit</span>
                   </button>
-                  <button id="modal-close" className="modal-close" onClick={onClose}>✕</button>
+                  <button id="modal-close" className="modal-close" onClick={onClose}>
+                    <X size={18} />
+                  </button>
                 </div>
               </div>
             )}
@@ -311,18 +317,20 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
                   onClick={() => fileRef.current?.click()}
                   role="button"
                 >
-                  <div className="item-detail__image" style={{ display: 'grid', placeItems: 'center', fontSize: 72, margin: 0 }}>
-                    {categoryInfo?.emoji}
-                  </div>
-                  <div className="item-photo-overlay" style={{ opacity: 1 }}>
-                    {uploadingPhoto ? (
-                      <div className="loading-spinner" style={{ width: 28, height: 28, borderWidth: 2 }} />
-                    ) : (
-                      <>
-                        <span style={{ fontSize: 26 }}>📷</span>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: 'white' }}>Add photo</span>
-                      </>
-                    )}
+                  <div className="item-photo-placeholder">
+                    <div className="empty-state__emoji">
+                      <CategoryIcon category={item.category} size={48} />
+                    </div>
+                    <div className="item-photo-overlay" style={{ opacity: 1 }}>
+                      {uploadingPhoto ? (
+                        <div className="loading-spinner" style={{ width: 28, height: 28, borderWidth: 2 }} />
+                      ) : (
+                        <>
+                          <Camera size={26} color="white" />
+                          <span style={{ fontSize: 13, fontWeight: 600, color: 'white' }}>Add photo</span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -336,7 +344,7 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
 
             {item.images && item.images.length > 0 && !isEditing && (
               <p style={{ fontSize: 11, color: 'var(--accent)', marginTop: -8, marginBottom: 16, fontWeight: 600, textAlign: 'center' }}>
-                🎯 Tap on any image to pick a color • Swipe to see more
+                Tap on any image to pick a color • Swipe to see more
               </p>
             )}
 
@@ -429,7 +437,8 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
                         className={`pill ${category === cat.value ? 'active' : ''}`}
                         onClick={() => setCategory(cat.value)}
                       >
-                        {cat.emoji} {cat.label}
+                        <CategoryIcon category={cat.value} size={14} />
+                        <span>{cat.label}</span>
                       </button>
                     ))}
                   </div>
@@ -603,7 +612,7 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
                 >
                   <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Category</span>
                   <span style={{ fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {categoryInfo?.emoji} {categoryInfo?.label}
+                    <CategoryIcon category={item.category} size={14} /> {categoryInfo?.label}
                   </span>
                 </div>
 
@@ -805,17 +814,22 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
                     className="btn btn-ghost btn-full"
                     onClick={() => fileRef.current?.click()}
                     disabled={uploadingPhoto || (item.images && item.images.length >= 5)}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                   >
-                    📷 {item.images && item.images.length >= 5 ? 'Max photos reached' : 'Add photo'}
+                    <Camera size={16} />
+                    <span>{item.images && item.images.length >= 5 ? 'Max photos reached' : 'Add photo'}</span>
                   </button>
                   <button 
                     className="btn btn-ghost btn-full" 
-                    onClick={() => setToast('✨ AI Background removal coming soon!')}
+                    onClick={() => setToast('AI Background removal coming soon!')}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                   >
-                    🪄 Remove Background (AI)
+                    <Wand2 size={16} />
+                    <span>Remove Background (AI)</span>
                   </button>
-                  <button id="btn-wear-today" className="btn btn-ghost btn-full" onClick={handleWear}>
-                    👕 Wearing this today
+                  <button id="btn-wear-today" className="btn btn-ghost btn-full" onClick={handleWear} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <Shirt size={16} />
+                    <span>Wearing this today</span>
                   </button>
                   {logDateKey && onRemoveLogFromDate ? (
                     <button
@@ -825,16 +839,20 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
                         await onRemoveLogFromDate(logDateKey);
                         onClose();
                       }}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                     >
-                      🗑 Remove log for this day
+                      <Trash2 size={16} />
+                      <span>Remove log for this day</span>
                     </button>
                   ) : (
                     <button
                       id="btn-delete-item"
                       className="btn btn-danger btn-full"
                       onClick={handleDelete}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                     >
-                      {confirming ? '⚠️ Tap again to confirm delete' : '🗑 Delete item'}
+                      <Trash2 size={16} />
+                      <span>{confirming ? 'Tap again to confirm delete' : 'Delete item'}</span>
                     </button>
                   )}
                 </div>

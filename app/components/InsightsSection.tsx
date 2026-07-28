@@ -3,6 +3,7 @@ import { useOutfits } from '../contexts/OutfitContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { CATEGORIES, getColorLabel } from '../lib/types';
 import { useMemo } from 'react';
+import { CategoryIcon } from './AppIcon';
 
 export default function InsightsSection() {
   const { items } = useWardrobe();
@@ -115,7 +116,7 @@ export default function InsightsSection() {
               const pct = Math.round((count / Math.max(1, stats.itemCount)) * 100);
               return (
                 <div key={cat.value} className="mini-stat" style={{ gap: 6, alignItems: 'center' }}>
-                  <span style={{ fontSize: 13, flexShrink: 0 }} title={cat.label}>{cat.emoji}</span>
+                  <CategoryIcon category={cat.value} size={14} />
                   <span className="mini-stat__label" style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', width: 44, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}>
                     {cat.label}
                   </span>
@@ -204,7 +205,7 @@ export default function InsightsSection() {
                     {item.images && item.images[0] ? (
                       <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : (
-                      cat?.emoji
+                      <CategoryIcon category={item.category} size={20} />
                     )}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -228,7 +229,6 @@ export default function InsightsSection() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 'var(--space-2)' }}>
             {stats.worstValue.map(item => {
               const cpw = item.price! / Math.max(1, item.wearLogs?.length || 0);
-              const cat = CATEGORIES.find(c => c.value === item.category);
               return (
                 <div 
                   key={item.id} 
@@ -246,7 +246,7 @@ export default function InsightsSection() {
                     {item.images && item.images[0] ? (
                       <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : (
-                      cat?.emoji
+                      <CategoryIcon category={item.category} size={20} />
                     )}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -270,7 +270,6 @@ export default function InsightsSection() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 'var(--space-2)' }}>
             {stats.topItems.map(item => {
               const wears = item.wearLogs?.length || 0;
-              const cat = CATEGORIES.find(c => c.value === item.category);
               return (
                 <div 
                   key={item.id} 
@@ -288,7 +287,7 @@ export default function InsightsSection() {
                     {item.images && item.images[0] ? (
                       <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : (
-                      cat?.emoji
+                      <CategoryIcon category={item.category} size={20} />
                     )}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -296,7 +295,7 @@ export default function InsightsSection() {
                       {item.name}
                     </div>
                     <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-secondary)' }}>
-                      🔥 {wears} wears
+                      Worn {wears}x
                     </div>
                   </div>
                 </div>
@@ -312,7 +311,6 @@ export default function InsightsSection() {
           <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>Items not worn in over 6 months.</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 'var(--space-2)', opacity: 0.75 }}>
             {stats.hibernating.map(item => {
-              const cat = CATEGORIES.find(c => c.value === item.category);
               return (
                 <div 
                   key={item.id} 
@@ -330,7 +328,7 @@ export default function InsightsSection() {
                     {item.images && item.images[0] ? (
                       <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : (
-                      cat?.emoji
+                      <CategoryIcon category={item.category} size={20} />
                     )}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>

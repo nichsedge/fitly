@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useWardrobe } from '../contexts/WardrobeContext';
 import { CustomTag } from '../lib/types';
 import Toast from './Toast';
+import { Edit, Trash2, X } from './AppIcon';
 
 interface Props {
   onClose: () => void;
@@ -20,6 +21,7 @@ export default function TagsManagerModal({ onClose }: Props) {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
+  
   const [newTagLabel, setNewTagLabel] = useState('');
   const [editingTag, setEditingTag] = useState<CustomTag | null>(null);
   const [editLabel, setEditLabel] = useState('');
@@ -69,7 +71,9 @@ export default function TagsManagerModal({ onClose }: Props) {
       <div className="modal-sheet animate-slide-up" onClick={e => e.stopPropagation()} style={{ maxHeight: '80dvh' }}>
         <div className="modal-header">
           <span className="modal-title">Manage Tags</span>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose}>
+            <X size={18} />
+          </button>
         </div>
         
         <div className="modal-body">
@@ -118,7 +122,7 @@ export default function TagsManagerModal({ onClose }: Props) {
                       Save
                     </button>
                     <button className="btn btn-ghost" onClick={() => setEditingTag(null)} style={{ padding: '4px 12px', fontSize: 13 }}>
-                      ✕
+                      <X size={14} />
                     </button>
                   </div>
                 ) : (
@@ -128,16 +132,16 @@ export default function TagsManagerModal({ onClose }: Props) {
                       <button 
                         className="btn-circle" 
                         onClick={() => startEdit(tag)}
-                        style={{ width: 32, height: 32, fontSize: 12 }}
+                        style={{ width: 32, height: 32, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       >
-                        ✏️
+                        <Edit size={14} />
                       </button>
                       <button 
                         className="btn-circle" 
                         onClick={() => handleDelete(tag)}
-                        style={{ width: 32, height: 32, fontSize: 12, color: 'var(--danger)' }}
+                        style={{ width: 32, height: 32, fontSize: 12, color: 'var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       >
-                        🗑️
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   </>

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { AlertTriangle, RefreshCw } from './AppIcon';
 
 interface Props {
   children: ReactNode;
@@ -55,7 +56,9 @@ export default class ErrorBoundary extends Component<Props, State> {
           }}
           role="alert"
         >
-          <div style={{ fontSize: 48, marginBottom: 'var(--space-4)' }}>⚠️</div>
+          <div style={{ fontSize: 48, marginBottom: 'var(--space-4)', display: 'flex', justifyContent: 'center' }}>
+            <AlertTriangle size={48} color="#ef4444" />
+          </div>
           <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 'var(--space-2)' }}>
             {this.t('somethingWentWrong') || 'Something went wrong'}
           </h2>
@@ -66,16 +69,18 @@ export default class ErrorBoundary extends Component<Props, State> {
             <button
               onClick={this.handleRetry}
               className="btn btn-primary"
-              style={{ padding: 'var(--space-3) var(--space-6)', fontWeight: 700 }}
+              style={{ padding: 'var(--space-3) var(--space-6)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}
             >
-              🔄 {this.t('retry') || 'Retry'}
+              <RefreshCw size={16} />
+              <span>{this.t('retry') || 'Retry'}</span>
             </button>
             <button
               onClick={() => window.location.reload()}
               className="btn btn-ghost"
-              style={{ padding: 'var(--space-3) var(--space-6)', fontWeight: 700 }}
+              style={{ padding: 'var(--space-3) var(--space-6)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}
             >
-              🔁 {this.t('refreshPage') || 'Refresh Page'}
+              <RefreshCw size={16} />
+              <span>{this.t('refreshPage') || 'Refresh Page'}</span>
             </button>
           </div>
           {this.state.error && (

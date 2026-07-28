@@ -4,6 +4,7 @@ import React, { memo } from 'react';
 import { ClothingItem, CATEGORIES } from '../lib/types';
 import { useSettings } from '../contexts/SettingsContext';
 import { ImageService } from '../services/ImageService';
+import { CategoryIcon, Tag } from './AppIcon';
 
 interface Props {
   item: ClothingItem;
@@ -114,7 +115,7 @@ function ItemCardComponent({ item, onClick, selected, onSelect, selectable, view
         />
       ) : (
         <div className="item-card__image-placeholder">
-          {category?.emoji || '👕'}
+          <CategoryIcon category={item.category} size={28} />
         </div>
       )}
 
@@ -137,8 +138,9 @@ function ItemCardComponent({ item, onClick, selected, onSelect, selectable, view
             title={`Color: ${item.color}`}
           />
           {item.brand && (
-            <span style={{ color: 'var(--accent)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 90 }}>
-              🏷️ {item.brand}
+            <span style={{ color: 'var(--accent)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 90, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+              <Tag size={10} />
+              <span>{item.brand}</span>
             </span>
           )}
           <span className="item-card__category" style={{ textTransform: 'capitalize', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>

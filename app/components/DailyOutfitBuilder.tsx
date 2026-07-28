@@ -4,6 +4,7 @@ import { useWardrobe } from '../contexts/WardrobeContext';
 import { useOutfits } from '../contexts/OutfitContext';
 import { v4 as uuidv4 } from 'uuid';
 import Toast from './Toast';
+import { CategoryIcon } from './AppIcon';
 
 interface Props {
   startingItem: ClothingItem;
@@ -97,8 +98,8 @@ export default function DailyOutfitBuilder({ startingItem, onClose }: Props) {
                   {startingItem.images && startingItem.images.length > 0 ? (
                     <img src={startingItem.images[0]} alt={startingItem.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
-                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>
-                      {CATEGORIES.find(c => c.value === startingItem.category)?.emoji}
+                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <CategoryIcon category={startingItem.category} size={24} />
                     </div>
                   )}
                 </div>
@@ -117,7 +118,10 @@ export default function DailyOutfitBuilder({ startingItem, onClose }: Props) {
                 return (
                   <div key={cat}>
                     <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 'var(--space-3)', display: 'flex', justifyContent: 'space-between' }}>
-                      <span>{catInfo?.emoji} Pick a {catInfo?.label}</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <CategoryIcon category={cat} size={16} />
+                        <span>Pick a {catInfo?.label}</span>
+                      </span>
                       {selectedItems[cat] && <span style={{ color: 'var(--accent)', fontSize: 12 }}>✓ Selected</span>}
                     </div>
                     
@@ -158,8 +162,8 @@ export default function DailyOutfitBuilder({ startingItem, onClose }: Props) {
                               {item.images && item.images.length > 0 ? (
                                 <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                               ) : (
-                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}>
-                                  {catInfo?.emoji}
+                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  <CategoryIcon category={item.category} size={28} />
                                 </div>
                               )}
                               

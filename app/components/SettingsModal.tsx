@@ -13,6 +13,7 @@ import { Category, ItemCondition, ClothingItem, Outfit, CustomTag, WardrobeLocat
 import { v4 as uuidv4 } from 'uuid';
 import { exportWardrobeZip, importWardrobeZip, downloadZipBlob, restoreWardrobeData, restoreZipImages } from '../lib/zipBackup';
 import { clearAllAppData } from '../lib/db';
+import { LocationIcon, PRESET_LOCATION_ICONS, Trash2, X, Globe, Package, Download, Upload, Tag, AlertTriangle, Database, MapPin } from './AppIcon';
 
 interface Props {
   onClose: () => void;
@@ -60,7 +61,7 @@ export default function SettingsModal({ onClose }: Props) {
     await addLocation({
       id: uuidv4(),
       name: newLocName.trim(),
-      icon: newLocIcon || '📍'
+      icon: newLocIcon || 'map-pin'
     });
     setNewLocName('');
     setIsAddingLoc(false);
@@ -292,8 +293,9 @@ export default function SettingsModal({ onClose }: Props) {
               marginBottom: 'var(--space-4)',
               border: '1px solid var(--border)'
             }}>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
-                🌐 Preferences
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Globe size={16} />
+                <span>Preferences</span>
               </div>
 
               {/* Language Selector */}
@@ -316,7 +318,7 @@ export default function SettingsModal({ onClose }: Props) {
                       cursor: 'pointer'
                     }}
                   >
-                    🇬🇧 English
+                    English
                   </button>
                   <button
                     onClick={() => { setLanguage('id'); setToast('Bahasa diubah ke Bahasa Indonesia'); }}
@@ -332,7 +334,7 @@ export default function SettingsModal({ onClose }: Props) {
                       cursor: 'pointer'
                     }}
                   >
-                    🇮🇩 Indonesia
+                    Indonesia
                   </button>
                 </div>
               </div>
@@ -375,7 +377,10 @@ export default function SettingsModal({ onClose }: Props) {
               border: '1px solid var(--border)'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <span style={{ fontSize: 13, fontWeight: 700 }}>📍 Wardrobe Locations</span>
+                <span style={{ fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <MapPin size={16} />
+                  <span>Wardrobe Locations</span>
+                </span>
                 <button
                   className="btn btn-ghost"
                   style={{ padding: '2px 8px', fontSize: 11, height: 'auto' }}
@@ -390,18 +395,18 @@ export default function SettingsModal({ onClose }: Props) {
                   const itemCount = items.filter(i => (i.locationId || 'loc-home') === loc.id).length;
                   return (
                     <div key={loc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-2)', padding: '6px 10px', borderRadius: 'var(--radius-sm)' }}>
-                      <span style={{ fontSize: 13, fontWeight: 600 }}>
-                        {loc.icon || '📍'} {loc.name}
+                      <span style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <LocationIcon icon={loc.icon} size={16} /> {loc.name}
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{itemCount} items</span>
                         {!loc.isDefault && (
                           <button
                             onClick={() => deleteLocation(loc.id)}
-                            style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 12 }}
+                            style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 2 }}
                             title="Delete Location"
                           >
-                            🗑
+                            <Trash2 size={14} />
                           </button>
                         )}
                       </div>
@@ -410,36 +415,55 @@ export default function SettingsModal({ onClose }: Props) {
                 })}
 
                 {isAddingLoc && (
-                  <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                    <select
-                      value={newLocIcon}
-                      onChange={e => setNewLocIcon(e.target.value)}
-                      style={{ width: 50, height: 32, borderRadius: 'var(--radius-sm)', background: 'var(--bg-2)', border: '1px solid var(--border)', textAlign: 'center' }}
-                    >
-                      <option value="📍">📍</option>
-                      <option value="🏠">🏠</option>
-                      <option value="🏢">🏢</option>
-                      <option value="💼">💼</option>
-                      <option value="🧳">🧳</option>
-                      <option value="🚗">🚗</option>
-                    </select>
-                    <input
-                      type="text"
-                      className="form-input"
-                      style={{ flex: 1, height: 32, fontSize: 13, padding: '0 8px' }}
-                      placeholder="Location name (e.g. Rent Room)..."
-                      value={newLocName}
-                      onChange={e => setNewLocName(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && handleCreateLocation()}
-                      autoFocus
-                    />
-                    <button
-                      className="btn btn-primary"
-                      style={{ padding: '0 12px', fontSize: 12, height: 32 }}
-                      onClick={handleCreateLocation}
-                    >
-                      Save
-                    </button>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 6 }}>
+                    <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
+                      {PRESET_LOCATION_ICONS.map(preset => {
+                        const IconComponent = preset.icon;
+                        const isSelected = newLocIcon === preset.value;
+                        return (
+                          <button
+                            key={preset.value}
+                            type="button"
+                            onClick={() => setNewLocIcon(preset.value)}
+                            title={preset.label}
+                            style={{
+                              padding: '6px 10px',
+                              borderRadius: 'var(--radius-sm)',
+                              border: isSelected ? '1px solid var(--accent)' : '1px solid var(--border)',
+                              background: isSelected ? 'var(--accent-subtle)' : 'var(--bg-2)',
+                              color: isSelected ? 'var(--accent)' : 'var(--text-secondary)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              fontSize: 12
+                            }}
+                          >
+                            <IconComponent size={14} />
+                            <span>{preset.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <input
+                        type="text"
+                        className="form-input"
+                        style={{ flex: 1, height: 32, fontSize: 13, padding: '0 8px' }}
+                        placeholder="Location name (e.g. Rent Room)..."
+                        value={newLocName}
+                        onChange={e => setNewLocName(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleCreateLocation()}
+                        autoFocus
+                      />
+                      <button
+                        className="btn btn-primary"
+                        style={{ padding: '0 12px', fontSize: 12, height: 32 }}
+                        onClick={handleCreateLocation}
+                      >
+                        Save
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -515,7 +539,10 @@ export default function SettingsModal({ onClose }: Props) {
             </div>
 
             <div className="section-header" style={{ marginTop: 0, marginBottom: 12 }}>
-              <span className="section-title">💾 {t('dataManagement')}</span>
+              <span className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Database size={16} />
+                <span>{t('dataManagement')}</span>
+              </span>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
@@ -527,8 +554,9 @@ export default function SettingsModal({ onClose }: Props) {
                 borderRadius: 'var(--radius-md)',
                 border: '1px solid var(--border)'
               }}>
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>
-                  📦 Backup Data
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Package size={16} />
+                  <span>Backup Data</span>
                 </div>
                 <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '0 0 10px 0' }}>
                   Save a complete backup file containing all your clothes, outfits, tags, locations, and photos.
@@ -548,10 +576,14 @@ export default function SettingsModal({ onClose }: Props) {
                       color: 'var(--accent)',
                       fontSize: 12,
                       fontWeight: 700,
-                      padding: '8px 12px'
+                      padding: '8px 12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6
                     }}
                   >
-                    📦 {exportingZip ? 'Creating Backup...' : 'Backup All'}
+                    <Download size={14} />
+                    <span>{exportingZip ? 'Creating Backup...' : 'Backup All'}</span>
                   </button>
 
                   <button
@@ -565,10 +597,14 @@ export default function SettingsModal({ onClose }: Props) {
                       border: '1px solid var(--border)',
                       fontSize: 12,
                       fontWeight: 600,
-                      padding: '8px 12px'
+                      padding: '8px 12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6
                     }}
                   >
-                    📊 Spreadsheet Export (.csv)
+                    <Download size={14} />
+                    <span>Spreadsheet Export (.csv)</span>
                   </button>
                 </div>
               </div>
@@ -580,8 +616,9 @@ export default function SettingsModal({ onClose }: Props) {
                 borderRadius: 'var(--radius-md)',
                 border: '1px solid var(--border)'
               }}>
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>
-                  📥 Import & Restore
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Upload size={16} />
+                  <span>Import & Restore</span>
                 </div>
                 <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '0 0 10px 0' }}>
                   Restore a previously saved backup file or bulk import items from CSV.
@@ -601,10 +638,14 @@ export default function SettingsModal({ onClose }: Props) {
                       color: 'var(--accent)',
                       fontSize: 12,
                       fontWeight: 700,
-                      padding: '8px 12px'
+                      padding: '8px 12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6
                     }}
                   >
-                    🔄 {restoring ? 'Restoring Backup...' : 'Restore Backup'}
+                    <Upload size={14} />
+                    <span>{restoring ? 'Restoring Backup...' : 'Restore Backup'}</span>
                   </button>
                   <input
                     type="file"
@@ -625,10 +666,14 @@ export default function SettingsModal({ onClose }: Props) {
                       border: '1px solid var(--border)',
                       fontSize: 12,
                       fontWeight: 600,
-                      padding: '8px 12px'
+                      padding: '8px 12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6
                     }}
                   >
-                    📊 Bulk Import CSV (.csv)
+                    <Upload size={14} />
+                    <span>Bulk Import CSV (.csv)</span>
                   </button>
                 </div>
               </div>
@@ -645,7 +690,10 @@ export default function SettingsModal({ onClose }: Props) {
                 gap: 12
               }}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700 }}>🏷️ Style Tags</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Tag size={16} />
+                    <span>Style Tags</span>
+                  </div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Manage custom tags for your clothes</div>
                 </div>
                 <button
@@ -666,8 +714,9 @@ export default function SettingsModal({ onClose }: Props) {
                 border: '1px solid rgba(239, 68, 68, 0.3)',
                 marginTop: 8
               }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#ef4444', marginBottom: 4 }}>
-                  ⚠️ Danger Zone
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#ef4444', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <AlertTriangle size={16} color="#ef4444" />
+                  <span>Danger Zone</span>
                 </div>
                 <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '0 0 10px 0' }}>
                   Permanently delete all clothing items, photos, outfits, and settings stored on this device.
@@ -684,10 +733,14 @@ export default function SettingsModal({ onClose }: Props) {
                     border: '1px solid rgba(239, 68, 68, 0.4)',
                     fontSize: 12,
                     fontWeight: 700,
-                    padding: '8px 12px'
+                    padding: '8px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6
                   }}
                 >
-                  🗑️ Clear All App Data & Reset
+                  <Trash2 size={14} color="#ef4444" />
+                  <span>Clear All App Data & Reset</span>
                 </button>
               </div>
 
