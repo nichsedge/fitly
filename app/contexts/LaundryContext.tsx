@@ -18,9 +18,22 @@ interface LaundryState {
 const LaundryContext = createContext<LaundryState | null>(null);
 
 export function LaundryProvider({ children }: { children: React.ReactNode }) {
-  const [laundryCategories, setLaundryCategoriesState] = useState<Category[]>([
-    'top', 'bottom', 'underwear', 'outerwear'
-  ]);
+  const [laundryCategories, setLaundryCategoriesState] = useState<Category[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('laundryCategories');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed as Category[];
+          }
+        }
+      } catch (e) {
+        console.error('Failed to parse laundryCategories from localStorage:', e);
+      }
+    }
+    return ['top', 'bottom', 'underwear', 'outerwear'];
+  });
   const wardrobe = useWardrobe();
 
   const setLaundryCategories = useCallback((cats: Category[]) => {

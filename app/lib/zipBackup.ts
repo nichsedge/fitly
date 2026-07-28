@@ -40,7 +40,7 @@ export function validateBackupData(data: unknown): { valid: boolean; errors: str
       errors: result.error.issues.map(e => `${e.path.join('.')}: ${e.message}`)
     };
   }
-  return { valid: true, errors: [], data: result.data };
+  return { valid: true, errors: [], data: result.data as unknown as WardrobeBackupData };
 }
 
 /**
