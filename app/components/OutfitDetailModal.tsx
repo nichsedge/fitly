@@ -6,7 +6,7 @@ import { useWardrobe } from '../contexts/WardrobeContext';
 import { useOutfits } from '../contexts/OutfitContext';
 import { useSettings } from '../contexts/SettingsContext';
 import Toast from './Toast';
-import { Sparkles, Edit, Trash2, Tag, X, CategoryIcon } from './AppIcon';
+import { Sparkles, Edit, Trash2, Tag, CategoryIcon } from './AppIcon';
 
 interface Props {
   outfit: Outfit;
@@ -138,7 +138,6 @@ export default function OutfitDetailModal({ outfit, items, onClose, onEdit, logD
                 }}
               >
                 {outfitItems.slice(0, 4).map((item, idx) => {
-                  const cat = CATEGORIES.find(c => c.value === item.category);
                   const isSpanTwo = outfitItems.length === 3 && idx === 2;
                   return item.images && item.images.length > 0 ? (
                     <img

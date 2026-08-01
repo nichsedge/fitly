@@ -1,38 +1,77 @@
-import { ClothingItem, Outfit, CustomTag, DEFAULT_TAG_NAMES, PlannedOutfit, Trip, WardrobeLocation, DEFAULT_LOCATIONS } from './types';
-import { v4 as uuidv4 } from 'uuid';
+import { ClothingItem, Outfit, CustomTag, WardrobeLocation, Trip } from './types';
 import { clearAllDBData, getDB } from '../repositories/RepositoryFactory';
+import { dataUrlToBlob } from './mediaStorage';
 
-export async function seedTagsIfEmpty(): Promise<void> {
-  const db = await getDB();
-  const existing = await db.getAll('tags');
-  if (existing.length === 0) {
-    const tx = db.transaction('tags', 'readwrite');
-    const store = tx.objectStore('tags');
-    for (const name of DEFAULT_TAG_NAMES) {
-      await store.add({ id: uuidv4(), label: name });
+// Migrates any item images that were stored as embedded base64 data URLs into
+// the dedicated binary `images` store, leaving only lightweight "img-*"
+// references on the item record. This keeps `items` reads memory-light on
+// mobile devices (a big win for offline PWA use). It is idempotent: images
+// already stored as references are left untouched, so it is safe to run on
+// every app start.
+let imageMigrationRunning = false;
+
+export async function normalizeEmbeddedImages(): Promise<void> {
+  if (imageMigrationRunning || typeof window === 'undefined') return;
+  imageMigrationRunning = true;
+  try {
+    const db = await getDB();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rawItems = (await db.getAll('items')) as any[];
+    let migrated = false;
+    for (const raw of rawItems) {
+      const images: unknown[] = Array.isArray(raw.images) ? raw.images : [];
+      let itemChanged = false;
+      const nextImages: string[] = [];
+      for (const img of images) {
+        if (typeof img === 'string' && img.startsWith('data:')) {
+          const id = `img-${crypto.randomUUID()}`;
+          await db.put('images', { id, blob: dataUrlToBlob(img), createdAt: Date.now() });
+          nextImages.push(id);
+          itemChanged = true;
+        } else {
+          nextImages.push(img as string);
+        }
+      }
+      if (itemChanged) {
+        raw.images = nextImages;
+        await db.put('items', raw);
+        migrated = true;
+      }
     }
-    await tx.done;
+    if (migrated) {
+      console.info('[Fitly] Migrated embedded images to binary blob storage.');
+    }
+  } catch (err) {
+    // Non-fatal: the app keeps working even if the migration is interrupted.
+    console.error('Image migration failed (non-fatal):', err);
+  } finally {
+    imageMigrationRunning = false;
   }
 }
 
-export async function seedLocationsIfEmpty(): Promise<void> {
-  const db = await getDB();
-  const existing = await db.getAll('locations');
-  if (existing.length === 0) {
-    const tx = db.transaction('locations', 'readwrite');
-    const store = tx.objectStore('locations');
-    for (const loc of DEFAULT_LOCATIONS) {
-      await store.add(loc);
+/**
+ * Adds a single item. Used by the CSV import flow in SettingsModal.
+ */
+export async function addItem(item: ClothingItem): Promise<void> {
+  try {
+    const db = await getDB();
+    await db.add('items', item);
+  } catch (err: unknown) {
+    if ((err as { name?: string })?.name === 'QuotaExceededError') {
+      throw new Error('Device storage limit reached. Please clear old items or photos in Settings.');
     }
-    await tx.done;
+    throw err;
   }
 }
 
-// Items
+// ---------------------------------------------------------------------------
+// Data migration helpers used by restoreFromBackup below.
+// ---------------------------------------------------------------------------
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function migrateItem(raw: any): ClothingItem {
   if (!raw) return raw;
-  
+
   if (typeof raw.imageData === 'string') {
     raw.images = raw.imageData ? [raw.imageData] : [];
     delete raw.imageData;
@@ -47,14 +86,14 @@ function migrateItem(raw: any): ClothingItem {
   if (!raw.wearLogs) raw.wearLogs = [];
   if (!raw.images) raw.images = [];
   if (!raw.tags) raw.tags = [];
-  
+
   // New fields
   if (raw.condition === undefined) raw.condition = 'good';
   if (raw.material === undefined) raw.material = '';
   if (raw.careInstructions === undefined) raw.careInstructions = '';
   if (raw.lastWashedAt === undefined) raw.lastWashedAt = 0;
   if (!raw.locationId) raw.locationId = 'loc-home'; // Default to Home location
-  
+
   return raw as ClothingItem;
 }
 
@@ -69,173 +108,6 @@ function migrateOutfit(raw: any): Outfit {
   return raw as Outfit;
 }
 
-export async function getAllItems(): Promise<ClothingItem[]> {
-  const db = await getDB();
-  const rawItems = await db.getAll('items');
-  return rawItems.map(migrateItem);
-}
-
-export async function getItem(id: string): Promise<ClothingItem | undefined> {
-  const db = await getDB();
-  const rawItem = await db.get('items', id);
-  return rawItem ? migrateItem(rawItem) : undefined;
-}
-
-export async function addItem(item: ClothingItem): Promise<void> {
-  try {
-    const db = await getDB();
-    await db.add('items', item);
-  } catch (err: unknown) {
-    if ((err as { name?: string })?.name === 'QuotaExceededError') {
-      throw new Error('Device storage limit reached. Please clear old items or photos in Settings.');
-    }
-    throw err;
-  }
-}
-
-export async function updateItem(item: ClothingItem): Promise<void> {
-  try {
-    const db = await getDB();
-    await db.put('items', item);
-  } catch (err: unknown) {
-    if ((err as { name?: string })?.name === 'QuotaExceededError') {
-      throw new Error('Device storage limit reached. Please clear old items or photos in Settings.');
-    }
-    throw err;
-  }
-}
-
-export async function deleteItem(id: string): Promise<void> {
-  const db = await getDB();
-  await db.delete('items', id);
-}
-
-// Locations
-export async function getAllLocations(): Promise<WardrobeLocation[]> {
-  const db = await getDB();
-  return db.getAll('locations');
-}
-
-export async function addLocation(location: WardrobeLocation): Promise<void> {
-  const db = await getDB();
-  await db.add('locations', location);
-}
-
-export async function updateLocation(location: WardrobeLocation): Promise<void> {
-  const db = await getDB();
-  await db.put('locations', location);
-}
-
-export async function deleteLocation(id: string): Promise<void> {
-  const db = await getDB();
-  await db.delete('locations', id);
-}
-
-// Outfits
-export async function getAllOutfits(): Promise<Outfit[]> {
-  const db = await getDB();
-  const rawOutfits = await db.getAll('outfits');
-  return rawOutfits.map(migrateOutfit);
-}
-
-export async function getOutfit(id: string): Promise<Outfit | undefined> {
-  const db = await getDB();
-  const rawOutfit = await db.get('outfits', id);
-  return rawOutfit ? migrateOutfit(rawOutfit) : undefined;
-}
-
-export async function addOutfit(outfit: Outfit): Promise<void> {
-  try {
-    const db = await getDB();
-    await db.add('outfits', outfit);
-  } catch (err: unknown) {
-    if ((err as { name?: string })?.name === 'QuotaExceededError') {
-      throw new Error('Device storage limit reached.');
-    }
-    throw err;
-  }
-}
-
-export async function updateOutfit(outfit: Outfit): Promise<void> {
-  try {
-    const db = await getDB();
-    await db.put('outfits', outfit);
-  } catch (err: unknown) {
-    if ((err as { name?: string })?.name === 'QuotaExceededError') {
-      throw new Error('Device storage limit reached.');
-    }
-    throw err;
-  }
-}
-
-export async function deleteOutfit(id: string): Promise<void> {
-  const db = await getDB();
-  await db.delete('outfits', id);
-}
-
-// Plans
-export async function getAllPlans(): Promise<PlannedOutfit[]> {
-  const db = await getDB();
-  return db.getAll('plans');
-}
-
-export async function addPlan(plan: PlannedOutfit): Promise<void> {
-  const db = await getDB();
-  await db.add('plans', plan);
-}
-
-export async function updatePlan(plan: PlannedOutfit): Promise<void> {
-  const db = await getDB();
-  await db.put('plans', plan);
-}
-
-export async function deletePlan(id: string): Promise<void> {
-  const db = await getDB();
-  await db.delete('plans', id);
-}
-
-// Trips
-export async function getAllTrips(): Promise<Trip[]> {
-  const db = await getDB();
-  return db.getAll('trips');
-}
-
-export async function addTrip(trip: Trip): Promise<void> {
-  const db = await getDB();
-  await db.add('trips', trip);
-}
-
-export async function updateTrip(trip: Trip): Promise<void> {
-  const db = await getDB();
-  await db.put('trips', trip);
-}
-
-export async function deleteTrip(id: string): Promise<void> {
-  const db = await getDB();
-  await db.delete('trips', id);
-}
-
-// Tags
-export async function getAllTags(): Promise<CustomTag[]> {
-  const db = await getDB();
-  return db.getAll('tags');
-}
-
-export async function addTag(tag: CustomTag): Promise<void> {
-  const db = await getDB();
-  await db.add('tags', tag);
-}
-
-export async function updateTag(tag: CustomTag): Promise<void> {
-  const db = await getDB();
-  await db.put('tags', tag);
-}
-
-export async function deleteTag(id: string): Promise<void> {
-  const db = await getDB();
-  await db.delete('tags', id);
-}
-
 // Backup & Restore
 export async function restoreFromBackup(
   items: ClothingItem[],
@@ -245,11 +117,11 @@ export async function restoreFromBackup(
   trips?: Trip[]
 ): Promise<void> {
   const db = await getDB();
-  const storeNames: Array<"items" | "outfits" | "tags" | "locations" | "trips"> = [
+  const storeNames: Array<'items' | 'outfits' | 'tags' | 'locations' | 'trips'> = [
     'items', 'outfits', 'tags', 'locations', 'trips'
   ];
   const tx = db.transaction(storeNames, 'readwrite');
-  
+
   const itemStore = tx.objectStore('items');
   const outfitStore = tx.objectStore('outfits');
   const tagStore = tx.objectStore('tags');
@@ -259,12 +131,12 @@ export async function restoreFromBackup(
   // 1. Clear existing data
   itemStore.clear();
   outfitStore.clear();
-  
+
   // 2. Add new data from backup
   for (const item of items) {
     itemStore.put(migrateItem(item));
   }
-  
+
   for (const outfit of outfits) {
     outfitStore.put(migrateOutfit(outfit));
   }
@@ -289,8 +161,12 @@ export async function restoreFromBackup(
       tripStore.put(trip);
     }
   }
-  
+
   await tx.done;
+
+  // Normalize any base64 images brought in from an older backup so restored
+  // items also benefit from reference-based (binary) image storage.
+  await normalizeEmbeddedImages();
 }
 
 export async function clearAllAppData(): Promise<void> {

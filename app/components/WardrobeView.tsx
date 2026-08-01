@@ -10,7 +10,7 @@ import SkeletonCard from './SkeletonCard';
 import ItemDetailModal from './ItemDetailModal';
 import VirtualizedGrid from './VirtualizedGrid';
 import Toast from './Toast';
-import { CategoryIcon, LocationIcon, Shirt, Search, Grid, List, CheckCircle2, WashingMachine, Tag, MapPin, X } from './AppIcon';
+import { CategoryIcon, LocationIcon, Shirt, Search, Grid, List, CheckCircle2, WashingMachine, Tag, MapPin } from './AppIcon';
 
 interface Props {
   onNavigateToAdd?: () => void;

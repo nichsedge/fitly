@@ -1,7 +1,7 @@
 'use client';
 
 import React, { memo } from 'react';
-import { ClothingItem, CATEGORIES } from '../lib/types';
+import { ClothingItem } from '../lib/types';
 import { useSettings } from '../contexts/SettingsContext';
 import { ImageService } from '../services/ImageService';
 import { CategoryIcon, Tag } from './AppIcon';
@@ -17,7 +17,6 @@ interface Props {
 
 function ItemCardComponent({ item, onClick, selected, onSelect, selectable, viewMode = 'grid' }: Props) {
   const { formatPrice } = useSettings();
-  const category = CATEGORIES.find(c => c.value === item.category);
   const [displayImage, setDisplayImage] = React.useState<string>('');
 
   React.useEffect(() => {

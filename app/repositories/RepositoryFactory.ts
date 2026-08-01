@@ -36,19 +36,6 @@ export type OutfitManagerDB = {
     key: string;
     value: { id: string; blob: Blob; createdAt: number };
   };
-  mutationQueue: {
-    key: number;
-    value: {
-      id?: number;
-      type: 'item' | 'outfit' | 'tag' | 'location' | 'plan' | 'trip';
-      action: 'add' | 'update' | 'delete';
-      entityId: string;
-      data: unknown;
-      timestamp: number;
-      retries?: number;
-    };
-    indexes: { timestamp: number };
-  };
 };
 
 let dbPromise: Promise<IDBPDatabase<OutfitManagerDB>> | null = null;
@@ -87,13 +74,6 @@ export function getDB(): Promise<IDBPDatabase<OutfitManagerDB>> {
         if (oldVersion < 5) {
           if (!db.objectStoreNames.contains('images')) {
             db.createObjectStore('images', { keyPath: 'id' });
-          }
-        }
-
-        if (oldVersion < 6) {
-          if (!db.objectStoreNames.contains('mutationQueue')) {
-            const mutationStore = db.createObjectStore('mutationQueue', { keyPath: 'id', autoIncrement: true });
-            mutationStore.createIndex('timestamp', 'timestamp');
           }
         }
       },

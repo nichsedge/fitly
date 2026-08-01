@@ -1,7 +1,7 @@
 'use client';
 
 import React, { memo } from 'react';
-import { ClothingItem, Outfit, CATEGORIES } from '../lib/types';
+import { ClothingItem, Outfit } from '../lib/types';
 import { ImageService } from '../services/ImageService';
 import { CategoryIcon, Shirt } from './AppIcon';
 

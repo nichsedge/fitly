@@ -187,7 +187,6 @@ export default function InsightsSection() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 'var(--space-2)' }}>
             {stats.bestValue.map(item => {
               const cpw = item.price! / Math.max(1, item.wearLogs?.length || 0);
-              const cat = CATEGORIES.find(c => c.value === item.category);
               return (
                 <div 
                   key={item.id} 

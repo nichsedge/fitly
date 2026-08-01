@@ -7,8 +7,7 @@ import { useWardrobe } from '../contexts/WardrobeContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { ImageService } from '../services/ImageService';
 import Toast from './Toast';
-import TagsManagerModal from './TagsManagerModal';
-import { CategoryIcon, Camera, LocationIcon, CheckCircle2, X } from './AppIcon';
+import { CategoryIcon, Camera } from './AppIcon';
 
 interface Props {
   onDone: () => void;

@@ -1,9 +1,9 @@
 'use client';
 
-import { useMemo, useState, useCallback, useEffect } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { useWardrobe } from '../contexts/WardrobeContext';
 import { useOutfits } from '../contexts/OutfitContext';
-import { ClothingItem, Outfit, PlannedOutfit, CATEGORIES } from '../lib/types';
+import { ClothingItem, Outfit } from '../lib/types';
 import ItemDetailModal from './ItemDetailModal';
 import OutfitDetailModal from './OutfitDetailModal';
 import OutfitBuilderModal from './OutfitBuilderModal';
@@ -18,13 +18,12 @@ import {
   getNextWeek,
   getCurrentWeek,
   WEEKDAYS,
-  CalendarWeek,
   CalendarDay,
   DragItem,
   createPlanFromOutfit,
   createPlanFromItems,
 } from '../lib/domain/calendar';
-import { Sparkles, Shirt, WashingMachine, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Trash2, Plus, X, CategoryIcon } from './AppIcon';
+import { Sparkles, Shirt, WashingMachine, Calendar as CalendarIcon, Trash2, CategoryIcon } from './AppIcon';
 import {
   DndContext,
   closestCenter,
@@ -37,7 +36,6 @@ import {
   DragOverEvent,
 } from '@dnd-kit/core';
 import {
-  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
@@ -74,7 +72,7 @@ function DraggableOutfit({ outfit, dateKey, onDragStart }: DraggableOutfitProps)
           onDragStart({ type: 'outfit', id: outfit.id, dateKey });
         }
       }}
-      onTouchStart={(e) => {
+      onTouchStart={() => {
         onDragStart({ type: 'outfit', id: outfit.id, dateKey });
       }}
     >
@@ -94,7 +92,6 @@ interface DraggableItemProps {
 }
 
 function DraggableItem({ item, dateKey, onDragStart }: DraggableItemProps) {
-  const cat = CATEGORIES.find(c => c.value === item.category);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
     data: { type: 'item', itemId: item.id, dateKey },
@@ -117,7 +114,7 @@ function DraggableItem({ item, dateKey, onDragStart }: DraggableItemProps) {
           onDragStart({ type: 'item', id: item.id, dateKey });
         }
       }}
-      onTouchStart={(e) => {
+      onTouchStart={() => {
         onDragStart({ type: 'item', id: item.id, dateKey });
       }}
     >
@@ -137,15 +134,13 @@ function DraggableItem({ item, dateKey, onDragStart }: DraggableItemProps) {
 
 interface CalendarDayCellProps {
   day: CalendarDay;
-  onDrop: (dateKey: string, item: DragItem) => void;
   onClick: (dateKey: string) => void;
   isDragOver: boolean;
 }
 
-function CalendarDayCell({ day, onDrop, onClick, isDragOver }: CalendarDayCellProps) {
+function CalendarDayCell({ day, onClick, isDragOver }: CalendarDayCellProps) {
   const isToday = day.isToday;
   const isPast = day.isPast;
-  const isFuture = day.isFuture;
   
   const handleClick = () => onClick(day.dateKey);
   
@@ -399,7 +394,6 @@ function OutfitPickerModal({ isOpen, onClose, dateKey, outfits, items, onSelectO
             
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', maxHeight: 300, overflowY: 'auto' }}>
               {filteredItems.map(item => {
-                const cat = CATEGORIES.find(c => c.value === item.category);
                 const isSelected = selectedItemIds.includes(item.id);
                 return (
                   <button
@@ -485,7 +479,7 @@ export default function CalendarTab() {
   
   // Get calendar week data
   const calendarWeek = useMemo(() => 
-    getCalendarWeek(currentWeek, plans, outfits, items),
+    getCalendarWeek(currentWeek, plans, outfits),
     [currentWeek, plans, outfits, items]
   );
   
@@ -496,7 +490,7 @@ export default function CalendarTab() {
   
   // Handle drag end (drop)
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
-    const { active, over } = event;
+    const { over } = event;
     
     setDraggedItem(null);
     setDragOverDate(null);
@@ -791,7 +785,7 @@ export default function CalendarTab() {
 
         {/* Weekday Headers */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
-          {WEEKDAYS.map((day, i) => (
+          {WEEKDAYS.map((day) => (
             <div key={day} style={{ 
               textAlign: 'center', 
               fontSize: 11, 
@@ -812,7 +806,6 @@ export default function CalendarTab() {
             <CalendarDayCell
               key={day.dateKey}
               day={day}
-              onDrop={() => {}} // Handled by DndContext
               onClick={handleDayClick}
               isDragOver={dragOverDate === day.dateKey}
             />
@@ -876,7 +869,6 @@ export default function CalendarTab() {
                           {outfit.itemIds.map(itemId => {
                             const item = items.find(i => i.id === itemId);
                             if (!item) return null;
-                            const cat = CATEGORIES.find(c => c.value === item.category);
                             return (
                               <div
                                 key={itemId}

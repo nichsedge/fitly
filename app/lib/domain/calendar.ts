@@ -63,7 +63,7 @@ export function getWeekEnd(date: Date): Date {
 /**
  * Generate a calendar week (Mon-Sun) for a given date
  */
-export function getCalendarWeek(date: Date, plans: PlannedOutfit[], outfits: Outfit[], _items?: ClothingItem[]): CalendarWeek {
+export function getCalendarWeek(date: Date, plans: PlannedOutfit[], outfits: Outfit[]): CalendarWeek {
   const startDate = getWeekStart(date);
   const endDate = getWeekEnd(date);
   const today = new Date();

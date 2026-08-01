@@ -6,6 +6,7 @@ import { itemRepository } from '../repositories/ItemRepository';
 import { tagRepository } from '../repositories/TagRepository';
 import { locationRepository } from '../repositories/LocationRepository';
 import { getFreshSampleItems } from '../lib/seedData';
+import { normalizeEmbeddedImages } from '../lib/db';
 
 interface WardrobeState {
   items: ClothingItem[];
@@ -252,6 +253,9 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
       try {
         await tagRepository.seedIfEmpty();
         await locationRepository.seedIfEmpty();
+        // Normalize legacy embedded base64 images into the binary images store
+        // before loading items, so reads stay light on mobile.
+        await normalizeEmbeddedImages();
         await Promise.all([refreshItems(), refreshTags(), refreshLocations()]);
         const savedLocation = localStorage.getItem('activeLocationId');
         if (savedLocation) setActiveLocationIdState(savedLocation);

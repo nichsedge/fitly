@@ -75,9 +75,19 @@ export class ImageService {
     revokeObjectUrl(id);
   }
 
-  static async convertBase64ToBlobUrl(id: string, base64: string): Promise<string> {
-    if (!base64 || !base64.startsWith('data:')) return base64;
-    const blob = dataUrlToBlob(base64);
-    return getOrCreateObjectUrl(id, blob);
+  /**
+   * Deletes a stored image blob by reference id. No-op for non-reference
+   * values (e.g. legacy base64/data URLs or http URLs).
+   */
+  static async deleteImageRef(id: string): Promise<void> {
+    if (!id || !id.startsWith('img-')) return;
+    try {
+      const blob = await imageRepository.get(id);
+      if (blob) {
+        await imageRepository.delete(id);
+      }
+    } catch (err) {
+      console.error('Failed to delete image blob:', err);
+    }
   }
 }

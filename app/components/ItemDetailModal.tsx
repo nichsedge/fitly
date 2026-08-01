@@ -7,7 +7,8 @@ import { useSettings } from '../contexts/SettingsContext';
 import Toast from './Toast';
 import DailyOutfitBuilder from './DailyOutfitBuilder';
 import { v4 as uuidv4 } from 'uuid';
-import { CategoryIcon, LocationIcon, Camera, Wand2, Shirt, Sparkles, Trash2, Edit, CheckCircle2, X } from './AppIcon';
+import { ImageService } from '../services/ImageService';
+import { CategoryIcon, Camera, Wand2, Shirt, Trash2, Edit, CheckCircle2, X } from './AppIcon';
 
 interface Props {
   item: ClothingItem;
@@ -125,18 +126,20 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
       return;
     }
     setUploadingPhoto(true);
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const rawData = ev.target?.result as string;
-      const { compressImageDataUrl } = await import('../lib/imageUtils');
-      const compressedData = await compressImageDataUrl(rawData);
-      const updatedImages = [...(item.images || []), compressedData];
+    try {
+      // Compress once and store the binary blob in the dedicated images store,
+      // keeping only a lightweight reference on the item record.
+      const blob = await ImageService.compressImage(file);
+      const imageRef = await ImageService.saveImageBlob(blob);
+      const updatedImages = [...(item.images || []), imageRef];
       await updateItem({ ...item, images: updatedImages });
       setToast('✓ Photo compressed & added!');
+    } catch {
+      setToast('Could not process photo. Please try again.');
+    } finally {
       setUploadingPhoto(false);
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
+      e.target.value = '';
+    }
   };
 
   const handleDelete = async () => {
@@ -148,8 +151,13 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
 
   const handleDeleteImage = async (idx: number, e: React.MouseEvent) => {
     e.stopPropagation();
+    const removed = (item.images || [])[idx];
     const updatedImages = (item.images || []).filter((_, i) => i !== idx);
     await updateItem({ ...item, images: updatedImages });
+    // Clean up the stored blob for reference-based images to avoid orphans.
+    if (typeof removed === 'string') {
+      await ImageService.deleteImageRef(removed);
+    }
     setToast('✓ Photo removed');
   };
 

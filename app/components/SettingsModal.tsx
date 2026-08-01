@@ -11,9 +11,9 @@ import TagsManagerModal from './TagsManagerModal';
 import { Currency } from '../lib/i18n';
 import { Category, ItemCondition, ClothingItem, Outfit, CustomTag, WardrobeLocation, Trip } from '../lib/types';
 import { v4 as uuidv4 } from 'uuid';
-import { exportWardrobeZip, importWardrobeZip, downloadZipBlob, restoreWardrobeData, restoreZipImages } from '../lib/zipBackup';
+import { exportWardrobeZip, importWardrobeZip, downloadZipBlob, restoreZipImages } from '../lib/zipBackup';
 import { clearAllAppData } from '../lib/db';
-import { LocationIcon, PRESET_LOCATION_ICONS, Trash2, X, Globe, Package, Download, Upload, Tag, AlertTriangle, Database, MapPin } from './AppIcon';
+import { LocationIcon, PRESET_LOCATION_ICONS, Trash2, Globe, Package, Download, Upload, Tag, AlertTriangle, Database, MapPin } from './AppIcon';
 
 interface Props {
   onClose: () => void;

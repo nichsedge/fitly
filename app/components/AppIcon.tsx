@@ -46,17 +46,10 @@ import {
   Database,
   Sun,
   Moon,
-  Zap,
-  LucideProps
+  Zap
 } from 'lucide-react';
 import { Category } from '../lib/types';
 
-interface AppIconProps extends LucideProps {
-  name?: string;
-  category?: Category;
-  size?: number;
-  className?: string;
-}
 
 export function CategoryIcon({ category, size = 18, className = '' }: { category: Category; size?: number; className?: string }) {
   switch (category) {

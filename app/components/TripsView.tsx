@@ -8,7 +8,7 @@ import { useSettings } from '../contexts/SettingsContext';
 import { Trip } from '../lib/types';
 import { tripService } from '../services/TripService';
 import { triggerHaptic } from '../lib/haptics';
-import { Luggage, Calendar, MapPin, Edit, Trash2, AlertTriangle, Plus, X } from './AppIcon';
+import { Luggage, Calendar, MapPin, Edit, Trash2, AlertTriangle, Plus } from './AppIcon';
 
 export default function TripsView() {
   const { trips, addTrip, updateTrip, deleteTrip } = useTrips();
