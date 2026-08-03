@@ -8,6 +8,7 @@ import ItemDetailModal from './ItemDetailModal';
 import OutfitDetailModal from './OutfitDetailModal';
 import OutfitBuilderModal from './OutfitBuilderModal';
 import Toast from './Toast';
+import { ResolvedImage } from './ResolvedImage';
 import { 
   getCalendarWeek, 
   formatDateKey, 
@@ -119,13 +120,16 @@ function DraggableItem({ item, dateKey, onDragStart }: DraggableItemProps) {
       }}
     >
       <div {...attributes} {...listeners} style={{ width: 60, height: 60, borderRadius: 'var(--radius-md)', background: 'var(--bg-3)', overflow: 'hidden', marginBottom: 4, border: '1px solid var(--border)' }}>
-        {item.images && item.images.length > 0 ? (
-          <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        ) : (
-          <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}>
-            <CategoryIcon category={item.category} size={24} />
-          </div>
-        )}
+        <ResolvedImage
+          src={item.images && item.images[0]}
+          alt={item.name}
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          fallback={
+            <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}>
+              <CategoryIcon category={item.category} size={24} />
+            </div>
+          }
+        />
       </div>
       <div style={{ fontSize: 10, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center', width: 60 }}>{item.name}</div>
     </div>
@@ -346,11 +350,14 @@ function OutfitPickerModal({ isOpen, onClose, dateKey, outfits, items, onSelectO
                     onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
                   >
                     <div style={{ width: 48, height: 48, borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', overflow: 'hidden', flexShrink: 0 }}>
-                      {outfit.itemIds.length > 0 && items.find(i => i.id === outfit.itemIds[0])?.images?.[0] ? (
-                        <img src={items.find(i => i.id === outfit.itemIds[0])!.images[0]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      ) : (
-                        <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%', fontSize: 20 }}>👗</div>
-                      )}
+                      <ResolvedImage
+                        src={outfit.itemIds.length > 0 ? items.find(i => i.id === outfit.itemIds[0])?.images?.[0] : undefined}
+                        alt=""
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        fallback={
+                          <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%', fontSize: 20 }}>👗</div>
+                        }
+                      />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{outfit.name}</div>
@@ -411,13 +418,16 @@ function OutfitPickerModal({ isOpen, onClose, dateKey, outfits, items, onSelectO
                     }}
                   >
                     <div style={{ width: '100%', aspectRatio: '1', borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', overflow: 'hidden', marginBottom: 6, border: '1px solid var(--border)' }}>
-                      {item.images && item.images.length > 0 ? (
-                        <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      ) : (
-                        <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}>
-                          <CategoryIcon category={item.category} size={24} />
-                        </div>
-                      )}
+                      <ResolvedImage
+                        src={item.images && item.images[0]}
+                        alt={item.name}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        fallback={
+                          <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}>
+                            <CategoryIcon category={item.category} size={24} />
+                          </div>
+                        }
+                      />
                     </div>
                     <div style={{ fontSize: 10, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center', color: isSelected ? 'var(--accent)' : 'var(--text-primary)' }}>
                       {item.name}
@@ -880,13 +890,16 @@ export default function CalendarTab() {
                                 style={{ width: 64, flexShrink: 0, cursor: 'pointer' }}
                               >
                                 <div style={{ width: 64, height: 64, borderRadius: 'var(--radius-md)', background: 'var(--bg-3)', overflow: 'hidden', marginBottom: 4 }}>
-                                  {item.images && item.images.length > 0 ? (
-                                    <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                  ) : (
-                                    <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}>
-                                      <CategoryIcon category={item.category} size={24} />
-                                    </div>
-                                  )}
+                                  <ResolvedImage
+                                    src={item.images && item.images[0]}
+                                    alt={item.name}
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    fallback={
+                                      <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}>
+                                        <CategoryIcon category={item.category} size={24} />
+                                      </div>
+                                    }
+                                  />
                                 </div>
                                 <div style={{ fontSize: 10, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>{item.name}</div>
                               </div>
@@ -924,13 +937,16 @@ export default function CalendarTab() {
                                 ✕
                               </button>
                               <div style={{ width: '100%', aspectRatio: '1', borderRadius: 'calc(var(--radius-md) - 4px)', background: 'var(--bg-3)', overflow: 'hidden', marginBottom: 6 }}>
-                                {item.images && item.images.length > 0 ? (
-                                  <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                ) : (
-                                  <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}>
-                                    <CategoryIcon category={item.category} size={24} />
-                                  </div>
-                                )}
+                                <ResolvedImage
+                                  src={item.images && item.images[0]}
+                                  alt={item.name}
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                  fallback={
+                                    <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}>
+                                      <CategoryIcon category={item.category} size={24} />
+                                    </div>
+                                  }
+                                />
                               </div>
                               <div style={{ fontSize: 11, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>{item.name}</div>
                               <div style={{ fontSize: 9, color: 'var(--text-muted)', textAlign: 'center', textTransform: 'capitalize' }}>Single item</div>

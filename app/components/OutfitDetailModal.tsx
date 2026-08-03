@@ -7,6 +7,7 @@ import { useOutfits } from '../contexts/OutfitContext';
 import { useSettings } from '../contexts/SettingsContext';
 import Toast from './Toast';
 import { Sparkles, Edit, Trash2, Tag, CategoryIcon } from './AppIcon';
+import { ResolvedImage } from './ResolvedImage';
 
 interface Props {
   outfit: Outfit;
@@ -139,10 +140,10 @@ export default function OutfitDetailModal({ outfit, items, onClose, onEdit, logD
               >
                 {outfitItems.slice(0, 4).map((item, idx) => {
                   const isSpanTwo = outfitItems.length === 3 && idx === 2;
-                  return item.images && item.images.length > 0 ? (
-                    <img
+                  return (
+                    <ResolvedImage
                       key={`detail-${item.id}-${idx}`}
-                      src={item.images[0]}
+                      src={item.images && item.images[0]}
                       alt={item.name}
                       className="outfit-detail__img"
                       style={{
@@ -150,15 +151,16 @@ export default function OutfitDetailModal({ outfit, items, onClose, onEdit, logD
                         borderRadius: 'var(--radius-md)', minWidth: 0, minHeight: 0,
                         gridColumn: isSpanTwo ? 'span 2' : undefined
                       }}
+                      fallback={
+                        <div className="outfit-detail__img" style={{
+                          display: 'grid', placeItems: 'center', background: 'var(--bg-3)',
+                          aspectRatio: '1', borderRadius: 'var(--radius-md)', minWidth: 0, minHeight: 0,
+                          gridColumn: isSpanTwo ? 'span 2' : undefined
+                        }}>
+                          <CategoryIcon category={item.category} size={28} />
+                        </div>
+                      }
                     />
-                  ) : (
-                    <div key={`detail-${item.id}-${idx}`} className="outfit-detail__img" style={{
-                      display: 'grid', placeItems: 'center', background: 'var(--bg-3)',
-                      aspectRatio: '1', borderRadius: 'var(--radius-md)', minWidth: 0, minHeight: 0,
-                      gridColumn: isSpanTwo ? 'span 2' : undefined
-                    }}>
-                      <CategoryIcon category={item.category} size={28} />
-                    </div>
                   );
                 })}
               </div>
@@ -184,18 +186,21 @@ export default function OutfitDetailModal({ outfit, items, onClose, onEdit, logD
                       padding: 'var(--space-3)', background: 'var(--bg-2)',
                       borderRadius: 'var(--radius-md)', border: '1px solid var(--border)'
                     }}>
-                      {item.images && item.images.length > 0 ? (
-                        <img src={item.images[0]} alt={item.name} style={{
+                      <ResolvedImage
+                        src={item.images && item.images[0]}
+                        alt={item.name}
+                        style={{
                           width: 44, height: 44, objectFit: 'cover', borderRadius: 8, flexShrink: 0
-                        }} />
-                      ) : (
-                        <div style={{
-                          width: 44, height: 44, background: 'var(--bg-3)', borderRadius: 8,
-                          display: 'grid', placeItems: 'center', flexShrink: 0
-                        }}>
-                          <CategoryIcon category={item.category} size={20} />
-                        </div>
-                      )}
+                        }}
+                        fallback={
+                          <div style={{
+                            width: 44, height: 44, background: 'var(--bg-3)', borderRadius: 8,
+                            display: 'grid', placeItems: 'center', flexShrink: 0
+                          }}>
+                            <CategoryIcon category={item.category} size={20} />
+                          </div>
+                        }
+                      />
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
                           <div style={{ fontSize: 14, fontWeight: 600 }}>{item.name}</div>

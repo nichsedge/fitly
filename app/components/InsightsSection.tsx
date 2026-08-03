@@ -4,6 +4,7 @@ import { useSettings } from '../contexts/SettingsContext';
 import { CATEGORIES, getColorLabel } from '../lib/types';
 import { useMemo } from 'react';
 import { CategoryIcon } from './AppIcon';
+import { ResolvedImage } from './ResolvedImage';
 
 export default function InsightsSection() {
   const { items } = useWardrobe();
@@ -201,11 +202,12 @@ export default function InsightsSection() {
                   }}
                 >
                   <div style={{ width: 40, height: 40, borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', overflow: 'hidden', flexShrink: 0, display: 'grid', placeItems: 'center', fontSize: 20 }}>
-                    {item.images && item.images[0] ? (
-                      <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <CategoryIcon category={item.category} size={20} />
-                    )}
+                    <ResolvedImage
+                      src={item.images && item.images[0]}
+                      alt={item.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      fallback={<CategoryIcon category={item.category} size={20} />}
+                    />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-primary)' }}>
@@ -242,11 +244,12 @@ export default function InsightsSection() {
                   }}
                 >
                   <div style={{ width: 40, height: 40, borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', overflow: 'hidden', flexShrink: 0, display: 'grid', placeItems: 'center', fontSize: 20 }}>
-                    {item.images && item.images[0] ? (
-                      <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <CategoryIcon category={item.category} size={20} />
-                    )}
+                    <ResolvedImage
+                      src={item.images && item.images[0]}
+                      alt={item.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      fallback={<CategoryIcon category={item.category} size={20} />}
+                    />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-primary)' }}>
@@ -283,11 +286,12 @@ export default function InsightsSection() {
                   }}
                 >
                   <div style={{ width: 40, height: 40, borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', overflow: 'hidden', flexShrink: 0, display: 'grid', placeItems: 'center', fontSize: 20 }}>
-                    {item.images && item.images[0] ? (
-                      <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <CategoryIcon category={item.category} size={20} />
-                    )}
+                    <ResolvedImage
+                      src={item.images && item.images[0]}
+                      alt={item.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      fallback={<CategoryIcon category={item.category} size={20} />}
+                    />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-primary)' }}>
@@ -324,11 +328,12 @@ export default function InsightsSection() {
                   }}
                 >
                   <div style={{ width: 40, height: 40, borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', overflow: 'hidden', flexShrink: 0, display: 'grid', placeItems: 'center', fontSize: 20 }}>
-                    {item.images && item.images[0] ? (
-                      <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <CategoryIcon category={item.category} size={20} />
-                    )}
+                    <ResolvedImage
+                      src={item.images && item.images[0]}
+                      alt={item.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      fallback={<CategoryIcon category={item.category} size={20} />}
+                    />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-primary)' }}>
