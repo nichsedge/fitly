@@ -5,6 +5,7 @@ import { useOutfits } from '../contexts/OutfitContext';
 import { v4 as uuidv4 } from 'uuid';
 import Toast from './Toast';
 import { CategoryIcon } from './AppIcon';
+import { ResolvedImage } from './ResolvedImage';
 
 interface Props {
   startingItem: ClothingItem;
@@ -95,13 +96,16 @@ export default function DailyOutfitBuilder({ startingItem, onClose }: Props) {
               {/* Starting Item Display */}
               <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center', background: 'var(--bg-2)', padding: 'var(--space-3)', borderRadius: 'var(--radius-lg)' }}>
                 <div style={{ width: 60, height: 60, borderRadius: 'var(--radius-md)', background: 'var(--bg-3)', overflow: 'hidden', flexShrink: 0 }}>
-                  {startingItem.images && startingItem.images.length > 0 ? (
-                    <img src={startingItem.images[0]} alt={startingItem.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <CategoryIcon category={startingItem.category} size={24} />
-                    </div>
-                  )}
+                  <ResolvedImage
+                    src={startingItem.images && startingItem.images[0]}
+                    alt={startingItem.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    fallback={
+                      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <CategoryIcon category={startingItem.category} size={24} />
+                      </div>
+                    }
+                  />
                 </div>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 15 }}>{startingItem.name}</div>
@@ -159,13 +163,16 @@ export default function DailyOutfitBuilder({ startingItem, onClose }: Props) {
                               overflow: 'hidden',
                               position: 'relative'
                             }}>
-                              {item.images && item.images.length > 0 ? (
-                                <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                              ) : (
-                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                  <CategoryIcon category={item.category} size={28} />
-                                </div>
-                              )}
+                              <ResolvedImage
+                                src={item.images && item.images[0]}
+                                alt={item.name}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                fallback={
+                                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <CategoryIcon category={item.category} size={28} />
+                                  </div>
+                                }
+                              />
                               
                               {isSelected && (
                                 <div style={{ position: 'absolute', top: 4, right: 4, background: 'var(--accent)', color: 'var(--bg-0)', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 'bold' }}>✓</div>

@@ -8,6 +8,7 @@ import { ClothingItem, CATEGORIES, Category, Outfit } from '../lib/types';
 import ItemCard from './ItemCard';
 import Toast from './Toast';
 import { CategoryIcon } from './AppIcon';
+import { ResolvedImage } from './ResolvedImage';
 
 interface Props {
   initialOutfit?: Outfit | null;
@@ -118,17 +119,16 @@ export default function OutfitBuilderModal({ initialOutfit, onClose }: Props) {
                         .filter((i) => i.category === 'outerwear')
                         .map((item) => (
                           <div key={item.id} style={{ position: 'relative', textAlign: 'center' }}>
-                            {item.images && item.images[0] ? (
-                              <img
-                                src={item.images[0]}
-                                alt={item.name}
-                                style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '2px solid #8b5cf6' }}
-                              />
-                            ) : (
-                              <div style={{ width: 64, height: 64, borderRadius: 8, background: 'var(--bg-2)', display: 'grid', placeItems: 'center', fontSize: 24 }}>
-                                🧥
-                              </div>
-                            )}
+                            <ResolvedImage
+                              src={item.images && item.images[0]}
+                              alt={item.name}
+                              style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '2px solid #8b5cf6' }}
+                              fallback={
+                                <div style={{ width: 64, height: 64, borderRadius: 8, background: 'var(--bg-2)', display: 'grid', placeItems: 'center', fontSize: 24 }}>
+                                  🧥
+                                </div>
+                              }
+                            />
                             <span style={{ fontSize: 10, display: 'block', fontWeight: 600, marginTop: 2, color: 'var(--text-secondary)' }}>{item.name}</span>
                           </div>
                         ))}
@@ -142,17 +142,16 @@ export default function OutfitBuilderModal({ initialOutfit, onClose }: Props) {
                         .filter((i) => i.category === 'top')
                         .map((item) => (
                           <div key={item.id} style={{ position: 'relative', textAlign: 'center' }}>
-                            {item.images && item.images[0] ? (
-                              <img
-                                src={item.images[0]}
-                                alt={item.name}
-                                style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '2px solid var(--accent)' }}
-                              />
-                            ) : (
-                              <div style={{ width: 64, height: 64, borderRadius: 8, background: 'var(--bg-2)', display: 'grid', placeItems: 'center', fontSize: 24 }}>
-                                👕
-                              </div>
-                            )}
+                            <ResolvedImage
+                              src={item.images && item.images[0]}
+                              alt={item.name}
+                              style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '2px solid var(--accent)' }}
+                              fallback={
+                                <div style={{ width: 64, height: 64, borderRadius: 8, background: 'var(--bg-2)', display: 'grid', placeItems: 'center', fontSize: 24 }}>
+                                  👕
+                                </div>
+                              }
+                            />
                             <span style={{ fontSize: 10, display: 'block', fontWeight: 600, marginTop: 2, color: 'var(--text-secondary)' }}>{item.name}</span>
                           </div>
                         ))}
@@ -166,17 +165,16 @@ export default function OutfitBuilderModal({ initialOutfit, onClose }: Props) {
                         .filter((i) => i.category === 'bottom' || i.category === 'underwear')
                         .map((item) => (
                           <div key={item.id} style={{ position: 'relative', textAlign: 'center' }}>
-                            {item.images && item.images[0] ? (
-                              <img
-                                src={item.images[0]}
-                                alt={item.name}
-                                style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '2px solid #3b82f6' }}
-                              />
-                            ) : (
-                              <div style={{ width: 64, height: 64, borderRadius: 8, background: 'var(--bg-2)', display: 'grid', placeItems: 'center', fontSize: 24 }}>
-                                👖
-                              </div>
-                            )}
+                            <ResolvedImage
+                              src={item.images && item.images[0]}
+                              alt={item.name}
+                              style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '2px solid #3b82f6' }}
+                              fallback={
+                                <div style={{ width: 64, height: 64, borderRadius: 8, background: 'var(--bg-2)', display: 'grid', placeItems: 'center', fontSize: 24 }}>
+                                  👖
+                                </div>
+                              }
+                            />
                             <span style={{ fontSize: 10, display: 'block', fontWeight: 600, marginTop: 2, color: 'var(--text-secondary)' }}>{item.name}</span>
                           </div>
                         ))}
@@ -190,17 +188,16 @@ export default function OutfitBuilderModal({ initialOutfit, onClose }: Props) {
                         .filter((i) => i.category === 'shoes' || i.category === 'accessory' || i.category === 'bag')
                         .map((item) => (
                           <div key={item.id} style={{ position: 'relative', textAlign: 'center' }}>
-                            {item.images && item.images[0] ? (
-                              <img
-                                src={item.images[0]}
-                                alt={item.name}
-                                style={{ width: 52, height: 52, objectFit: 'cover', borderRadius: 8, border: '2px solid #10b981' }}
-                              />
-                            ) : (
-                              <div style={{ width: 52, height: 52, borderRadius: 8, background: 'var(--bg-2)', display: 'grid', placeItems: 'center', fontSize: 20 }}>
-                                👟
-                              </div>
-                            )}
+                            <ResolvedImage
+                              src={item.images && item.images[0]}
+                              alt={item.name}
+                              style={{ width: 52, height: 52, objectFit: 'cover', borderRadius: 8, border: '2px solid #10b981' }}
+                              fallback={
+                                <div style={{ width: 52, height: 52, borderRadius: 8, background: 'var(--bg-2)', display: 'grid', placeItems: 'center', fontSize: 20 }}>
+                                  👟
+                                </div>
+                              }
+                            />
                             <span style={{ fontSize: 10, display: 'block', fontWeight: 600, marginTop: 2, color: 'var(--text-secondary)' }}>{item.name}</span>
                           </div>
                         ))}

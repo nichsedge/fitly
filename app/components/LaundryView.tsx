@@ -7,6 +7,7 @@ import { CATEGORIES, Category, ClothingItem } from '../lib/types';
 import Toast from './Toast';
 import { triggerHaptic } from '../lib/haptics';
 import { CategoryIcon, WashingMachine, Settings, Sparkles, CheckCircle2, Trash2, Calendar, History } from './AppIcon';
+import { ResolvedImage } from './ResolvedImage';
 
 export default function LaundryView() {
   const { laundryCategories, setLaundryCategories, getWornItems, getWashHistory, markWashed, markAllWashed, deleteWashSession } = useLaundry();
@@ -196,11 +197,12 @@ export default function LaundryView() {
                   fontSize: 20,
                   flexShrink: 0
                 }}>
-                  {item.images && item.images.length > 0 ? (
-                    <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    <CategoryIcon category={item.category} size={22} />
-                  )}
+                  <ResolvedImage
+                    src={item.images && item.images[0]}
+                    alt={item.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    fallback={<CategoryIcon category={item.category} size={22} />}
+                  />
                 </div>
 
                 <div style={{ flex: 1, minWidth: 0 }}>

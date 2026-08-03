@@ -12,6 +12,7 @@ import { Outfit } from '../lib/types';
 import Toast from './Toast';
 import { triggerHaptic } from '../lib/haptics';
 import { Sparkles, RefreshCw, CategoryIcon, Grid, List, CheckCircle2 } from './AppIcon';
+import { ResolvedImage } from './ResolvedImage';
 
 type SortOption = 'newest' | 'oldest' | 'name' | 'most-worn' | 'recently-worn' | 'items-count';
 
@@ -153,11 +154,12 @@ export default function OutfitsView() {
                       }}
                     >
                       <div style={{ width: 40, height: 40, borderRadius: 'var(--radius-sm)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
-                        {item.images && item.images.length > 0 ? (
-                          <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        ) : (
-                          <CategoryIcon category={item.category} size={20} />
-                        )}
+                        <ResolvedImage
+                          src={item.images && item.images[0]}
+                          alt={item.name}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          fallback={<CategoryIcon category={item.category} size={20} />}
+                        />
                       </div>
                       <div style={{ fontSize: 11, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>
                         {item.name}
