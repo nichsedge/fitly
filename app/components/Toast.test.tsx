@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, fireEvent } from '@testing-library/react';
 import Toast from './Toast';
 
 describe('Toast', () => {
@@ -15,7 +15,7 @@ describe('Toast', () => {
     expect(status.textContent).toBe('Saved!');
   });
 
-  it('auto-dismisses after 2 seconds and calls onDone', () => {
+  it('auto-dismisses after 3 seconds and calls onDone', () => {
     vi.useFakeTimers();
     const onDone = vi.fn();
     render(<Toast message="Saved!" onDone={onDone} />);
@@ -23,7 +23,7 @@ describe('Toast', () => {
     expect(screen.getByRole('status')).not.toBeNull();
 
     act(() => {
-      vi.advanceTimersByTime(2000);
+      vi.advanceTimersByTime(3000);
     });
 
     expect(screen.queryByRole('status')).toBeNull();
@@ -34,8 +34,22 @@ describe('Toast', () => {
     vi.useFakeTimers();
     render(<Toast message="Bye" />);
     act(() => {
-      vi.advanceTimersByTime(2000);
+      vi.advanceTimersByTime(3000);
     });
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('renders action button and triggers onAction and onDone when clicked', () => {
+    const onDone = vi.fn();
+    const onAction = vi.fn();
+    render(<Toast message="Item deleted" actionLabel="Undo" onAction={onAction} onDone={onDone} />);
+
+    const actionBtn = screen.getByRole('button', { name: 'Undo' });
+    expect(actionBtn).not.toBeNull();
+
+    fireEvent.click(actionBtn);
+    expect(onAction).toHaveBeenCalledTimes(1);
+    expect(onDone).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('status')).toBeNull();
   });
 });

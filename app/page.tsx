@@ -23,7 +23,7 @@ import { Shirt, Sparkles, Plus, WashingMachine, MoreHorizontal, Sun, Moon, Setti
 export default function Home() {
   const loading = useAppLoading();
   const { items, locations, activeLocationId, setActiveLocationId } = useWardrobe();
-  const { theme, toggleTheme, isOffline, t, language, setLanguage } = useSettings();
+  const { theme, toggleTheme, isOffline, t } = useSettings();
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('wardrobe');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -41,7 +41,13 @@ export default function Home() {
   if (loading) {
     return (
       <div className="loading-screen">
-        <div className="loading-spinner" />
+        <div className="loading-brand">
+          <div className="loading-brand__icon">
+            <Shirt size={28} color="var(--bg-0)" />
+          </div>
+          <div className="loading-brand__title">Fitly</div>
+          <div className="loading-spinner" />
+        </div>
       </div>
     );
   }
@@ -106,33 +112,8 @@ export default function Home() {
             ))}
           </select>
 
-          {/* Quick Language Switcher Pill */}
           <button
-            onClick={() => {
-              const nextLang = language === 'en' ? 'id' : 'en';
-              setLanguage(nextLang);
-              triggerHaptic(10);
-            }}
-            style={{
-              background: 'var(--bg-3)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-pill)',
-              padding: '3px 8px',
-              fontSize: 11,
-              fontWeight: 700,
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4
-            }}
-            title="Switch Language / Ubah Bahasa"
-          >
-            {language === 'en' ? 'ID' : 'EN'}
-          </button>
-
-          <button 
-            className="btn-circle" 
+            className="btn-circle"
             onClick={() => { toggleTheme(); triggerHaptic(10); }}
             aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
             title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
@@ -140,9 +121,9 @@ export default function Home() {
           >
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
           </button>
-          <button 
+          <button
             id="btn-settings"
-            className="btn-circle" 
+            className="btn-circle"
             onClick={() => { setIsSettingsOpen(true); triggerHaptic(10); }}
             aria-label="Settings"
             title="Settings & Storage"
@@ -155,46 +136,48 @@ export default function Home() {
 
       {/* Main Content */}
       <main style={{ flex: 1, overflowY: 'auto' }}>
-        {activeTab === 'wardrobe' && (
-          <ErrorBoundary>
-            <WardrobeView onNavigateToAdd={() => handleTabChange('add')} />
-          </ErrorBoundary>
-        )}
-        {activeTab === 'outfits' && (
-          <ErrorBoundary>
-            <OutfitsView />
-          </ErrorBoundary>
-        )}
-        {activeTab === 'laundry' && (
-          <ErrorBoundary>
-            <LaundryView />
-          </ErrorBoundary>
-        )}
-        {activeTab === 'calendar' && (
-          <ErrorBoundary>
-            <CalendarTab />
-          </ErrorBoundary>
-        )}
-        {activeTab === 'trips' && (
-          <ErrorBoundary>
-            <TripsView />
-          </ErrorBoundary>
-        )}
-        {activeTab === 'insights' && (
-          <ErrorBoundary>
-            <div className="page-content">
-              <div className="section-header">
-                <h2 className="section-title">{t('stats')}</h2>
+        <div key={activeTab} className="tab-transition">
+          {activeTab === 'wardrobe' && (
+            <ErrorBoundary>
+              <WardrobeView onNavigateToAdd={() => handleTabChange('add')} />
+            </ErrorBoundary>
+          )}
+          {activeTab === 'outfits' && (
+            <ErrorBoundary>
+              <OutfitsView />
+            </ErrorBoundary>
+          )}
+          {activeTab === 'laundry' && (
+            <ErrorBoundary>
+              <LaundryView />
+            </ErrorBoundary>
+          )}
+          {activeTab === 'calendar' && (
+            <ErrorBoundary>
+              <CalendarTab />
+            </ErrorBoundary>
+          )}
+          {activeTab === 'trips' && (
+            <ErrorBoundary>
+              <TripsView />
+            </ErrorBoundary>
+          )}
+          {activeTab === 'insights' && (
+            <ErrorBoundary>
+              <div className="page-content">
+                <div className="section-header">
+                  <h2 className="section-title">{t('stats')}</h2>
+                </div>
+                <InsightsSection />
               </div>
-              <InsightsSection />
-            </div>
-          </ErrorBoundary>
-        )}
-        {activeTab === 'add' && (
-          <ErrorBoundary>
-            <AddItemView onDone={() => handleTabChange('wardrobe')} />
-          </ErrorBoundary>
-        )}
+            </ErrorBoundary>
+          )}
+          {activeTab === 'add' && (
+            <ErrorBoundary>
+              <AddItemView onDone={() => handleTabChange('wardrobe')} />
+            </ErrorBoundary>
+          )}
+        </div>
       </main>
 
       {isSettingsOpen && (
@@ -202,14 +185,14 @@ export default function Home() {
       )}
 
       {isQuickAddOpen && (
-        <QuickAddModal 
-          onClose={() => setIsQuickAddOpen(false)} 
+        <QuickAddModal
+          onClose={() => setIsQuickAddOpen(false)}
           onSelectAction={(tab) => handleTabChange(tab)}
         />
       )}
 
       {isMoreOpen && (
-        <MoreMenuModal 
+        <MoreMenuModal
           activeTab={activeTab}
           onClose={() => setIsMoreOpen(false)}
           onSelectTab={(tab) => handleTabChange(tab)}
@@ -276,7 +259,7 @@ export default function Home() {
           }}
         >
           <span className="nav-btn__icon"><MoreHorizontal size={20} /></span>
-          <span className="nav-btn__label">More</span>
+          <span className="nav-btn__label">{t('more')}</span>
         </button>
       </nav>
     </div>

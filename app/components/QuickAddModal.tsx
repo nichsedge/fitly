@@ -3,6 +3,7 @@
 import React, { useEffect } from 'react';
 import { ActiveTab } from '../lib/types';
 import { triggerHaptic } from '../lib/haptics';
+import { useSettings } from '../contexts/SettingsContext';
 import { Shirt, Sparkles, Luggage, ChevronRight, X } from './AppIcon';
 
 interface QuickAddModalProps {
@@ -11,6 +12,7 @@ interface QuickAddModalProps {
 }
 
 export default function QuickAddModal({ onClose, onSelectAction }: QuickAddModalProps) {
+  const { t } = useSettings();
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -27,21 +29,21 @@ export default function QuickAddModal({ onClose, onSelectAction }: QuickAddModal
 
   return (
     <div className="modal-overlay" onClick={onClose} style={{ zIndex: 100 }} role="dialog" aria-modal="true" aria-label="Quick Actions">
-      <div 
+      <div
         className="quick-add-drawer"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-handle" />
 
         <div className="quick-add-header">
-          <h3 className="quick-add-title">Quick Actions</h3>
+          <h3 className="quick-add-title">{t('quickActions')}</h3>
           <button className="modal-close" onClick={onClose} aria-label="Close">
             <X size={18} />
           </button>
         </div>
 
         <div className="quick-add-grid">
-          <button 
+          <button
             className="quick-add-card"
             onClick={() => handleAction('add')}
           >
@@ -49,13 +51,13 @@ export default function QuickAddModal({ onClose, onSelectAction }: QuickAddModal
               <Shirt size={22} color="#6366f1" />
             </div>
             <div className="quick-add-card__content">
-              <span className="quick-add-card__title">Add Clothing Item</span>
-              <span className="quick-add-card__sub">Photo, details, category & location</span>
+              <span className="quick-add-card__title">{t('addClothingItem')}</span>
+              <span className="quick-add-card__sub">{t('addItemQuickDesc')}</span>
             </div>
             <span className="quick-add-card__arrow"><ChevronRight size={18} /></span>
           </button>
 
-          <button 
+          <button
             className="quick-add-card"
             onClick={() => handleAction('outfits')}
           >
@@ -63,13 +65,13 @@ export default function QuickAddModal({ onClose, onSelectAction }: QuickAddModal
               <Sparkles size={22} color="#ec4899" />
             </div>
             <div className="quick-add-card__content">
-              <span className="quick-add-card__title">Create Outfit</span>
-              <span className="quick-add-card__sub">Mix & match clothes into looks</span>
+              <span className="quick-add-card__title">{t('createOutfit')}</span>
+              <span className="quick-add-card__sub">{t('createOutfitDesc')}</span>
             </div>
             <span className="quick-add-card__arrow"><ChevronRight size={18} /></span>
           </button>
 
-          <button 
+          <button
             className="quick-add-card"
             onClick={() => handleAction('trips')}
           >
@@ -77,8 +79,8 @@ export default function QuickAddModal({ onClose, onSelectAction }: QuickAddModal
               <Luggage size={22} color="#10b981" />
             </div>
             <div className="quick-add-card__content">
-              <span className="quick-add-card__title">Plan a Trip</span>
-              <span className="quick-add-card__sub">Create packing list & outfit plans</span>
+              <span className="quick-add-card__title">{t('planTrip')}</span>
+              <span className="quick-add-card__sub">{t('planTripDesc')}</span>
             </div>
             <span className="quick-add-card__arrow"><ChevronRight size={18} /></span>
           </button>

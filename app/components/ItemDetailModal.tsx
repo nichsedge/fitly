@@ -15,6 +15,7 @@ interface Props {
   onClose: () => void;
   logDateKey?: string;
   onRemoveLogFromDate?: (dateKey: string) => Promise<void>;
+  onDeleted?: (deletedItem: ClothingItem) => void;
 }
 
 const formatDateForInput = (timestamp?: number): string => {
@@ -26,7 +27,7 @@ const formatDateForInput = (timestamp?: number): string => {
   return `${year}-${month}-${day}`;
 };
 
-export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLogFromDate }: Props) {
+export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLogFromDate, onDeleted }: Props) {
   const { deleteItem, updateItem, tags: dynamicTags, locations, addTag } = useWardrobe();
   const { formatPrice, t, currency } = useSettings();
 
@@ -58,7 +59,7 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
   const [material, setMaterial] = useState(item.material || '');
   const [careInstructions, setCareInstructions] = useState(item.careInstructions || '');
   const [tags, setTags] = useState<string[]>(item.tags || []);
-  
+
   // Tag creation state
   const [newTagText, setNewTagText] = useState('');
   const [isAddingTag, setIsAddingTag] = useState(false);
@@ -144,9 +145,10 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
 
   const handleDelete = async () => {
     if (!confirming) { setConfirming(true); return; }
+    const deletedItem = item;
     await deleteItem(item.id);
-    setToast('Item deleted');
-    setTimeout(onClose, 500);
+    onDeleted?.(deletedItem);
+    onClose();
   };
 
   const handleDeleteImage = async (idx: number, e: React.MouseEvent) => {
@@ -212,7 +214,7 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
     <>
       <div className="modal-overlay" onClick={onClose}>
         <div className="modal-sheet animate-scale" onClick={e => e.stopPropagation()}>
-          
+
           {/* Header */}
           <div className="modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             {isEditing ? (
@@ -237,9 +239,9 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
                   {item.name}
                 </span>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <button 
+                  <button
                     id="btn-edit-mode"
-                    className="btn btn-ghost" 
+                    className="btn btn-ghost"
                     style={{ padding: '4px 10px', fontSize: 13, height: 32, gap: 4, display: 'flex', alignItems: 'center' }}
                     onClick={handleStartEdit}
                     title="Edit Item Details"
@@ -260,35 +262,35 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
             {/* Photos & Carousel */}
             <div style={{ position: 'relative', marginBottom: 'var(--space-4)' }}>
               {item.images && item.images.length > 0 ? (
-                <div 
-                  className="carousel-container" 
-                  style={{ 
-                    display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', 
-                    gap: 'var(--space-3)', paddingBottom: 'var(--space-2)' 
+                <div
+                  className="carousel-container"
+                  style={{
+                    display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory',
+                    gap: 'var(--space-3)', paddingBottom: 'var(--space-2)'
                   }}
                 >
                   {item.images.map((img, idx) => (
-                    <div 
-                      key={idx} 
+                    <div
+                      key={idx}
                       className="item-detail__image-wrapper"
                       style={{ flexShrink: 0, width: '100%', scrollSnapAlign: 'start', margin: 0, position: 'relative' }}
                       onClick={(e) => {
                         if (isEditing) return;
                         const imgEl = e.currentTarget.querySelector('img');
                         if (!imgEl) return;
-        
+
                         const canvas = document.createElement('canvas');
                         const ctx = canvas.getContext('2d');
                         if (!ctx) return;
-        
+
                         const rect = imgEl.getBoundingClientRect();
                         const x = ((e.clientX - rect.left) / rect.width) * imgEl.naturalWidth;
                         const y = ((e.clientY - rect.top) / rect.height) * imgEl.naturalHeight;
-        
+
                         canvas.width = imgEl.naturalWidth;
                         canvas.height = imgEl.naturalHeight;
                         ctx.drawImage(imgEl, 0, 0);
-        
+
                         const pixel = ctx.getImageData(x, y, 1, 1).data;
                         const hex = '#' + ((1 << 24) + (pixel[0] << 16) + (pixel[1] << 8) + pixel[2]).toString(16).slice(1);
                         updateItem({ ...item, color: hex });
@@ -319,7 +321,7 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
                   ))}
                 </div>
               ) : (
-                <div 
+                <div
                   id="item-photo-area"
                   className="item-detail__image-wrapper"
                   onClick={() => fileRef.current?.click()}
@@ -369,7 +371,7 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
             {/* ================= EDIT MODE FORM ================= */}
             {isEditing ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', marginTop: 'var(--space-2)' }}>
-                
+
                 {/* Name & Brand */}
                 <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-3)' }}>
                   <div>
@@ -599,9 +601,9 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
             ) : (
               /* ================= VIEW MODE ================= */
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', marginTop: 'var(--space-4)' }}>
-                
+
                 {/* Location */}
-                <div 
+                <div
                   style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '4px 0' }}
                   onClick={handleStartEdit}
                   title="Click to edit location"
@@ -613,7 +615,7 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
                 </div>
 
                 {/* Category */}
-                <div 
+                <div
                   style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '4px 0' }}
                   onClick={handleStartEdit}
                   title="Click to edit category"
@@ -625,7 +627,7 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
                 </div>
 
                 {/* Brand */}
-                <div 
+                <div
                   style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '4px 0' }}
                   onClick={handleStartEdit}
                   title="Click to edit brand"
@@ -640,7 +642,7 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
                   <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Color</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div 
+                    <div
                       id="update-color-swatch"
                       style={{
                         width: 24, height: 24, borderRadius: '50%',
@@ -672,7 +674,7 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
                 {/* Status */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
                   <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Status</span>
-                  <button 
+                  <button
                     className={`status-badge ${item.status}`}
                     onClick={async () => {
                       const nextStatus = item.status === 'ready' ? 'dirty' : (item.status === 'dirty' ? 'cleaning' : 'ready');
@@ -694,7 +696,7 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
                 {/* Condition */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
                   <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Condition</span>
-                  <button 
+                  <button
                     onClick={async () => {
                       const conditions: ItemCondition[] = ['new', 'excellent', 'good', 'fair', 'poor', 'needs-repair'];
                       const currentIdx = conditions.indexOf(item.condition || 'good');
@@ -707,8 +709,8 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
                     style={{
                       padding: '2px 10px', borderRadius: 'var(--radius-pill)', fontSize: 11, fontWeight: 700,
                       textTransform: 'uppercase', cursor: 'pointer', border: '1px solid currentColor', background: 'none',
-                      color: (item.condition === 'new' || item.condition === 'excellent') ? '#22c55e' : 
-                             (item.condition === 'poor' || item.condition === 'needs-repair') ? '#ef4444' : 'var(--text-secondary)'
+                      color: (item.condition === 'new' || item.condition === 'excellent') ? '#22c55e' :
+                        (item.condition === 'poor' || item.condition === 'needs-repair') ? '#ef4444' : 'var(--text-secondary)'
                     }}
                   >
                     {item.condition?.replace('-', ' ') || 'good'}
@@ -716,7 +718,7 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
                 </div>
 
                 {/* Material */}
-                <div 
+                <div
                   style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '4px 0' }}
                   onClick={handleStartEdit}
                   title="Click to edit material"
@@ -728,7 +730,7 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
                 </div>
 
                 {/* Care Info & Symbol Guide */}
-                <div 
+                <div
                   style={{ display: 'flex', flexDirection: 'column', gap: 6, cursor: 'pointer', padding: '4px 0' }}
                   onClick={handleStartEdit}
                   title="Click to edit care instructions"
@@ -757,7 +759,7 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
                 </div>
 
                 {/* Price & Cost Per Wear Cards */}
-                <div 
+                <div
                   style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)', cursor: 'pointer' }}
                   onClick={handleStartEdit}
                   title="Click to edit price"
@@ -777,7 +779,7 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
                 </div>
 
                 {/* Purchase Date */}
-                <div 
+                <div
                   style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '4px 0' }}
                   onClick={handleStartEdit}
                   title="Click to edit purchase date"
@@ -808,15 +810,15 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
                 <div style={{ marginTop: 'var(--space-3)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-2)' }}>
                     <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Style Tags</span>
-                    <button 
-                      className="btn btn-ghost" 
+                    <button
+                      className="btn btn-ghost"
                       style={{ padding: '2px 8px', fontSize: 12, height: 'auto', minHeight: 'auto' }}
                       onClick={handleStartEdit}
                     >
                       Edit Tags
                     </button>
                   </div>
-                  
+
                   {item.tags && item.tags.length > 0 ? (
                     <div className="item-detail__tags" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                       {item.tags.map(tag => (
@@ -844,8 +846,8 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
                     <Camera size={16} />
                     <span>{item.images && item.images.length >= 5 ? 'Max photos reached' : 'Add photo'}</span>
                   </button>
-                  <button 
-                    className="btn btn-ghost btn-full" 
+                  <button
+                    className="btn btn-ghost btn-full"
                     onClick={() => setToast('AI Background removal coming soon!')}
                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                   >

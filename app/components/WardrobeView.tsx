@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { useWardrobe } from '../contexts/WardrobeContext';
 import { useSettings } from '../contexts/SettingsContext';
-import { CATEGORIES, Category, ClothingItem, COLORS, getColorLabel } from '../lib/types';
+import { Category, ClothingItem, getColorLabel } from '../lib/types';
 import { itemService, WardrobeSortOption } from '../services/ItemService';
 import { usePersistentState } from '../lib/hooks/usePersistentState';
 import ItemCard from './ItemCard';
@@ -11,18 +11,19 @@ import SkeletonCard from './SkeletonCard';
 import ItemDetailModal from './ItemDetailModal';
 import VirtualizedGrid from './VirtualizedGrid';
 import Toast from './Toast';
-import { CategoryIcon, LocationIcon, Shirt, Search, Grid, List, CheckCircle2, WashingMachine, Tag, MapPin, Palette, LayoutGrid } from './AppIcon';
+import FilterSheetModal from './FilterSheetModal';
+import { LocationIcon, Shirt, Search, Grid, List, CheckCircle2, WashingMachine, Tag, MapPin, LayoutGrid, Sliders } from './AppIcon';
 
 interface Props {
   onNavigateToAdd?: () => void;
 }
 
 const WARDROBE_SORT_OPTIONS: WardrobeSortOption[] = [
-  'newest', 'oldest', 'most-worn', 'least-worn', 'price-high', 'price-low', 'cpw-low', 'cpw-high', 'name', 'last-worn'
+  'newest', 'oldest', 'most-worn', 'least-worn', 'price-high', 'price-low', 'cpw-low', 'cpw-high'
 ];
 
 export default function WardrobeView({ onNavigateToAdd }: Props) {
-  const { items, tags, locations, activeLocationId, loadSampleData, updateItem, batchMoveItemsLocation } = useWardrobe();
+  const { items, tags, locations, activeLocationId, loadSampleData, updateItem, addItem, batchMoveItemsLocation } = useWardrobe();
   const { t } = useSettings();
 
   const [activeCategory, setActiveCategory] = useState<Category | 'all'>('all');
@@ -37,13 +38,20 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
   const [selectedItem, setSelectedItem] = useState<ClothingItem | null>(null);
   const [loadingSample, setLoadingSample] = useState(false);
   const [toast, setToast] = useState('');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [deletedItemForUndo, setDeletedItemForUndo] = useState<ClothingItem | null>(null);
 
   // Batch Selection
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const dirtyItems = useMemo(() => items.filter(i => i.status === 'dirty' || i.status === 'cleaning'), [items]);
-  const activeLocation = useMemo(() => locations.find(l => l.id === activeLocationId), [locations, activeLocationId]);
+  const handleUndoDelete = async () => {
+    if (!deletedItemForUndo) return;
+    const restored = deletedItemForUndo;
+    setDeletedItemForUndo(null);
+    await addItem(restored);
+    setToast(`✓ Restored "${restored.name}"`);
+  };
 
   // Filter & Sort using ItemService
   const filtered = useMemo(() => {
@@ -77,6 +85,9 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
     setActiveColor('all');
     setSearchQuery('');
   };
+
+  const dirtyItems = useMemo(() => items.filter(i => i.status === 'dirty' || i.status === 'cleaning'), [items]);
+  const activeLocation = useMemo(() => locations.find(l => l.id === activeLocationId), [locations, activeLocationId]);
 
   const handleToggleItemStatus = async (item: ClothingItem, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -149,11 +160,11 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
             </span>
           )}
         </div>
-        
+
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {items.length > 0 && (
-            <button 
-              className={`btn ${selectionMode ? 'btn-primary' : 'btn-ghost'}`} 
+            <button
+              className={`btn ${selectionMode ? 'btn-primary' : 'btn-ghost'}`}
               style={{ padding: '4px 12px', fontSize: 13, height: 32 }}
               onClick={() => {
                 setSelectionMode(!selectionMode);
@@ -181,7 +192,7 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
           aria-label="Search items"
         />
         {searchQuery && (
-          <button 
+          <button
             onClick={() => setSearchQuery('')}
             style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 18 }}
             aria-label="Clear search query"
@@ -299,167 +310,67 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
         </div>
       )}
 
-      {/* Filter Chips */}
+      {/* Filter Button & Active Filter Indicators */}
       {items.length > 0 && (
         <>
-          {/* Color Swatches */}
-          <div className="filter-bar color-swatch-bar" role="tablist" aria-label="Color filters" style={{ marginBottom: 'var(--space-2)', display: 'flex', alignItems: 'center', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: 4, paddingRight: 4, flexShrink: 0 }}>
-              <Palette size={13} />
-              <span>Color:</span>
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 'var(--space-4)' }}>
             <button
-              role="tab"
-              aria-selected={activeColor === 'all'}
-              className={`filter-chip ${activeColor === 'all' ? 'active' : ''}`}
-              onClick={() => setActiveColor('all')}
-              style={{ fontSize: 11, padding: '2px 8px' }}
+              className={`btn ${hasActiveFilters ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => setIsFilterOpen(true)}
+              style={{ padding: '6px 14px', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}
+              aria-expanded={isFilterOpen}
             >
-              All
+              <Sliders size={14} />
+              <span>{t('filters')}</span>
+              {hasActiveFilters && (
+                <span style={{ background: 'var(--bg-0)', color: 'var(--accent)', borderRadius: 'var(--radius-pill)', padding: '0 6px', fontSize: 11, fontWeight: 800 }}>
+                  {[activeCategory !== 'all', activeTag !== 'all', activeStatus !== 'all', activeCondition !== 'all', activeColor !== 'all'].filter(Boolean).length}
+                </span>
+              )}
             </button>
-            {COLORS.map(c => (
+            {hasActiveFilters && (
               <button
-                key={c.value}
-                role="tab"
-                aria-selected={activeColor === c.value}
-                className={`color-swatch-chip ${activeColor === c.value ? 'active' : ''}`}
-                onClick={() => setActiveColor(activeColor === c.value ? 'all' : c.value)}
-                title={c.label}
-                style={{
-                  width: 22,
-                  height: 22,
-                  borderRadius: '50%',
-                  backgroundColor: c.value,
-                  border: activeColor === c.value ? '2px solid var(--accent)' : '1px solid rgba(255,255,255,0.2)',
-                  cursor: 'pointer',
-                  flexShrink: 0,
-                  boxShadow: activeColor === c.value ? '0 0 8px var(--accent-glow)' : 'none',
-                  transition: 'transform 0.15s ease'
-                }}
-              />
-            ))}
-          </div>
-          <div className="filter-bar" role="tablist" aria-label="Category filters" style={{ marginBottom: 'var(--space-2)' }}>
-            <button
-              id="filter-cat-all"
-              role="tab"
-              aria-selected={activeCategory === 'all'}
-              className={`filter-chip ${activeCategory === 'all' ? 'active' : ''}`}
-              onClick={() => setActiveCategory('all')}
-            >
-              {t('all')}
-            </button>
-            {CATEGORIES.map(cat => (
-              <button
-                id={`filter-cat-${cat.value}`}
-                key={cat.value}
-                role="tab"
-                aria-selected={activeCategory === cat.value}
-                className={`filter-chip ${activeCategory === cat.value ? 'active' : ''}`}
-                onClick={() => setActiveCategory(cat.value)}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                onClick={handleResetFilters}
+                style={{ fontSize: 12, background: 'none', border: 'none', color: 'var(--text-muted)', textDecoration: 'underline', cursor: 'pointer' }}
               >
-                <CategoryIcon category={cat.value} size={14} />
-                <span>{cat.label}</span>
+                {t('clearAll')}
               </button>
-            ))}
-          </div>
-
-          <div className="filter-bar" role="tablist" aria-label="Tag filters" style={{ marginBottom: 'var(--space-2)' }}>
-            <button
-              id="filter-tag-all"
-              role="tab"
-              aria-selected={activeTag === 'all'}
-              className={`filter-chip ${activeTag === 'all' ? 'active' : ''}`}
-              onClick={() => setActiveTag('all')}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-            >
-              <Tag size={14} />
-              <span>{t('allStyles')}</span>
-            </button>
-            {tags.map(tag => (
-              <button
-                id={`filter-tag-${tag.id}`}
-                key={tag.id}
-                role="tab"
-                aria-selected={activeTag === tag.label}
-                className={`filter-chip ${activeTag === tag.label ? 'active' : ''}`}
-                onClick={() => setActiveTag(tag.label)}
-              >
-                {tag.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="filter-bar" role="tablist" aria-label="Status filters" style={{ marginBottom: 'var(--space-3)' }}>
-            <button
-              id="filter-status-all"
-              role="tab"
-              aria-selected={activeStatus === 'all'}
-              className={`filter-chip ${activeStatus === 'all' ? 'active' : ''}`}
-              onClick={() => setActiveStatus('all')}
-            >
-              ✨ {t('allStatus')}
-            </button>
-            <button
-              id="filter-status-ready"
-              role="tab"
-              aria-selected={activeStatus === 'ready'}
-              className={`filter-chip ${activeStatus === 'ready' ? 'active' : ''}`}
-              onClick={() => setActiveStatus('ready')}
-            >
-              ✅ {t('ready')}
-            </button>
-            <button
-              id="filter-status-dirty"
-              role="tab"
-              aria-selected={activeStatus === 'dirty'}
-              className={`filter-chip ${activeStatus === 'dirty' ? 'active' : ''}`}
-              onClick={() => setActiveStatus('dirty')}
-            >
-              🧺 {t('dirty')}
-            </button>
-            <button
-              id="filter-status-cleaning"
-              role="tab"
-              aria-selected={activeStatus === 'cleaning'}
-              className={`filter-chip ${activeStatus === 'cleaning' ? 'active' : ''}`}
-              onClick={() => setActiveStatus('cleaning')}
-            >
-              🧼 {t('cleaning')}
-            </button>
+            )}
           </div>
 
           {/* Active Filter Indicators */}
           {hasActiveFilters && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 'var(--space-4)', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Active Filters:</span>
               {activeCategory !== 'all' && (
                 <span style={{ fontSize: 11, background: 'var(--accent-subtle)', color: 'var(--accent)', padding: '2px 8px', borderRadius: 'var(--radius-pill)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  Category: {activeCategory} <button onClick={() => setActiveCategory('all')} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0 }}>✕</button>
+                  {activeCategory} <button onClick={() => setActiveCategory('all')} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0 }}>✕</button>
                 </span>
               )}
               {activeTag !== 'all' && (
                 <span style={{ fontSize: 11, background: 'var(--accent-subtle)', color: 'var(--accent)', padding: '2px 8px', borderRadius: 'var(--radius-pill)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  Tag: {activeTag} <button onClick={() => setActiveTag('all')} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0 }}>✕</button>
+                  {activeTag} <button onClick={() => setActiveTag('all')} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0 }}>✕</button>
                 </span>
               )}
               {activeStatus !== 'all' && (
                 <span style={{ fontSize: 11, background: 'var(--accent-subtle)', color: 'var(--accent)', padding: '2px 8px', borderRadius: 'var(--radius-pill)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  Status: {activeStatus} <button onClick={() => setActiveStatus('all')} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0 }}>✕</button>
+                  {activeStatus} <button onClick={() => setActiveStatus('all')} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0 }}>✕</button>
+                </span>
+              )}
+              {activeCondition !== 'all' && (
+                <span style={{ fontSize: 11, background: 'var(--accent-subtle)', color: 'var(--accent)', padding: '2px 8px', borderRadius: 'var(--radius-pill)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  {activeCondition} <button onClick={() => setActiveCondition('all')} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0 }}>✕</button>
+                </span>
+              )}
+              {activeColor !== 'all' && (
+                <span style={{ fontSize: 11, background: 'var(--accent-subtle)', color: 'var(--accent)', padding: '2px 8px', borderRadius: 'var(--radius-pill)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  {activeColor} <button onClick={() => setActiveColor('all')} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0 }}>✕</button>
                 </span>
               )}
               {searchQuery && (
                 <span style={{ fontSize: 11, background: 'var(--accent-subtle)', color: 'var(--accent)', padding: '2px 8px', borderRadius: 'var(--radius-pill)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  Search: &quot;{searchQuery}&quot; <button onClick={() => setSearchQuery('')} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0 }}>✕</button>
+                  "{searchQuery}" <button onClick={() => setSearchQuery('')} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0 }}>✕</button>
                 </span>
               )}
-              <button
-                onClick={handleResetFilters}
-                style={{ fontSize: 11, background: 'none', border: 'none', color: 'var(--text-muted)', textDecoration: 'underline', cursor: 'pointer', marginLeft: 4 }}
-              >
-                Clear All
-              </button>
             </div>
           )}
 
@@ -517,7 +428,7 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
           <p className="empty-state__desc" style={{ fontSize: 14, color: 'var(--text-muted)', maxWidth: 360, margin: '0 auto 20px auto' }}>
             {t('emptyWardrobeDesc')}
           </p>
-          
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 280, margin: '0 auto' }}>
             {onNavigateToAdd && (
               <button
@@ -545,8 +456,8 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
           </div>
           <div className="empty-state__title">No items found</div>
           <div className="empty-state__desc">
-            {activeLocationId !== 'all' 
-              ? `No clothing items currently at ${activeLocation?.name || 'this location'}.` 
+            {activeLocationId !== 'all'
+              ? `No clothing items currently at ${activeLocation?.name || 'this location'}.`
               : `Try adjusting your search or filters.`}
           </div>
         </div>
@@ -629,14 +540,47 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
         </>
       )}
 
+      {/* Filter Sheet Modal */}
+      <FilterSheetModal
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        activeCategory={activeCategory}
+        activeTag={activeTag}
+        activeStatus={activeStatus}
+        activeCondition={activeCondition}
+        activeColor={activeColor}
+        tags={tags}
+        onCategoryChange={setActiveCategory}
+        onTagChange={setActiveTag}
+        onStatusChange={setActiveStatus}
+        onConditionChange={setActiveCondition}
+        onColorChange={setActiveColor}
+        onReset={handleResetFilters}
+        hasActiveFilters={hasActiveFilters}
+      />
+
       {/* Item Detail Modal */}
       {selectedItem && (
         <ItemDetailModal
           item={items.find(i => i.id === selectedItem.id) || selectedItem}
           onClose={() => setSelectedItem(null)}
+          onDeleted={(deletedItem) => {
+            setDeletedItemForUndo(deletedItem);
+            setToast(`"${deletedItem.name}" deleted`);
+          }}
         />
       )}
-      {toast && <Toast message={toast} onDone={() => setToast('')} />}
+      {toast && (
+        <Toast
+          message={toast}
+          onDone={() => {
+            setToast('');
+            setDeletedItemForUndo(null);
+          }}
+          actionLabel={deletedItemForUndo && toast === `✓ Restored "${deletedItemForUndo.name}"` ? undefined : deletedItemForUndo ? t('undo') : undefined}
+          onAction={handleUndoDelete}
+        />
+      )}
     </div>
   );
 }

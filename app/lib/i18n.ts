@@ -129,6 +129,39 @@ export const translations = {
     retry: 'Retry',
     showDetails: 'Show Details',
     errorDetails: 'Error Details',
+
+    // Quick Add / More Menu
+    quickActions: 'Quick Actions',
+    addClothingItem: 'Add Clothing Item',
+    addItemQuickDesc: 'Photo, details, category & location',
+    createOutfit: 'Create Outfit',
+    createOutfitDesc: 'Mix & match clothes into looks',
+    planTrip: 'Plan a Trip',
+    planTripDesc: 'Create packing list & outfit plans',
+    moreFeatures: 'More Features',
+    moreFeaturesDesc: 'Planning, trips, analytics & settings',
+    itemsCount: 'Items',
+    outfitsCount: 'Outfits',
+    tripsCount: 'Trips',
+    calendarDesc: 'Daily wear history & planner',
+    tripsDesc: 'Packing lists & travel planning',
+    statsDesc: 'Cost per wear & closet statistics',
+    active: 'Active',
+    filterByLocation: 'Filter by Location (Home, Rent Room, etc.)',
+    allLocations: 'All Locations',
+    filters: 'Filters',
+    clearAll: 'Clear All',
+    showResults: 'Show Results',
+    category: 'Category',
+    color: 'Color',
+    status: 'Status',
+    condition: 'Condition',
+    styleTags: 'Style Tags',
+    allConditions: 'All Conditions',
+    allColors: 'All Colors',
+    undo: 'Undo',
+    itemDeleted: 'Item deleted',
+    more: 'More',
   },
   id: {
     // Header & Navigation
@@ -250,12 +283,45 @@ export const translations = {
     retry: 'Coba Lagi',
     showDetails: 'Tampilkan Detail',
     errorDetails: 'Detail Kesalahan',
+
+    // Quick Add / More Menu
+    quickActions: 'Aksi Cepat',
+    addClothingItem: 'Tambah Pakaian',
+    addItemQuickDesc: 'Foto, detail, kategori & lokasi',
+    createOutfit: 'Buat Setelan',
+    createOutfitDesc: 'Padukan pakaian menjadi gaya',
+    planTrip: 'Rencanakan Trip',
+    planTripDesc: 'Buat daftar packing & rencana setelan',
+    moreFeatures: 'Fitur Lainnya',
+    moreFeaturesDesc: 'Perencanaan, trip, analitik & pengaturan',
+    itemsCount: 'Pakaian',
+    outfitsCount: 'Setelan',
+    tripsCount: 'Perjalanan',
+    calendarDesc: 'Riwayat pakaian harian & perencana',
+    tripsDesc: 'Daftar packing & perencanaan perjalanan',
+    statsDesc: 'Biaya per pemakaian & statistik lemari',
+    active: 'Aktif',
+    filterByLocation: 'Filter berdasarkan Lokasi (Rumah, Kost, dll.)',
+    allLocations: 'Semua Lokasi',
+    filters: 'Filter',
+    clearAll: 'Bersihkan Semua',
+    showResults: 'Lihat Hasil',
+    category: 'Kategori',
+    color: 'Warna',
+    status: 'Status',
+    condition: 'Kondisi',
+    styleTags: 'Tag Gaya',
+    allConditions: 'Semua Kondisi',
+    allColors: 'Semua Warna',
+    undo: 'Urungkan',
+    itemDeleted: 'Pakaian dihapus',
+    more: 'Lainnya',
   },
 };
 
 export function formatCurrency(amount: number | undefined | null, currency: Currency = 'IDR'): string {
   if (amount === undefined || amount === null || isNaN(amount)) return '—';
-  
+
   if (currency === 'IDR') {
     return 'Rp ' + Math.round(amount).toLocaleString('id-ID');
   }

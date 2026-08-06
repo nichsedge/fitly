@@ -42,7 +42,7 @@ export default function MoreMenuModal({ activeTab, onClose, onSelectTab, onOpenS
 
   return (
     <div className="modal-overlay" onClick={onClose} style={{ zIndex: 100 }}>
-      <div 
+      <div
         className="more-menu-drawer"
         onClick={(e) => e.stopPropagation()}
       >
@@ -50,8 +50,8 @@ export default function MoreMenuModal({ activeTab, onClose, onSelectTab, onOpenS
 
         <div className="more-menu-header">
           <div>
-            <h3 className="more-menu-title">More Features</h3>
-            <p className="more-menu-sub">Planning, trips, analytics & settings</p>
+            <h3 className="more-menu-title">{t('moreFeatures')}</h3>
+            <p className="more-menu-sub">{t('moreFeaturesDesc')}</p>
           </div>
           <button className="modal-close" onClick={onClose} aria-label="Close">
             <X size={18} />
@@ -62,23 +62,23 @@ export default function MoreMenuModal({ activeTab, onClose, onSelectTab, onOpenS
         <div className="more-stats-strip">
           <div className="more-stat-item">
             <span className="more-stat-val">{totalItems}</span>
-            <span className="more-stat-lbl">Items</span>
+            <span className="more-stat-lbl">{t('itemsCount')}</span>
           </div>
           <div className="more-stat-divider" />
           <div className="more-stat-item">
             <span className="more-stat-val">{totalOutfits}</span>
-            <span className="more-stat-lbl">Outfits</span>
+            <span className="more-stat-lbl">{t('outfitsCount')}</span>
           </div>
           <div className="more-stat-divider" />
           <div className="more-stat-item">
             <span className="more-stat-val">{totalTrips}</span>
-            <span className="more-stat-lbl">Trips</span>
+            <span className="more-stat-lbl">{t('tripsCount')}</span>
           </div>
         </div>
 
         {/* Navigation Grid */}
         <div className="more-nav-grid">
-          <button 
+          <button
             className={`more-nav-card ${activeTab === 'calendar' ? 'active' : ''}`}
             onClick={() => handleSelect('calendar')}
           >
@@ -87,12 +87,12 @@ export default function MoreMenuModal({ activeTab, onClose, onSelectTab, onOpenS
             </div>
             <div className="more-nav-card__info">
               <span className="more-nav-card__title">{t('calendar')}</span>
-              <span className="more-nav-card__desc">Daily wear history & planner</span>
+              <span className="more-nav-card__desc">{t('calendarDesc')}</span>
             </div>
-            {activeTab === 'calendar' && <span className="more-nav-card__badge">Active</span>}
+            {activeTab === 'calendar' && <span className="more-nav-card__badge">{t('active')}</span>}
           </button>
 
-          <button 
+          <button
             className={`more-nav-card ${activeTab === 'trips' ? 'active' : ''}`}
             onClick={() => handleSelect('trips')}
           >
@@ -101,12 +101,12 @@ export default function MoreMenuModal({ activeTab, onClose, onSelectTab, onOpenS
             </div>
             <div className="more-nav-card__info">
               <span className="more-nav-card__title">{t('trips')}</span>
-              <span className="more-nav-card__desc">Packing lists & travel planning</span>
+              <span className="more-nav-card__desc">{t('tripsDesc')}</span>
             </div>
-            {activeTab === 'trips' && <span className="more-nav-card__badge">Active</span>}
+            {activeTab === 'trips' && <span className="more-nav-card__badge">{t('active')}</span>}
           </button>
 
-          <button 
+          <button
             className={`more-nav-card ${activeTab === 'insights' ? 'active' : ''}`}
             onClick={() => handleSelect('insights')}
           >
@@ -115,15 +115,15 @@ export default function MoreMenuModal({ activeTab, onClose, onSelectTab, onOpenS
             </div>
             <div className="more-nav-card__info">
               <span className="more-nav-card__title">{t('stats')}</span>
-              <span className="more-nav-card__desc">Cost per wear & closet statistics</span>
+              <span className="more-nav-card__desc">{t('statsDesc')}</span>
             </div>
-            {activeTab === 'insights' && <span className="more-nav-card__badge">Active</span>}
+            {activeTab === 'insights' && <span className="more-nav-card__badge">{t('active')}</span>}
           </button>
         </div>
 
         {/* Footer actions */}
         <div className="more-menu-footer">
-          <button 
+          <button
             className="more-footer-btn"
             onClick={() => {
               onClose();

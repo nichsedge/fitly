@@ -39,7 +39,7 @@ export default function OutfitsView() {
   // Generate a outfit suggestion from available wardrobe items
   const currentSuggestion = React.useMemo(() => {
     if (items.length < 2) return [];
-    
+
     // Pick 1 top, 1 bottom, 1 shoes or outerwear
     const tops = items.filter(i => i.category === 'top');
     const bottoms = items.filter(i => i.category === 'bottom');
@@ -277,6 +277,14 @@ export default function OutfitsView() {
           <p className="empty-state__desc" style={{ fontSize: 14, color: 'var(--text-muted)', maxWidth: 360, margin: '0 auto 20px auto' }}>
             Combine clothing items into stylish looks for any occasion.
           </p>
+          <button
+            className="btn btn-primary"
+            onClick={() => setBuildingOutfit(true)}
+            style={{ padding: '12px 20px', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}
+          >
+            <Sparkles size={16} />
+            <span>Build Your First Outfit</span>
+          </button>
         </div>
       ) : (
         <div className={viewMode === 'grid' ? 'item-grid animate-in' : 'item-list animate-in'}>
