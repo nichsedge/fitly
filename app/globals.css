@@ -1834,6 +1834,7 @@ div[tabindex="0"]:focus-visible {
   width: 100%;
   min-width: 100%;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 @keyframes tabFadeIn {
