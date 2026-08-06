@@ -727,16 +727,33 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
                   </span>
                 </div>
 
-                {/* Care Info */}
+                {/* Care Info & Symbol Guide */}
                 <div 
-                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '4px 0' }}
+                  style={{ display: 'flex', flexDirection: 'column', gap: 6, cursor: 'pointer', padding: '4px 0' }}
                   onClick={handleStartEdit}
                   title="Click to edit care instructions"
                 >
-                  <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Care Info</span>
-                  <span style={{ fontWeight: 600, fontSize: 14, color: item.careInstructions ? 'var(--text-primary)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {item.careInstructions || 'Set Care Info'}
-                  </span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Care Info</span>
+                    <span style={{ fontWeight: 600, fontSize: 14, color: item.careInstructions ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                      {item.careInstructions || 'Set Care Info'}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                    <span title="Wash Cold (30°C)" style={{ background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-pill)', padding: '2px 8px', fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--accent)' }}>
+                      🧼 Wash 30°C
+                    </span>
+                    <span title="Tumble Dry Low Heat" style={{ background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-pill)', padding: '2px 8px', fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--text-secondary)' }}>
+                      💨 Tumble Dry
+                    </span>
+                    <span title="Warm Iron if Needed" style={{ background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-pill)', padding: '2px 8px', fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--text-secondary)' }}>
+                      🌡️ Warm Iron
+                    </span>
+                    <span title="Do Not Bleach" style={{ background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-pill)', padding: '2px 8px', fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--text-muted)' }}>
+                      🚫 No Bleach
+                    </span>
+                  </div>
                 </div>
 
                 {/* Price & Cost Per Wear Cards */}

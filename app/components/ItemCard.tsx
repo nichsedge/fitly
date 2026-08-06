@@ -13,9 +13,20 @@ interface Props {
   onSelect?: () => void;
   selectable?: boolean;
   viewMode?: 'grid' | 'list';
+  density?: 'normal' | 'compact';
+  onToggleStatus?: (item: ClothingItem, e: React.MouseEvent) => void;
 }
 
-function ItemCardComponent({ item, onClick, selected, onSelect, selectable, viewMode = 'grid' }: Props) {
+function ItemCardComponent({
+  item,
+  onClick,
+  selected,
+  onSelect,
+  selectable,
+  viewMode = 'grid',
+  density = 'normal',
+  onToggleStatus,
+}: Props) {
   const { formatPrice } = useSettings();
   const [displayImage, setDisplayImage] = React.useState<string>('');
 
@@ -58,7 +69,7 @@ function ItemCardComponent({ item, onClick, selected, onSelect, selectable, view
   return (
     <div
       id={`item-card-${item.id}`}
-      className={`item-card item-card--${viewMode} ${selected ? 'selected' : ''}`}
+      className={`item-card item-card--${viewMode} item-card--${density} ${selected ? 'selected' : ''}`}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       tabIndex={0}
@@ -66,7 +77,7 @@ function ItemCardComponent({ item, onClick, selected, onSelect, selectable, view
       aria-pressed={selected}
       aria-label={`${item.name}, ${item.category}${item.brand ? `, Brand: ${item.brand}` : ''}`}
     >
-      {cpw !== null && viewMode === 'grid' && (
+      {cpw !== null && viewMode === 'grid' && density === 'normal' && (
         <div
           style={{
             position: 'absolute',
@@ -89,11 +100,24 @@ function ItemCardComponent({ item, onClick, selected, onSelect, selectable, view
         </div>
       )}
 
-      {item.status !== 'ready' && (
+      {onToggleStatus ? (
+        <button
+          type="button"
+          className={`item-card__quick-status-btn ${item.status}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleStatus(item, e);
+          }}
+          title={item.status === 'dirty' ? 'Mark Clean 🧼' : 'Mark Dirty 🧺'}
+          aria-label={item.status === 'dirty' ? 'Mark Clean' : 'Mark Dirty'}
+        >
+          {item.status === 'dirty' ? '🧺' : '🧼'}
+        </button>
+      ) : item.status !== 'ready' ? (
         <div className={`item-card__status-badge ${item.status}`} aria-label={`Status: ${item.status}`}>
           {item.status === 'dirty' ? '🧺' : '🧼'}
         </div>
-      )}
+      ) : null}
 
       {(item.condition === 'poor' || item.condition === 'needs-repair') && (
         <div 

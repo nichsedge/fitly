@@ -3,18 +3,23 @@
 import React, { useState, useMemo } from 'react';
 import { useWardrobe } from '../contexts/WardrobeContext';
 import { useSettings } from '../contexts/SettingsContext';
-import { CATEGORIES, Category, ClothingItem } from '../lib/types';
+import { CATEGORIES, Category, ClothingItem, COLORS, getColorLabel } from '../lib/types';
 import { itemService, WardrobeSortOption } from '../services/ItemService';
+import { usePersistentState } from '../lib/hooks/usePersistentState';
 import ItemCard from './ItemCard';
 import SkeletonCard from './SkeletonCard';
 import ItemDetailModal from './ItemDetailModal';
 import VirtualizedGrid from './VirtualizedGrid';
 import Toast from './Toast';
-import { CategoryIcon, LocationIcon, Shirt, Search, Grid, List, CheckCircle2, WashingMachine, Tag, MapPin } from './AppIcon';
+import { CategoryIcon, LocationIcon, Shirt, Search, Grid, List, CheckCircle2, WashingMachine, Tag, MapPin, Palette, LayoutGrid } from './AppIcon';
 
 interface Props {
   onNavigateToAdd?: () => void;
 }
+
+const WARDROBE_SORT_OPTIONS: WardrobeSortOption[] = [
+  'newest', 'oldest', 'most-worn', 'least-worn', 'price-high', 'price-low', 'cpw-low', 'cpw-high', 'name', 'last-worn'
+];
 
 export default function WardrobeView({ onNavigateToAdd }: Props) {
   const { items, tags, locations, activeLocationId, loadSampleData, updateItem, batchMoveItemsLocation } = useWardrobe();
@@ -24,8 +29,10 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
   const [activeTag, setActiveTag] = useState<string>('all');
   const [activeStatus, setActiveStatus] = useState<string>('all');
   const [activeCondition, setActiveCondition] = useState<string>('all');
+  const [activeColor, setActiveColor] = useState<string>('all');
+  const [gridDensity, setGridDensity] = useState<'normal' | 'compact'>('normal');
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<WardrobeSortOption>('newest');
+  const [sortBy, setSortBy] = usePersistentState<WardrobeSortOption>('fitly_wardrobe_sort_by', 'newest', WARDROBE_SORT_OPTIONS);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedItem, setSelectedItem] = useState<ClothingItem | null>(null);
   const [loadingSample, setLoadingSample] = useState(false);
@@ -40,7 +47,7 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
 
   // Filter & Sort using ItemService
   const filtered = useMemo(() => {
-    return itemService.filterItems(items, {
+    const baseFiltered = itemService.filterItems(items, {
       category: activeCategory,
       tag: activeTag,
       status: activeStatus,
@@ -48,20 +55,34 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
       locationId: activeLocationId,
       searchQuery,
     });
-  }, [items, activeCategory, activeTag, activeStatus, activeCondition, activeLocationId, searchQuery]);
+    if (activeColor === 'all') return baseFiltered;
+    return baseFiltered.filter(i => {
+      if (!i.color) return false;
+      return i.color.toLowerCase() === activeColor.toLowerCase() ||
+        getColorLabel(i.color).toLowerCase().includes(activeColor.toLowerCase());
+    });
+  }, [items, activeCategory, activeTag, activeStatus, activeCondition, activeColor, activeLocationId, searchQuery]);
 
   const sorted = useMemo(() => {
     return itemService.sortItems(filtered, sortBy);
   }, [filtered, sortBy]);
 
-  const hasActiveFilters = activeCategory !== 'all' || activeTag !== 'all' || activeStatus !== 'all' || activeCondition !== 'all' || searchQuery !== '';
+  const hasActiveFilters = activeCategory !== 'all' || activeTag !== 'all' || activeStatus !== 'all' || activeCondition !== 'all' || activeColor !== 'all' || searchQuery !== '';
 
   const handleResetFilters = () => {
     setActiveCategory('all');
     setActiveTag('all');
     setActiveStatus('all');
     setActiveCondition('all');
+    setActiveColor('all');
     setSearchQuery('');
+  };
+
+  const handleToggleItemStatus = async (item: ClothingItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const nextStatus: ClothingItem['status'] = item.status === 'dirty' ? 'ready' : 'dirty';
+    await updateItem({ ...item, status: nextStatus });
+    setToast(nextStatus === 'ready' ? `✓ ${item.name} marked Clean 🧼` : `✓ ${item.name} moved to Laundry 🧺`);
   };
 
   const toggleSelection = (id: string) => {
@@ -207,16 +228,16 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
           <div className="view-toggle" role="group" aria-label="View toggle" style={{ display: 'flex', gap: 4, background: 'var(--bg-3)', padding: 3, borderRadius: 'var(--radius-md)' }}>
             <button
               id="view-toggle-wardrobe-grid"
-              className={`btn-icon-toggle ${viewMode === 'grid' ? 'active' : ''}`}
-              onClick={() => setViewMode('grid')}
+              className={`btn-icon-toggle ${viewMode === 'grid' && gridDensity === 'normal' ? 'active' : ''}`}
+              onClick={() => { setViewMode('grid'); setGridDensity('normal'); }}
               title="Grid View"
-              aria-pressed={viewMode === 'grid'}
+              aria-pressed={viewMode === 'grid' && gridDensity === 'normal'}
               style={{
-                background: viewMode === 'grid' ? 'var(--accent)' : 'transparent',
-                color: viewMode === 'grid' ? '#fff' : 'var(--text-secondary)',
+                background: viewMode === 'grid' && gridDensity === 'normal' ? 'var(--accent)' : 'transparent',
+                color: viewMode === 'grid' && gridDensity === 'normal' ? '#fff' : 'var(--text-secondary)',
                 border: 'none',
                 borderRadius: 'var(--radius-sm)',
-                padding: '4px 10px',
+                padding: '4px 8px',
                 fontSize: 12,
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -229,6 +250,29 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
               <span>Grid</span>
             </button>
             <button
+              id="view-toggle-wardrobe-compact"
+              className={`btn-icon-toggle ${viewMode === 'grid' && gridDensity === 'compact' ? 'active' : ''}`}
+              onClick={() => { setViewMode('grid'); setGridDensity('compact'); }}
+              title="Compact View"
+              aria-pressed={viewMode === 'grid' && gridDensity === 'compact'}
+              style={{
+                background: viewMode === 'grid' && gridDensity === 'compact' ? 'var(--accent)' : 'transparent',
+                color: viewMode === 'grid' && gridDensity === 'compact' ? '#fff' : 'var(--text-secondary)',
+                border: 'none',
+                borderRadius: 'var(--radius-sm)',
+                padding: '4px 8px',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4
+              }}
+            >
+              <LayoutGrid size={14} />
+              <span>Compact</span>
+            </button>
+            <button
               id="view-toggle-wardrobe-list"
               className={`btn-icon-toggle ${viewMode === 'list' ? 'active' : ''}`}
               onClick={() => setViewMode('list')}
@@ -239,7 +283,7 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
                 color: viewMode === 'list' ? '#fff' : 'var(--text-secondary)',
                 border: 'none',
                 borderRadius: 'var(--radius-sm)',
-                padding: '4px 10px',
+                padding: '4px 8px',
                 fontSize: 12,
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -258,6 +302,43 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
       {/* Filter Chips */}
       {items.length > 0 && (
         <>
+          {/* Color Swatches */}
+          <div className="filter-bar color-swatch-bar" role="tablist" aria-label="Color filters" style={{ marginBottom: 'var(--space-2)', display: 'flex', alignItems: 'center', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: 4, paddingRight: 4, flexShrink: 0 }}>
+              <Palette size={13} />
+              <span>Color:</span>
+            </span>
+            <button
+              role="tab"
+              aria-selected={activeColor === 'all'}
+              className={`filter-chip ${activeColor === 'all' ? 'active' : ''}`}
+              onClick={() => setActiveColor('all')}
+              style={{ fontSize: 11, padding: '2px 8px' }}
+            >
+              All
+            </button>
+            {COLORS.map(c => (
+              <button
+                key={c.value}
+                role="tab"
+                aria-selected={activeColor === c.value}
+                className={`color-swatch-chip ${activeColor === c.value ? 'active' : ''}`}
+                onClick={() => setActiveColor(activeColor === c.value ? 'all' : c.value)}
+                title={c.label}
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: '50%',
+                  backgroundColor: c.value,
+                  border: activeColor === c.value ? '2px solid var(--accent)' : '1px solid rgba(255,255,255,0.2)',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                  boxShadow: activeColor === c.value ? '0 0 8px var(--accent-glow)' : 'none',
+                  transition: 'transform 0.15s ease'
+                }}
+              />
+            ))}
+          </div>
           <div className="filter-bar" role="tablist" aria-label="Category filters" style={{ marginBottom: 'var(--space-2)' }}>
             <button
               id="filter-cat-all"
@@ -474,14 +555,16 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
           <VirtualizedGrid
             items={sorted}
             keyExtractor={(item) => item.id}
-            itemHeight={viewMode === 'grid' ? 240 : 80}
-            columns={viewMode === 'grid' ? 2 : 1}
-            className={viewMode === 'grid' ? 'item-grid animate-in' : 'item-list animate-in'}
+            itemHeight={viewMode === 'grid' ? (gridDensity === 'compact' ? 170 : 240) : 80}
+            columns={viewMode === 'grid' ? (gridDensity === 'compact' ? 3 : 2) : 1}
+            className={viewMode === 'grid' ? (gridDensity === 'compact' ? 'item-grid item-grid--compact animate-in' : 'item-grid animate-in') : 'item-list animate-in'}
             renderItem={(item) => (
               <ItemCard
                 key={item.id}
                 item={item}
                 viewMode={viewMode}
+                density={gridDensity}
+                onToggleStatus={handleToggleItemStatus}
                 onClick={() => selectionMode ? toggleSelection(item.id) : setSelectedItem(item)}
                 selectable={selectionMode}
                 selected={selectedIds.has(item.id)}

@@ -156,6 +156,35 @@ export default function LaundryView() {
         )}
       </div>
 
+      {/* Laundry Load Capacity Gauge */}
+      <div style={{
+        background: 'var(--bg-2)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-lg)',
+        padding: '14px 16px',
+        marginBottom: 'var(--space-4)',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <span style={{ fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span>🧺 Laundry Capacity Meter</span>
+          </span>
+          <span style={{ fontSize: 12, fontWeight: 800, color: wornItems.length >= 6 ? 'var(--danger)' : wornItems.length >= 3 ? 'var(--warning)' : 'var(--accent)' }}>
+            {wornItems.length >= 6 ? 'Full Load Recommended' : `${wornItems.length} items dirty`}
+          </span>
+        </div>
+        <div style={{ height: 8, background: 'var(--bg-3)', borderRadius: 4, overflow: 'hidden' }}>
+          <div
+            style={{
+              height: '100%',
+              width: `${Math.min(100, Math.max(wornItems.length > 0 ? 10 : 0, (wornItems.length / 8) * 100))}%`,
+              background: wornItems.length >= 6 ? 'linear-gradient(90deg, #f59e0b, #ef4444)' : 'var(--accent-gradient)',
+              borderRadius: 4,
+              transition: 'width 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
+            }}
+          />
+        </div>
+      </div>
+
       {/* Worn Items List */}
       {wornItems.length === 0 ? (
         <div className="empty-state animate-in" style={{ padding: 'var(--space-8) var(--space-4)', textAlign: 'center' }}>

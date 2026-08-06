@@ -46,7 +46,15 @@ import {
   Database,
   Sun,
   Moon,
-  Zap
+  Zap,
+  Palette,
+  Droplets,
+  Flame,
+  Wind,
+  Thermometer,
+  LayoutGrid,
+  Award,
+  Sliders
 } from 'lucide-react';
 import { Category } from '../lib/types';
 
@@ -159,5 +167,13 @@ export {
   Database,
   Sun,
   Moon,
-  Zap
+  Zap,
+  Palette,
+  Droplets,
+  Flame,
+  Wind,
+  Thermometer,
+  LayoutGrid,
+  Award,
+  Sliders
 };

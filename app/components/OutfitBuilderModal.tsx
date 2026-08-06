@@ -7,7 +7,7 @@ import { useOutfits } from '../contexts/OutfitContext';
 import { ClothingItem, CATEGORIES, Category, Outfit } from '../lib/types';
 import ItemCard from './ItemCard';
 import Toast from './Toast';
-import { CategoryIcon } from './AppIcon';
+import { CategoryIcon, Sparkles, Wand2 } from './AppIcon';
 import { ResolvedImage } from './ResolvedImage';
 
 interface Props {
@@ -37,6 +37,32 @@ export default function OutfitBuilderModal({ initialOutfit, onClose }: Props) {
     setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
     );
+  };
+
+  const handleMagicMatch = () => {
+    const readyItems = items.filter(i => i.status === 'ready');
+    const tops = readyItems.filter(i => i.category === 'top');
+    const bottoms = readyItems.filter(i => i.category === 'bottom');
+    const shoes = readyItems.filter(i => i.category === 'shoes');
+    const outerwears = readyItems.filter(i => i.category === 'outerwear');
+
+    if (tops.length === 0 || bottoms.length === 0) {
+      setToast('⚠️ Need at least 1 clean top & 1 clean bottom!');
+      return;
+    }
+
+    const chosenTop = tops[Math.floor(Math.random() * tops.length)];
+    const chosenBottom = bottoms[Math.floor(Math.random() * bottoms.length)];
+    const chosenShoes = shoes.length > 0 ? shoes[Math.floor(Math.random() * shoes.length)] : null;
+    const chosenOuterwear = outerwears.length > 0 && Math.random() > 0.5 ? outerwears[Math.floor(Math.random() * outerwears.length)] : null;
+
+    const newSelection: string[] = [chosenTop.id, chosenBottom.id];
+    if (chosenShoes) newSelection.push(chosenShoes.id);
+    if (chosenOuterwear) newSelection.push(chosenOuterwear.id);
+
+    setSelectedIds(newSelection);
+    if (!name) setName(`${chosenTop.name} & ${chosenBottom.name}`);
+    setToast('✨ Magic outfit generated!');
   };
 
   const filteredItems = items.filter(i => {
@@ -85,7 +111,31 @@ export default function OutfitBuilderModal({ initialOutfit, onClose }: Props) {
           onClick={e => e.stopPropagation()}
         >
           <div className="modal-header">
-            <span className="modal-title">{initialOutfit ? 'Edit Outfit' : 'Build Outfit'}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span className="modal-title">{initialOutfit ? 'Edit Outfit' : 'Build Outfit'}</span>
+              <button
+                type="button"
+                onClick={handleMagicMatch}
+                className="btn"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  padding: '3px 10px',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  background: 'var(--accent-subtle)',
+                  color: 'var(--accent)',
+                  border: '1px solid var(--accent)',
+                  borderRadius: 'var(--radius-pill)',
+                  cursor: 'pointer'
+                }}
+                title="Automatically select matching Top, Bottom & Shoes"
+              >
+                <Wand2 size={12} />
+                <span>Auto Match</span>
+              </button>
+            </div>
             <button id="builder-close" className="modal-close" onClick={onClose}>✕</button>
           </div>
 

@@ -63,6 +63,14 @@ export default function InsightsSection() {
       return item.createdAt < sixMonthsAgo && lastWorn < sixMonthsAgo;
     });
 
+    // Utilization rate (items worn in last 30 days)
+    const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+    const wornLast30Days = items.filter(item => {
+      if (!item.wearLogs || item.wearLogs.length === 0) return false;
+      return item.wearLogs.some(t => t >= thirtyDaysAgo);
+    });
+    const utilizationRate = Math.round((wornLast30Days.length / Math.max(1, items.length)) * 100);
+
     return {
       topItems,
       catCounts,
@@ -74,7 +82,8 @@ export default function InsightsSection() {
       bestValue,
       worstValue,
       topColors,
-      hibernating
+      hibernating,
+      utilizationRate
     };
   }, [items, outfits]);
 
@@ -102,6 +111,21 @@ export default function InsightsSection() {
           <div className="insight-card__sub-val">Wardrobe Value</div>
           <div style={{ marginTop: 8, fontSize: 11, color: 'var(--accent)', fontWeight: 700 }}>
             AVG CPW: {formatPrice(stats.avgCPW)}
+          </div>
+        </div>
+
+        <div className="insight-card">
+          <div className="insight-card__title">Circularity Score</div>
+          <div className="insight-card__main-val">{stats.utilizationRate}%</div>
+          <div className="insight-card__sub-val">Worn This Month</div>
+          <div className="insight-card__progress-track" style={{ marginTop: 8 }}>
+            <div 
+              className="insight-card__progress-bar" 
+              style={{
+                width: `${stats.utilizationRate}%`,
+                background: stats.utilizationRate >= 50 ? 'var(--accent-gradient)' : 'linear-gradient(90deg, #f59e0b, #ef4444)'
+              }} 
+            />
           </div>
         </div>
       </div>

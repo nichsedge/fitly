@@ -13,8 +13,13 @@ import Toast from './Toast';
 import { triggerHaptic } from '../lib/haptics';
 import { Sparkles, RefreshCw, CategoryIcon, Grid, List, CheckCircle2 } from './AppIcon';
 import { ResolvedImage } from './ResolvedImage';
+import { usePersistentState } from '../lib/hooks/usePersistentState';
 
 type SortOption = 'newest' | 'oldest' | 'name' | 'most-worn' | 'recently-worn' | 'items-count';
+
+const OUTFIT_SORT_OPTIONS: SortOption[] = [
+  'newest', 'oldest', 'name', 'most-worn', 'recently-worn', 'items-count'
+];
 
 export default function OutfitsView() {
   const { outfits, addOutfit } = useOutfits();
@@ -24,7 +29,7 @@ export default function OutfitsView() {
   const [buildingOutfit, setBuildingOutfit] = useState(false);
   const [editingOutfit, setEditingOutfit] = useState<Outfit | null>(null);
   const [selectedOutfit, setSelectedOutfit] = useState<Outfit | null>(null);
-  const [sortBy, setSortBy] = useState<SortOption>('newest');
+  const [sortBy, setSortBy] = usePersistentState<SortOption>('fitly_outfits_sort_by', 'newest', OUTFIT_SORT_OPTIONS);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [toast, setToast] = useState('');
 
