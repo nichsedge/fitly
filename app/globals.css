@@ -108,12 +108,14 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   height: 100%;
+  width: 100%;
   transition: background 0.3s ease, color 0.3s ease;
 }
 
 body {
   min-height: 100%;
   min-height: 100dvh;
+  width: 100%;
   background: var(--bg-0);
   overflow-x: hidden;
   transition: background 0.3s ease, color 0.3s ease;
@@ -141,9 +143,11 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
+  width: 100%;
   max-width: 480px;
   margin: 0 auto;
   position: relative;
+  box-sizing: border-box;
   background: var(--bg-0);
   background-image:
     radial-gradient(circle at 0% 0%, var(--accent-subtle), transparent 50%),
@@ -156,6 +160,8 @@ body {
   position: sticky;
   top: 0;
   z-index: 40;
+  width: 100%;
+  box-sizing: border-box;
   background: var(--header-bg);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
