@@ -9,6 +9,7 @@ import DailyOutfitBuilder from './DailyOutfitBuilder';
 import { v4 as uuidv4 } from 'uuid';
 import { ImageService } from '../services/ImageService';
 import { CategoryIcon, Camera, Wand2, Shirt, Trash2, Edit, CheckCircle2, X } from './AppIcon';
+import { ResolvedImage } from './ResolvedImage';
 
 interface Props {
   item: ClothingItem;
@@ -299,7 +300,7 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
                       }}
                       role="button"
                     >
-                      <img
+                      <ResolvedImage
                         src={img}
                         alt={`${item.name} ${idx + 1}`}
                         className="item-detail__image"

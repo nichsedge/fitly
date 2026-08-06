@@ -135,7 +135,7 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <main style={{ flex: 1, overflowY: 'auto' }}>
+      <main style={{ flex: 1, overflowY: 'auto', width: '100%', minWidth: 0 }}>
         <div key={activeTab} className="tab-transition">
           {activeTab === 'wardrobe' && (
             <ErrorBoundary>
