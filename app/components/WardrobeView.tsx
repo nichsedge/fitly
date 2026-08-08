@@ -31,10 +31,10 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
   const [activeStatus, setActiveStatus] = useState<string>('all');
   const [activeCondition, setActiveCondition] = useState<string>('all');
   const [activeColor, setActiveColor] = useState<string>('all');
-  const [gridDensity, setGridDensity] = useState<'normal' | 'compact'>('normal');
+  const [gridDensity, setGridDensity] = usePersistentState<'normal' | 'compact'>('fitly_wardrobe_grid_density', 'normal', ['normal', 'compact']);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = usePersistentState<WardrobeSortOption>('fitly_wardrobe_sort_by', 'newest', WARDROBE_SORT_OPTIONS);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = usePersistentState<'grid' | 'list'>('fitly_wardrobe_view_mode', 'grid', ['grid', 'list']);
   const [selectedItem, setSelectedItem] = useState<ClothingItem | null>(null);
   const [loadingSample, setLoadingSample] = useState(false);
   const [toast, setToast] = useState('');

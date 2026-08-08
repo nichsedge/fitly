@@ -34,5 +34,12 @@ export function ResolvedImage({ src, fallback, ...props }: ResolvedImageProps) {
   }
 
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={resolvedSrc} {...props} />;
+  return (
+    <img
+      src={resolvedSrc}
+      {...props}
+      style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover', ...props.style }}
+    />
+  );
 }
+

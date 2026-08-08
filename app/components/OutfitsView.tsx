@@ -30,7 +30,7 @@ export default function OutfitsView() {
   const [editingOutfit, setEditingOutfit] = useState<Outfit | null>(null);
   const [selectedOutfit, setSelectedOutfit] = useState<Outfit | null>(null);
   const [sortBy, setSortBy] = usePersistentState<SortOption>('fitly_outfits_sort_by', 'newest', OUTFIT_SORT_OPTIONS);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = usePersistentState<'grid' | 'list'>('fitly_outfits_view_mode', 'grid', ['grid', 'list']);
   const [toast, setToast] = useState('');
 
   // Daily suggestion state
@@ -142,31 +142,76 @@ export default function OutfitsView() {
 
           {currentSuggestion.length > 0 ? (
             <div>
-              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${currentSuggestion.length}, 1fr)`, gap: 8, marginBottom: 12 }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: `repeat(auto-fit, minmax(76px, 1fr))`,
+                gap: 'var(--space-3)',
+                marginBottom: 'var(--space-4)',
+              }}>
                 {currentSuggestion.map(item => {
                   return (
                     <div
                       key={item.id}
                       style={{
-                        background: 'var(--bg-3)',
-                        borderRadius: 'var(--radius-md)',
-                        padding: 8,
+                        background: 'var(--surface)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-lg)',
+                        padding: 6,
                         textAlign: 'center',
                         display: 'flex',
                         flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: 4
+                        gap: 6,
+                        boxSizing: 'border-box',
+                        overflow: 'hidden',
+                        position: 'relative'
                       }}
                     >
-                      <div style={{ width: 40, height: 40, borderRadius: 'var(--radius-sm)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
+                      {/* Image Container with 1:1 Aspect Ratio */}
+                      <div style={{
+                        width: '100%',
+                        aspectRatio: '1',
+                        borderRadius: 'calc(var(--radius-lg) - 4px)',
+                        background: 'var(--bg-3)',
+                        overflow: 'hidden',
+                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
                         <ResolvedImage
                           src={item.images && item.images[0]}
                           alt={item.name}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          fallback={<CategoryIcon category={item.category} size={20} />}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                          fallback={<CategoryIcon category={item.category} size={24} />}
                         />
+                        <span style={{
+                          position: 'absolute',
+                          bottom: 3,
+                          left: 3,
+                          background: 'rgba(0, 0, 0, 0.65)',
+                          backdropFilter: 'blur(4px)',
+                          color: '#fff',
+                          fontSize: 9,
+                          fontWeight: 700,
+                          padding: '1px 5px',
+                          borderRadius: 4,
+                          textTransform: 'capitalize',
+                          lineHeight: 1.2
+                        }}>
+                          {item.category}
+                        </span>
                       </div>
-                      <div style={{ fontSize: 11, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>
+                      
+                      <div style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: 'var(--text-primary)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        width: '100%',
+                        padding: '0 2px'
+                      }}>
                         {item.name}
                       </div>
                     </div>
@@ -176,10 +221,10 @@ export default function OutfitsView() {
 
               <button
                 className="btn btn-ghost"
-                style={{ width: '100%', padding: '8px', fontSize: 12, fontWeight: 700, background: 'var(--accent-subtle)', color: 'var(--accent)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                style={{ width: '100%', padding: '10px', fontSize: 13, fontWeight: 700, background: 'var(--accent-subtle)', color: 'var(--accent)', border: '1px solid rgba(59, 130, 246, 0.2)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                 onClick={handleSaveSuggestion}
               >
-                <CheckCircle2 size={14} />
+                <CheckCircle2 size={16} />
                 <span>Save Suggestion as Outfit</span>
               </button>
             </div>

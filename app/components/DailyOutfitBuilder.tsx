@@ -135,8 +135,7 @@ export default function DailyOutfitBuilder({ startingItem, onClose }: Props) {
                       overflowX: 'auto', 
                       paddingBottom: 'var(--space-2)',
                       scrollSnapType: 'x mandatory',
-                      margin: '0 -var(--space-6)',
-                      padding: '0 var(--space-6) var(--space-2) var(--space-6)'
+                      scrollbarWidth: 'thin'
                     }}>
                       {catItems.map(item => {
                         const isSelected = selectedItems[cat] === item.id;
@@ -145,14 +144,20 @@ export default function DailyOutfitBuilder({ startingItem, onClose }: Props) {
                             key={item.id}
                             onClick={() => handleSelect(cat, item.id)}
                             style={{ 
-                              width: 100, 
+                              width: 104, 
                               flexShrink: 0, 
                               scrollSnapAlign: 'start',
                               cursor: 'pointer',
-                              border: isSelected ? '2px solid var(--accent)' : '2px solid transparent',
+                              background: isSelected ? 'rgba(59, 130, 246, 0.12)' : 'var(--surface)',
+                              border: `2px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
                               borderRadius: 'var(--radius-lg)',
-                              padding: 2,
-                              transition: 'all 0.2s'
+                              padding: 6,
+                              boxSizing: 'border-box',
+                              transition: 'all 0.15s ease',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 6,
+                              overflow: 'hidden'
                             }}
                           >
                             <div style={{ 
@@ -161,12 +166,15 @@ export default function DailyOutfitBuilder({ startingItem, onClose }: Props) {
                               borderRadius: 'calc(var(--radius-lg) - 4px)', 
                               background: 'var(--bg-3)',
                               overflow: 'hidden',
-                              position: 'relative'
+                              position: 'relative',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
                             }}>
                               <ResolvedImage
                                 src={item.images && item.images[0]}
                                 alt={item.name}
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                                 fallback={
                                   <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     <CategoryIcon category={item.category} size={28} />
@@ -175,10 +183,37 @@ export default function DailyOutfitBuilder({ startingItem, onClose }: Props) {
                               />
                               
                               {isSelected && (
-                                <div style={{ position: 'absolute', top: 4, right: 4, background: 'var(--accent)', color: 'var(--bg-0)', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 'bold' }}>✓</div>
+                                <div style={{
+                                  position: 'absolute',
+                                  top: 4,
+                                  right: 4,
+                                  background: 'var(--accent)',
+                                  color: '#fff',
+                                  borderRadius: '50%',
+                                  width: 22,
+                                  height: 22,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: 12,
+                                  fontWeight: 'bold',
+                                  zIndex: 3,
+                                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                                }}>
+                                  ✓
+                                </div>
                               )}
                             </div>
-                            <div style={{ fontSize: 11, fontWeight: 500, textAlign: 'center', marginTop: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <div style={{
+                              fontSize: 11,
+                              fontWeight: 600,
+                              color: isSelected ? 'var(--accent)' : 'var(--text-primary)',
+                              textAlign: 'center',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              width: '100%'
+                            }}>
                               {item.name}
                             </div>
                           </div>
