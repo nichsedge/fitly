@@ -17,8 +17,12 @@ export interface CalendarDay {
   isPast: boolean;
   isFuture: boolean;
   plannedOutfits: PlannedOutfit[];
+  wornOutfits: Outfit[];
+  wornItems: ClothingItem[];
+  washedItems: ClothingItem[];
   outfitNames: string[];
   itemCount: number;
+  totalLogsCount: number;
 }
 
 export interface DragItem {
@@ -27,18 +31,40 @@ export interface DragItem {
   dateKey?: string; // source date for moving existing plans
 }
 
-export interface CalendarDayProps {
-  day: CalendarDay;
-  onDrop: (dateKey: string, item: DragItem) => void;
-  onClick: (dateKey: string) => void;
-  outfits: Outfit[];
-  items: ClothingItem[];
-  isDraggingOver: boolean;
-  draggedItem: DragItem | null;
+export interface DayLogSummary {
+  dateKey: string;
+  dateObj: Date;
+  plannedOutfits: PlannedOutfit[];
+  wornOutfits: Outfit[];
+  wornItems: ClothingItem[];
+  washedItems: ClothingItem[];
 }
 
 /**
- * Get the start of week (Monday) for a given date
+ * Format date as YYYY-MM-DD in local time
+ */
+export function formatDateKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Convert timestamp (ms) to YYYY-MM-DD date key
+ */
+export function timestampToDateKey(ts: number): string {
+  return formatDateKey(new Date(ts));
+}
+
+/**
+ * Convert YYYY-MM-DD date key to a timestamp (noon local time)
+ */
+export function dateKeyToTimestamp(dateKey: string): number {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const d = new Date(year, month - 1, day, 12, 0, 0, 0);
+  return d.getTime();
+}
+
+/**
+ * Get start of week (Monday) for a given date
  */
 export function getWeekStart(date: Date): Date {
   const d = new Date(date);
@@ -50,7 +76,7 @@ export function getWeekStart(date: Date): Date {
 }
 
 /**
- * Get the end of week (Sunday) for a given date
+ * Get end of week (Sunday) for a given date
  */
 export function getWeekEnd(date: Date): Date {
   const start = getWeekStart(date);
@@ -61,9 +87,59 @@ export function getWeekEnd(date: Date): Date {
 }
 
 /**
- * Generate a calendar week (Mon-Sun) for a given date
+ * Get day log summary for a specific dateKey
  */
-export function getCalendarWeek(date: Date, plans: PlannedOutfit[], outfits: Outfit[]): CalendarWeek {
+export function getDayLogSummary(
+  dateKey: string,
+  plans: PlannedOutfit[] = [],
+  outfits: Outfit[] = [],
+  items: ClothingItem[] = []
+): DayLogSummary {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const dateObj = new Date(year, month - 1, day, 12, 0, 0, 0);
+
+  // Planned outfits
+  const plannedOutfits = plans.filter(p => p.date === dateKey);
+
+  // Worn outfits matching dateKey
+  const wornOutfits = outfits.filter(outfit => {
+    const logs = outfit.wearLogs || (outfit.lastWornAt ? [outfit.lastWornAt] : []);
+    return logs.some(ts => timestampToDateKey(ts) === dateKey);
+  });
+
+  // Worn items matching dateKey (excluding items worn as part of a worn outfit today to avoid duplication)
+  const wornOutfitItemIds = new Set(wornOutfits.flatMap(o => o.itemIds));
+  const wornItems = items.filter(item => {
+    if (wornOutfitItemIds.has(item.id)) return false;
+    const logs = item.wearLogs || (item.lastWornAt ? [item.lastWornAt] : []);
+    return logs.some(ts => timestampToDateKey(ts) === dateKey);
+  });
+
+  // Washed items matching dateKey
+  const washedItems = items.filter(item => {
+    const washLogs = item.washLogs || (item.lastWashedAt ? [item.lastWashedAt] : []);
+    return washLogs.some(ts => timestampToDateKey(ts) === dateKey);
+  });
+
+  return {
+    dateKey,
+    dateObj,
+    plannedOutfits,
+    wornOutfits,
+    wornItems,
+    washedItems,
+  };
+}
+
+/**
+ * Generate a calendar week (Mon-Sun) for a given date, including wear and wash logs
+ */
+export function getCalendarWeek(
+  date: Date, 
+  plans: PlannedOutfit[] = [], 
+  outfits: Outfit[] = [], 
+  items: ClothingItem[] = []
+): CalendarWeek {
   const startDate = getWeekStart(date);
   const endDate = getWeekEnd(date);
   const today = new Date();
@@ -80,28 +156,34 @@ export function getCalendarWeek(date: Date, plans: PlannedOutfit[], outfits: Out
     const isPast = dayDate < today;
     const isFuture = dayDate > today;
     
-    // Get planned outfits for this day
-    const dayPlans = plans.filter(p => p.date === dateKey);
+    const summary = getDayLogSummary(dateKey, plans, outfits, items);
     
-    // Get outfit names and item counts
-    const outfitNames = dayPlans
-      .filter(p => p.outfitId)
-      .map(p => outfits.find(o => o.id === p.outfitId)?.name)
-      .filter(Boolean) as string[];
+    const outfitNames = [
+      ...summary.wornOutfits.map(o => o.name),
+      ...summary.plannedOutfits
+        .filter(p => p.outfitId)
+        .map(p => outfits.find(o => o.id === p.outfitId)?.name)
+        .filter(Boolean) as string[]
+    ];
     
-    const itemCount = dayPlans.reduce((count, plan) => count + plan.itemIds.length, 0);
+    const itemCount = summary.wornItems.length + summary.plannedOutfits.reduce((c, p) => c + p.itemIds.length, 0);
+    const totalLogsCount = summary.wornOutfits.length + summary.wornItems.length + summary.washedItems.length + summary.plannedOutfits.length;
 
     days.push({
       date: dayDate,
       dateKey,
-      dayOfWeek: dayDate.getDay(), // 0 = Sunday, 1 = Monday...
+      dayOfWeek: dayDate.getDay(),
       isToday,
       isCurrentMonth: dayDate.getMonth() === date.getMonth(),
       isPast,
       isFuture,
-      plannedOutfits: dayPlans,
+      plannedOutfits: summary.plannedOutfits,
+      wornOutfits: summary.wornOutfits,
+      wornItems: summary.wornItems,
+      washedItems: summary.washedItems,
       outfitNames,
       itemCount,
+      totalLogsCount,
     });
   }
 
@@ -110,13 +192,6 @@ export function getCalendarWeek(date: Date, plans: PlannedOutfit[], outfits: Out
     endDate,
     days,
   };
-}
-
-/**
- * Format date as YYYY-MM-DD
- */
-export function formatDateKey(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 /**
@@ -203,7 +278,7 @@ export function createPlanFromOutfit(outfitId: string, dateKey: string, note?: s
     id: crypto.randomUUID(),
     date: dateKey,
     outfitId,
-    itemIds: [], // Will be populated from the outfit
+    itemIds: [],
     note,
   };
 }
