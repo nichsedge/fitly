@@ -3,14 +3,12 @@
 import { useMemo, useState, useCallback } from 'react';
 import { useWardrobe } from '../contexts/WardrobeContext';
 import { useOutfits } from '../contexts/OutfitContext';
-import { ClothingItem, Outfit, Category } from '../lib/types';
-import ItemDetailModal from './ItemDetailModal';
-import OutfitDetailModal from './OutfitDetailModal';
-import OutfitBuilderModal from './OutfitBuilderModal';
+import { ClothingItem, Outfit } from '../lib/types';
 import Toast from './Toast';
 import { ResolvedImage } from './ResolvedImage';
 import { 
-  getCalendarWeek, 
+  getCalendarWeek,
+  getCalendarMonth,
   formatDateKey, 
   formatDateDisplay, 
   getDayAbbreviation, 
@@ -18,6 +16,9 @@ import {
   getPreviousWeek,
   getNextWeek,
   getCurrentWeek,
+  getPreviousMonth,
+  getNextMonth,
+  getMonthLabel,
   WEEKDAYS,
   CalendarDay,
   DragItem,
@@ -33,7 +34,6 @@ import {
   Shirt, 
   WashingMachine, 
   Calendar as CalendarIcon, 
-  Trash2, 
   CategoryIcon,
   Plus,
   Search,
@@ -41,10 +41,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Grid,
-  List,
   History,
-  Check,
-  X
 } from './AppIcon';
 import {
   DndContext,
@@ -97,10 +94,10 @@ function DraggableOutfit({ outfit, dateKey, onDragStart }: DraggableOutfitProps)
         onDragStart({ type: 'outfit', id: outfit.id, dateKey });
       }}
     >
-      <div style={{ padding: '8px 12px', background: 'var(--surface)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ padding: '10px 14px', background: 'var(--surface)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
         <Sparkles size={16} color="var(--accent)" />
-        <span style={{ fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{outfit.name}</span>
-        {dateKey && <span style={{ fontSize: 10, color: 'var(--text-muted)', background: 'var(--bg-3)', padding: '1px 6px', borderRadius: 4 }}>Planned: {dateKey}</span>}
+        <span style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{outfit.name}</span>
+        {dateKey && <span style={{ fontSize: 10, color: 'var(--text-muted)', background: 'var(--bg-3)', padding: '1px 6px', borderRadius: 4 }}>{dateKey}</span>}
       </div>
     </div>
   );
@@ -138,11 +135,11 @@ function DraggableItem({ item, dateKey, onDragStart }: DraggableItemProps) {
         onDragStart({ type: 'item', id: item.id, dateKey });
       }}
     >
-      <div {...attributes} {...listeners} style={{ width: 56, height: 56, borderRadius: 'var(--radius-md)', background: 'var(--bg-3)', overflow: 'hidden', marginBottom: 4, border: '1px solid var(--border)' }}>
+      <div {...attributes} {...listeners} style={{ width: 60, height: 60, borderRadius: 'var(--radius-md)', background: 'var(--bg-3)', overflow: 'hidden', marginBottom: 4, border: '1px solid var(--border)' }}>
         <ResolvedImage
           src={item.images && item.images[0]}
           alt={item.name}
-          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           fallback={
             <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}>
               <CategoryIcon category={item.category} size={22} />
@@ -150,21 +147,61 @@ function DraggableItem({ item, dateKey, onDragStart }: DraggableItemProps) {
           }
         />
       </div>
-      <div style={{ fontSize: 10, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center', width: 56 }}>{item.name}</div>
+      <div style={{ fontSize: 10, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center', width: 60 }}>{item.name}</div>
     </div>
   );
 }
 
-/* ─── Calendar Day Cell Component ─── */
-interface CalendarDayCellProps {
+/* ─── Month Day Cell Component ─── */
+interface MonthDayCellProps {
+  day: CalendarDay;
+  onClick: (dateKey: string) => void;
+}
+
+function MonthDayCell({ day, onClick }: MonthDayCellProps) {
+  const wornCount = day.wornOutfits.length + day.wornItems.length;
+  const plannedCount = day.plannedOutfits.length;
+  const washedCount = day.washedItems.length;
+
+  return (
+    <div
+      onClick={() => onClick(day.dateKey)}
+      className={`log-month-cell ${!day.isCurrentMonth ? 'is-other-month' : ''} ${day.isToday ? 'is-today' : ''}`}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{
+          fontSize: 12,
+          fontWeight: day.isToday ? 800 : 600,
+          color: day.isToday ? 'var(--accent)' : (day.isCurrentMonth ? 'var(--text-primary)' : 'var(--text-muted)'),
+        }}>
+          {day.date.getDate()}
+        </span>
+      </div>
+
+      <div className="log-month-dots">
+        {wornCount > 0 && <div className="log-dot log-dot--worn" title={`${wornCount} worn`} />}
+        {plannedCount > 0 && <div className="log-dot log-dot--planned" title={`${plannedCount} planned`} />}
+        {washedCount > 0 && <div className="log-dot log-dot--washed" title={`${washedCount} washed`} />}
+      </div>
+
+      {wornCount > 0 && (
+        <div style={{ fontSize: 9, fontWeight: 700, color: '#10b981', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {day.wornOutfits[0]?.name || `${wornCount} Worn`}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Week Day Cell Component ─── */
+interface WeekDayCellProps {
   day: CalendarDay;
   onClick: (dateKey: string) => void;
   isDragOver: boolean;
 }
 
-function CalendarDayCell({ day, onClick, isDragOver }: CalendarDayCellProps) {
+function WeekDayCell({ day, onClick, isDragOver }: WeekDayCellProps) {
   const isToday = day.isToday;
-  
   const wornCount = day.wornOutfits.length + day.wornItems.length;
   const plannedCount = day.plannedOutfits.length;
   const washedCount = day.washedItems.length;
@@ -173,9 +210,7 @@ function CalendarDayCell({ day, onClick, isDragOver }: CalendarDayCellProps) {
     <div
       onClick={() => onClick(day.dateKey)}
       className={`log-day-cell ${isToday ? 'is-today' : ''} ${isDragOver ? 'drag-over' : ''}`}
-      data-date={day.dateKey}
     >
-      {/* Header: Weekday & Date number */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontSize: 11, fontWeight: 700, color: isToday ? 'var(--accent)' : 'var(--text-muted)', textTransform: 'uppercase' }}>
           {getDayAbbreviation(day.date)}
@@ -195,31 +230,29 @@ function CalendarDayCell({ day, onClick, isDragOver }: CalendarDayCellProps) {
         </span>
       </div>
 
-      {/* Badges overview */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 3, margin: '6px 0' }}>
         {wornCount > 0 && (
-          <span className="log-badge log-badge--worn" title={`${wornCount} item(s)/outfit(s) worn`}>
+          <span className="log-badge log-badge--worn">
             ✓ {wornCount} Worn
           </span>
         )}
         {plannedCount > 0 && (
-          <span className="log-badge log-badge--planned" title={`${plannedCount} planned`}>
+          <span className="log-badge log-badge--planned">
             📅 {plannedCount} Plan
           </span>
         )}
         {washedCount > 0 && (
-          <span className="log-badge log-badge--washed" title={`${washedCount} item(s) washed`}>
+          <span className="log-badge log-badge--washed">
             🧺 {washedCount} Washed
           </span>
         )}
         {day.totalLogsCount === 0 && (
-          <div style={{ fontSize: 10, color: 'var(--text-muted)', opacity: 0.6, textAlign: 'center', padding: '8px 0' }}>
-            + Log / Plan
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', opacity: 0.6, textAlign: 'center', padding: '6px 0' }}>
+            + Inspect
           </div>
         )}
       </div>
 
-      {/* Primary preview image if worn or planned */}
       {day.wornOutfits.length > 0 && (
         <div style={{ fontSize: 10, color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 500 }}>
           {day.wornOutfits[0].name}
@@ -298,12 +331,11 @@ function LogWearModal({ isOpen, onClose, initialDateKey, outfits, items, onSaveW
         </div>
 
         <div style={{ padding: 'var(--space-4)', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-          {/* Date Selector */}
           <div>
             <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
               Select Wear Date
             </label>
-            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <button
                 className={`btn ${dateKey === todayKey ? 'btn-primary' : 'btn-ghost'}`}
                 style={{ padding: '6px 12px', fontSize: 12 }}
@@ -334,23 +366,21 @@ function LogWearModal({ isOpen, onClose, initialDateKey, outfits, items, onSaveW
             </div>
           </div>
 
-          {/* Mode Switcher */}
           <div className="log-segmented-tabs">
             <button
               className={`log-seg-btn ${mode === 'outfit' ? 'active' : ''}`}
               onClick={() => setMode('outfit')}
             >
-              <Sparkles size={14} /> Log Outfit
+              <Sparkles size={14} /> Outfit
             </button>
             <button
               className={`log-seg-btn ${mode === 'items' ? 'active' : ''}`}
               onClick={() => setMode('items')}
             >
-              <Shirt size={14} /> Log Items
+              <Shirt size={14} /> Individual Items
             </button>
           </div>
 
-          {/* Search bar */}
           <div style={{ position: 'relative' }}>
             <input
               type="text"
@@ -362,7 +392,6 @@ function LogWearModal({ isOpen, onClose, initialDateKey, outfits, items, onSaveW
             <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: 12, top: 10 }} />
           </div>
 
-          {/* Outfit Selection */}
           {mode === 'outfit' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 240, overflowY: 'auto' }}>
               {filteredOutfits.map(outfit => {
@@ -386,7 +415,7 @@ function LogWearModal({ isOpen, onClose, initialDateKey, outfits, items, onSaveW
                       <ResolvedImage
                         src={outfit.itemIds.length > 0 ? items.find(i => i.id === outfit.itemIds[0])?.images?.[0] : undefined}
                         alt=""
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                         fallback={<div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%', fontSize: 18 }}>👗</div>}
                       />
                     </div>
@@ -401,7 +430,6 @@ function LogWearModal({ isOpen, onClose, initialDateKey, outfits, items, onSaveW
             </div>
           )}
 
-          {/* Items Selection */}
           {mode === 'items' && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, maxHeight: 260, overflowY: 'auto' }}>
               {filteredItems.map(item => {
@@ -424,7 +452,7 @@ function LogWearModal({ isOpen, onClose, initialDateKey, outfits, items, onSaveW
                       <ResolvedImage
                         src={item.images && item.images[0]}
                         alt={item.name}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                         fallback={<CategoryIcon category={item.category} size={22} />}
                       />
                     </div>
@@ -537,7 +565,7 @@ function LogLaundryModal({ isOpen, onClose, initialDateKey, items, onSaveWash }:
                     <ResolvedImage
                       src={item.images && item.images[0]}
                       alt={item.name}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                       fallback={<CategoryIcon category={item.category} size={22} />}
                     />
                   </div>
@@ -640,7 +668,7 @@ function DayDetailModal({
                         return (
                           <div key={item.id} style={{ width: 48, flexShrink: 0, textAlign: 'center' }}>
                             <div style={{ width: 48, height: 48, borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', overflow: 'hidden' }}>
-                              <ResolvedImage src={item.images?.[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} fallback={<CategoryIcon category={item.category} size={20} />} />
+                              <ResolvedImage src={item.images?.[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} fallback={<CategoryIcon category={item.category} size={20} />} />
                             </div>
                             <div style={{ fontSize: 9, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 2 }}>{item.name}</div>
                           </div>
@@ -669,7 +697,7 @@ function DayDetailModal({
                       ✕
                     </button>
                     <div style={{ width: '100%', aspectRatio: '1', borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', overflow: 'hidden', marginBottom: 4 }}>
-                      <ResolvedImage src={item.images?.[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} fallback={<CategoryIcon category={item.category} size={20} />} />
+                      <ResolvedImage src={item.images?.[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} fallback={<CategoryIcon category={item.category} size={20} />} />
                     </div>
                     <div style={{ fontSize: 10, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>{item.name}</div>
                   </div>
@@ -742,9 +770,13 @@ function DayDetailModal({
 /* ─── MAIN CALENDAR / LOG TAB ─── */
 export default function CalendarTab() {
   const { items, updateItem } = useWardrobe();
-  const { outfits, plans, updateOutfit, deletePlan, updatePlan, addPlan } = useOutfits();
+  const { outfits, plans, updateOutfit, deletePlan, updatePlan, addPlan, recordOutfitWear } = useOutfits();
 
-  const [activeView, setActiveView] = useState<'grid' | 'history' | 'assign'>('grid');
+  const [activeView, setActiveView] = useState<'month' | 'week' | 'history' | 'assign'>('month');
+  const [currentMonthState, setCurrentMonthState] = useState<{ year: number; month: number }>(() => {
+    const today = new Date();
+    return { year: today.getFullYear(), month: today.getMonth() };
+  });
   const [currentWeek, setCurrentWeek] = useState<Date>(getCurrentWeek());
   const [toast, setToast] = useState('');
 
@@ -764,8 +796,14 @@ export default function CalendarTab() {
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 10 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  /* ── Month & Week Data ── */
+  const calendarMonth = useMemo(() => 
+    getCalendarMonth(currentMonthState.year, currentMonthState.month, plans, outfits, items),
+    [currentMonthState, plans, outfits, items]
   );
 
   const calendarWeek = useMemo(() => 
@@ -859,7 +897,7 @@ export default function CalendarTab() {
           const item = items.find(i => i.id === id);
           if (item) {
             const itemLogs = [...(item.wearLogs || []), ts];
-            await updateItem({ ...item, wearLogs: itemLogs, lastWornAt: Math.max(item.lastWornAt || 0, ts) });
+            await updateItem({ ...item, wearLogs: itemLogs, lastWornAt: Math.max(item.lastWornAt || 0, ts), status: 'dirty' });
           }
         }
         setToast(`✓ Logged wear for ${outfit.name}`);
@@ -869,13 +907,12 @@ export default function CalendarTab() {
         const item = items.find(i => i.id === id);
         if (item) {
           const itemLogs = [...(item.wearLogs || []), ts];
-          await updateItem({ ...item, wearLogs: itemLogs, lastWornAt: Math.max(item.lastWornAt || 0, ts) });
+          await updateItem({ ...item, wearLogs: itemLogs, lastWornAt: Math.max(item.lastWornAt || 0, ts), status: 'dirty' });
         }
       }
       setToast(`✓ Logged wear for ${itemIds.length} item(s)`);
     }
 
-    // Clear plan for this date if exists
     const matchingPlan = plans.find(p => p.date === dateKey && (p.outfitId === outfitId || p.itemIds.some(id => itemIds?.includes(id))));
     if (matchingPlan) {
       await deletePlan(matchingPlan.id);
@@ -955,7 +992,7 @@ export default function CalendarTab() {
     setToast('Plan cancelled');
   };
 
-  /* ── Drag and Drop handlers ── */
+  /* ── Drag and Drop ── */
   const handleDragStart = useCallback((item: DragItem) => {
     setDraggedItem(item);
   }, []);
@@ -1021,15 +1058,15 @@ export default function CalendarTab() {
     >
       <div className="page-content animate-fade-in log-page-container">
         
-        {/* Header & Controls */}
+        {/* Header & Main Controls */}
         <div className="log-view-header">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
             <div>
               <h1 className="section-title" style={{ fontSize: 22, fontWeight: 800 }}>
                 Style Log & Calendar
               </h1>
               <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                Track daily outfits, plan looks & view laundry history
+                Track daily wear, full monthly calendar & laundry history
               </p>
             </div>
             
@@ -1046,25 +1083,31 @@ export default function CalendarTab() {
             </button>
           </div>
 
-          {/* Mode Segmented Controls */}
+          {/* Mode Switcher Tabs */}
           <div className="log-segmented-tabs">
             <button
-              className={`log-seg-btn ${activeView === 'grid' ? 'active' : ''}`}
-              onClick={() => setActiveView('grid')}
+              className={`log-seg-btn ${activeView === 'month' ? 'active' : ''}`}
+              onClick={() => setActiveView('month')}
             >
-              <Grid size={15} /> Weekly Calendar
+              <CalendarIcon size={15} /> Month View
+            </button>
+            <button
+              className={`log-seg-btn ${activeView === 'week' ? 'active' : ''}`}
+              onClick={() => setActiveView('week')}
+            >
+              <Grid size={15} /> Week View
             </button>
             <button
               className={`log-seg-btn ${activeView === 'history' ? 'active' : ''}`}
               onClick={() => setActiveView('history')}
             >
-              <History size={15} /> Style Log Feed
+              <History size={15} /> Style Feed
             </button>
             <button
               className={`log-seg-btn ${activeView === 'assign' ? 'active' : ''}`}
               onClick={() => setActiveView('assign')}
             >
-              <Sparkles size={15} /> Quick Drag & Plan
+              <Sparkles size={15} /> Drag & Plan
             </button>
           </div>
 
@@ -1100,10 +1143,63 @@ export default function CalendarTab() {
           </div>
         </div>
 
-        {/* VIEW 1: WEEKLY CALENDAR GRID */}
-        {activeView === 'grid' && (
+        {/* VIEW 1: FULL MONTH CALENDAR GRID */}
+        {activeView === 'month' && (
           <div>
-            {/* Week Navigator */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => setCurrentMonthState(getPreviousMonth(currentMonthState.year, currentMonthState.month))}
+                  style={{ padding: 6 }}
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>
+                  {calendarMonth.label}
+                </span>
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => setCurrentMonthState(getNextMonth(currentMonthState.year, currentMonthState.month))}
+                  style={{ padding: 6 }}
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+
+              <button
+                className="btn btn-ghost"
+                onClick={() => {
+                  const today = new Date();
+                  setCurrentMonthState({ year: today.getFullYear(), month: today.getMonth() });
+                }}
+                style={{ fontSize: 12, padding: '4px 10px' }}
+              >
+                Today
+              </button>
+            </div>
+
+            {/* Weekday Headers */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6, marginBottom: 6 }}>
+              {WEEKDAYS.map((d) => (
+                <div key={d} style={{ textAlign: 'center', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                  {d}
+                </div>
+              ))}
+            </div>
+
+            {/* Month Grid Cells */}
+            <div className="log-month-grid">
+              {calendarMonth.days.map(day => (
+                <MonthDayCell key={day.dateKey} day={day} onClick={handleDayClick} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* VIEW 2: WEEKLY CALENDAR GRID */}
+        {activeView === 'week' && (
+          <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <button className="btn btn-ghost" onClick={() => setCurrentWeek(getPreviousWeek(currentWeek))} style={{ padding: 6 }}>
@@ -1122,10 +1218,9 @@ export default function CalendarTab() {
               </button>
             </div>
 
-            {/* Grid */}
             <div className="log-calendar-grid">
               {calendarWeek.days.map(day => (
-                <CalendarDayCell
+                <WeekDayCell
                   key={day.dateKey}
                   day={day}
                   onClick={handleDayClick}
@@ -1136,10 +1231,9 @@ export default function CalendarTab() {
           </div>
         )}
 
-        {/* VIEW 2: LOG HISTORY FEED */}
+        {/* VIEW 3: STYLE LOG HISTORY FEED */}
         {activeView === 'history' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-            {/* History Search & Filter */}
             <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: 200, position: 'relative' }}>
                 <input
@@ -1171,10 +1265,9 @@ export default function CalendarTab() {
               </select>
             </div>
 
-            {/* Feed items */}
             {historyFeed.length === 0 ? (
               <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
-                <p style={{ fontSize: 14 }}>No style log history found for your filter.</p>
+                <p style={{ fontSize: 14 }}>No style log history found matching your filter.</p>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
@@ -1189,13 +1282,12 @@ export default function CalendarTab() {
                         style={{ fontSize: 11, padding: '2px 8px' }}
                         onClick={() => handleDayClick(day.dateKey)}
                       >
-                        Inspect / Edit
+                        Inspect Day
                       </button>
                     </div>
 
-                    {/* Worn Outfits */}
                     {day.wornOutfits.map(outfit => (
-                      <div key={outfit.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 8, background: 'var(--bg-2)', borderRadius: 'var(--radius-md)' }}>
+                      <div key={outfit.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 10, background: 'var(--bg-2)', borderRadius: 'var(--radius-md)' }}>
                         <Sparkles size={16} color="#10b981" />
                         <div style={{ flex: 1 }}>
                           <span style={{ fontSize: 13, fontWeight: 600 }}>Outfit: {outfit.name}</span>
@@ -1204,13 +1296,12 @@ export default function CalendarTab() {
                       </div>
                     ))}
 
-                    {/* Worn Items */}
                     {day.wornItems.length > 0 && (
                       <div style={{ display: 'flex', gap: 6, overflowX: 'auto' }}>
                         {day.wornItems.map(item => (
-                          <div key={item.id} style={{ width: 44, flexShrink: 0, textAlign: 'center' }}>
-                            <div style={{ width: 44, height: 44, borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', overflow: 'hidden' }}>
-                              <ResolvedImage src={item.images?.[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} fallback={<CategoryIcon category={item.category} size={18} />} />
+                          <div key={item.id} style={{ width: 48, flexShrink: 0, textAlign: 'center' }}>
+                            <div style={{ width: 48, height: 48, borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', overflow: 'hidden' }}>
+                              <ResolvedImage src={item.images?.[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} fallback={<CategoryIcon category={item.category} size={18} />} />
                             </div>
                             <div style={{ fontSize: 9, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 2 }}>{item.name}</div>
                           </div>
@@ -1218,9 +1309,8 @@ export default function CalendarTab() {
                       </div>
                     )}
 
-                    {/* Laundry */}
                     {day.washedItems.length > 0 && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 8, background: 'rgba(59, 130, 246, 0.08)', borderRadius: 'var(--radius-md)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 10, background: 'rgba(59, 130, 246, 0.08)', borderRadius: 'var(--radius-md)' }}>
                         <WashingMachine size={16} color="#3b82f6" />
                         <div style={{ flex: 1, fontSize: 12 }}>
                           Washed {day.washedItems.length} item(s) ({day.washedItems.map(i => i.name).join(', ')})
@@ -1235,7 +1325,7 @@ export default function CalendarTab() {
           </div>
         )}
 
-        {/* VIEW 3: QUICK DRAG & ASSIGN */}
+        {/* VIEW 4: QUICK DRAG & PLAN */}
         {activeView === 'assign' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
             <div>

@@ -2439,3 +2439,72 @@ div[tabindex="0"]:focus-visible {
 .log-search-input:focus {
   border-color: var(--accent);
 }
+
+/* Month Grid View Styles */
+.log-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+@media (max-width: 640px) {
+  .log-month-grid {
+    gap: 3px;
+  }
+}
+
+.log-month-cell {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 6px 4px;
+  min-height: 64px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.log-month-cell:hover {
+  border-color: var(--accent);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.log-month-cell.is-other-month {
+  opacity: 0.35;
+  background: var(--bg-2);
+}
+
+.log-month-cell.is-today {
+  border-color: var(--accent);
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.log-month-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  margin-top: 4px;
+}
+
+.log-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.log-dot--worn {
+  background: #10b981;
+}
+
+.log-dot--planned {
+  background: #8b5cf6;
+}
+
+.log-dot--washed {
+  background: #3b82f6;
+}

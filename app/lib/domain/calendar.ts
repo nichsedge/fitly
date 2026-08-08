@@ -240,6 +240,112 @@ export function getCurrentWeek(): Date {
   return getWeekStart(new Date());
 }
 
+export interface CalendarMonth {
+  year: number;
+  month: number;
+  label: string;
+  startDate: Date;
+  endDate: Date;
+  days: CalendarDay[];
+}
+
+/**
+ * Generate a full month calendar grid (including padded days from prev/next months)
+ */
+export function getCalendarMonth(
+  year: number,
+  month: number,
+  plans: PlannedOutfit[] = [],
+  outfits: Outfit[] = [],
+  items: ClothingItem[] = []
+): CalendarMonth {
+  const firstDayOfMonth = new Date(year, month, 1);
+  const lastDayOfMonth = new Date(year, month + 1, 0);
+
+  const startDate = getWeekStart(firstDayOfMonth);
+  const endDate = getWeekEnd(lastDayOfMonth);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const days: CalendarDay[] = [];
+  const current = new Date(startDate);
+
+  while (current <= endDate) {
+    const dayDate = new Date(current);
+    const dateKey = formatDateKey(dayDate);
+    const isToday = dayDate.getTime() === today.getTime();
+    const isPast = dayDate < today;
+    const isFuture = dayDate > today;
+    const isCurrentMonth = dayDate.getMonth() === month;
+
+    const summary = getDayLogSummary(dateKey, plans, outfits, items);
+
+    const outfitNames = [
+      ...summary.wornOutfits.map(o => o.name),
+      ...summary.plannedOutfits
+        .filter(p => p.outfitId)
+        .map(p => outfits.find(o => o.id === p.outfitId)?.name)
+        .filter(Boolean) as string[]
+    ];
+
+    const itemCount = summary.wornItems.length + summary.plannedOutfits.reduce((c, p) => c + p.itemIds.length, 0);
+    const totalLogsCount = summary.wornOutfits.length + summary.wornItems.length + summary.washedItems.length + summary.plannedOutfits.length;
+
+    days.push({
+      date: dayDate,
+      dateKey,
+      dayOfWeek: dayDate.getDay(),
+      isToday,
+      isCurrentMonth,
+      isPast,
+      isFuture,
+      plannedOutfits: summary.plannedOutfits,
+      wornOutfits: summary.wornOutfits,
+      wornItems: summary.wornItems,
+      washedItems: summary.washedItems,
+      outfitNames,
+      itemCount,
+      totalLogsCount,
+    });
+
+    current.setDate(current.getDate() + 1);
+  }
+
+  const label = firstDayOfMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  return {
+    year,
+    month,
+    label,
+    startDate,
+    endDate,
+    days,
+  };
+}
+
+/**
+ * Get month display label (e.g., "August 2026")
+ */
+export function getMonthLabel(year: number, month: number): string {
+  return new Date(year, month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
+/**
+ * Navigate to previous month
+ */
+export function getPreviousMonth(year: number, month: number): { year: number; month: number } {
+  if (month === 0) return { year: year - 1, month: 11 };
+  return { year, month: month - 1 };
+}
+
+/**
+ * Navigate to next month
+ */
+export function getNextMonth(year: number, month: number): { year: number; month: number } {
+  if (month === 11) return { year: year + 1, month: 0 };
+  return { year, month: month + 1 };
+}
+
 /**
  * Check if a date is in the past (before today)
  */

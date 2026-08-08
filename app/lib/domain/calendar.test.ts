@@ -7,6 +7,10 @@ import {
   getWeekEnd,
   getDayLogSummary,
   getCalendarWeek,
+  getCalendarMonth,
+  getMonthLabel,
+  getPreviousMonth,
+  getNextMonth,
 } from './calendar';
 import { ClothingItem, Outfit, PlannedOutfit } from '../types';
 
@@ -81,5 +85,17 @@ describe('calendar domain functions', () => {
     expect(week.days).toHaveLength(7);
     expect(week.days[0].dayOfWeek).toBe(1); // Monday
     expect(week.days[6].dayOfWeek).toBe(0); // Sunday
+  });
+
+  it('should generate full calendar month with 35 or 42 grid days', () => {
+    const month = getCalendarMonth(2026, 7, [], [], []); // August 2026
+    expect(month.days.length % 7).toBe(0);
+    expect(month.label).toBe('August 2026');
+  });
+
+  it('should navigate months backwards and forwards correctly', () => {
+    expect(getPreviousMonth(2026, 0)).toEqual({ year: 2025, month: 11 });
+    expect(getNextMonth(2026, 11)).toEqual({ year: 2027, month: 0 });
+    expect(getMonthLabel(2026, 7)).toBe('August 2026');
   });
 });
