@@ -98,4 +98,28 @@ describe('calendar domain functions', () => {
     expect(getNextMonth(2026, 11)).toEqual({ year: 2027, month: 0 });
     expect(getMonthLabel(2026, 7)).toBe('August 2026');
   });
+
+  it('should correctly attribute wear logs to the selected date instead of current date', () => {
+    const selectedDateKey = '2026-08-01';
+    const currentDateKey = '2026-08-12';
+
+    const selectedTs = dateKeyToTimestamp(selectedDateKey);
+    const currentTs = dateKeyToTimestamp(currentDateKey);
+
+    const mockItem: ClothingItem = {
+      id: 'item-custom-date',
+      name: 'Custom Date Shirt',
+      category: 'top',
+      status: 'ready',
+      wearLogs: [selectedTs],
+      createdAt: currentTs,
+    };
+
+    const selectedSummary = getDayLogSummary(selectedDateKey, [], [], [mockItem]);
+    const currentSummary = getDayLogSummary(currentDateKey, [], [], [mockItem]);
+
+    expect(selectedSummary.wornItems).toHaveLength(1);
+    expect(selectedSummary.wornItems[0].id).toBe('item-custom-date');
+    expect(currentSummary.wornItems).toHaveLength(0);
+  });
 });

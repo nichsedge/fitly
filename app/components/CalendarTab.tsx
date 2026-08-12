@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
 import { useWardrobe } from '../contexts/WardrobeContext';
 import { useOutfits } from '../contexts/OutfitContext';
 import { ClothingItem, Outfit } from '../lib/types';
@@ -193,71 +193,155 @@ function MonthDayCell({ day, onClick }: MonthDayCellProps) {
   );
 }
 
+/* ─── Item Avatar Stack Helper ─── */
+function ItemAvatarStack({ itemIds, items, max = 3 }: { itemIds: string[]; items: ClothingItem[]; max?: number }) {
+  const matchedItems = itemIds.map(id => items.find(i => i.id === id)).filter(Boolean) as ClothingItem[];
+  const displayItems = matchedItems.slice(0, max);
+  const remaining = matchedItems.length - max;
+
+  if (displayItems.length === 0) return null;
+
+  return (
+    <div className="week-avatar-stack">
+      {displayItems.map(item => {
+        const hasImg = item.images && item.images.length > 0;
+        return (
+          <div key={item.id} className="week-avatar-item" title={item.name}>
+            {hasImg ? (
+              <ResolvedImage src={item.images[0]} alt={item.name} />
+            ) : (
+              <div className="week-avatar-fallback">
+                <CategoryIcon category={item.category} size={11} />
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {remaining > 0 && (
+        <div className="week-avatar-more">+{remaining}</div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Week Day Cell Component ─── */
 interface WeekDayCellProps {
   day: CalendarDay;
+  items: ClothingItem[];
+  outfits: Outfit[];
   onClick: (dateKey: string) => void;
+  onMarkPlanWorn?: (plan: any) => void;
   isDragOver: boolean;
 }
 
-function WeekDayCell({ day, onClick, isDragOver }: WeekDayCellProps) {
+function WeekDayCell({ day, items, outfits, onClick, onMarkPlanWorn, isDragOver }: WeekDayCellProps) {
   const isToday = day.isToday;
-  const wornCount = day.wornOutfits.length + day.wornItems.length;
-  const plannedCount = day.plannedOutfits.length;
-  const washedCount = day.washedItems.length;
 
   return (
     <div
       onClick={() => onClick(day.dateKey)}
-      className={`log-day-cell ${isToday ? 'is-today' : ''} ${isDragOver ? 'drag-over' : ''}`}
+      className={`log-week-card ${isToday ? 'is-today' : ''} ${isDragOver ? 'drag-over' : ''}`}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: 11, fontWeight: 700, color: isToday ? 'var(--accent)' : 'var(--text-muted)', textTransform: 'uppercase' }}>
-          {getDayAbbreviation(day.date)}
-        </span>
-        <span style={{
-          fontSize: 13,
-          fontWeight: isToday ? 800 : 600,
-          color: isToday ? 'var(--bg-0)' : 'var(--text-primary)',
-          background: isToday ? 'var(--accent)' : 'transparent',
-          width: 22,
-          height: 22,
-          borderRadius: '50%',
-          display: 'grid',
-          placeItems: 'center'
-        }}>
+      {/* Card Header */}
+      <div className="log-week-card__header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span className={`log-week-card__dayname ${isToday ? 'is-today' : ''}`}>
+            {getDayAbbreviation(day.date)}
+          </span>
+          {isToday && <span className="log-today-pill">TODAY</span>}
+        </div>
+        <span className={`log-week-card__datenumber ${isToday ? 'is-today' : ''}`}>
           {day.date.getDate()}
         </span>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 3, margin: '6px 0' }}>
-        {wornCount > 0 && (
-          <span className="log-badge log-badge--worn">
-            ✓ {wornCount} Worn
-          </span>
+      {/* Card Body */}
+      <div className="log-week-card__body">
+        {/* Worn Outfits */}
+        {day.wornOutfits.map(outfit => (
+          <div key={outfit.id} className="week-log-item week-log-item--worn">
+            <div className="week-log-item__header">
+              <span className="week-log-item__badge worn">
+                <Sparkles size={10} /> Worn
+              </span>
+              <span className="week-log-item__title">{outfit.name}</span>
+            </div>
+            <ItemAvatarStack itemIds={outfit.itemIds} items={items} max={3} />
+          </div>
+        ))}
+
+        {/* Worn Items */}
+        {day.wornItems.length > 0 && day.wornOutfits.length === 0 && (
+          <div className="week-log-item week-log-item--worn">
+            <div className="week-log-item__header">
+              <span className="week-log-item__badge worn">
+                <Shirt size={10} /> {day.wornItems.length} Worn
+              </span>
+            </div>
+            <div className="week-log-items-grid">
+              {day.wornItems.slice(0, 3).map(item => (
+                <div key={item.id} className="week-item-chip" title={item.name}>
+                  {item.images && item.images.length > 0 ? (
+                    <ResolvedImage src={item.images[0]} alt={item.name} className="week-chip-img" />
+                  ) : (
+                    <CategoryIcon category={item.category} size={10} />
+                  )}
+                  <span className="week-chip-name">{item.name}</span>
+                </div>
+              ))}
+              {day.wornItems.length > 3 && (
+                <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>+{day.wornItems.length - 3}</span>
+              )}
+            </div>
+          </div>
         )}
-        {plannedCount > 0 && (
-          <span className="log-badge log-badge--planned">
-            📅 {plannedCount} Plan
-          </span>
+
+        {/* Planned Outfits */}
+        {day.plannedOutfits.map(plan => {
+          const outfit = outfits.find(o => o.id === plan.outfitId);
+          const name = outfit ? outfit.name : `${plan.itemIds.length} items planned`;
+          const itemIds = plan.outfitId && outfit ? outfit.itemIds : plan.itemIds;
+          return (
+            <div key={plan.id} className="week-log-item week-log-item--planned" onClick={e => e.stopPropagation()}>
+              <div className="week-log-item__header">
+                <span className="week-log-item__badge planned">
+                  <CalendarIcon size={10} /> Planned
+                </span>
+                <span className="week-log-item__title">{name}</span>
+              </div>
+              <ItemAvatarStack itemIds={itemIds} items={items} max={3} />
+              {onMarkPlanWorn && (
+                <button
+                  className="btn btn-primary week-plan-wear-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onMarkPlanWorn(plan);
+                  }}
+                >
+                  <CheckCircle2 size={11} /> Mark Worn
+                </button>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Washed Items */}
+        {day.washedItems.length > 0 && (
+          <div className="week-log-item week-log-item--washed">
+            <span className="week-log-item__badge washed">
+              <WashingMachine size={10} /> {day.washedItems.length} Washed
+            </span>
+          </div>
         )}
-        {washedCount > 0 && (
-          <span className="log-badge log-badge--washed">
-            🧺 {washedCount} Washed
-          </span>
-        )}
+
+        {/* Empty Cell */}
         {day.totalLogsCount === 0 && (
-          <div style={{ fontSize: 10, color: 'var(--text-muted)', opacity: 0.6, textAlign: 'center', padding: '6px 0' }}>
-            + Inspect
+          <div className="week-empty-cell">
+            <Plus size={14} className="week-empty-icon" />
+            <span>Log / Plan</span>
           </div>
         )}
       </div>
-
-      {day.wornOutfits.length > 0 && (
-        <div style={{ fontSize: 10, color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 500 }}>
-          {day.wornOutfits[0].name}
-        </div>
-      )}
     </div>
   );
 }
@@ -280,6 +364,17 @@ function LogWearModal({ isOpen, onClose, initialDateKey, outfits, items, onSaveW
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setDateKey(initialDateKey || formatDateKey(new Date()));
+      setSelectedOutfitId('');
+      setSelectedItemIds([]);
+      setSearch('');
+      setFilterCategory('all');
+      setMode('outfit');
+    }
+  }, [isOpen, initialDateKey]);
 
   if (!isOpen) return null;
 
@@ -306,12 +401,14 @@ function LogWearModal({ isOpen, onClose, initialDateKey, outfits, items, onSaveW
     if (mode === 'outfit' && !selectedOutfitId) return;
     if (mode === 'items' && selectedItemIds.length === 0) return;
 
+    const targetDateKey = dateKey && dateKey.trim() !== '' ? dateKey : (initialDateKey || formatDateKey(new Date()));
+
     setIsSubmitting(true);
     try {
       if (mode === 'outfit') {
-        await onSaveWear(dateKey, selectedOutfitId, undefined);
+        await onSaveWear(targetDateKey, selectedOutfitId, undefined);
       } else {
-        await onSaveWear(dateKey, undefined, selectedItemIds);
+        await onSaveWear(targetDateKey, undefined, selectedItemIds);
       }
       onClose();
     } finally {
@@ -493,6 +590,13 @@ function LogLaundryModal({ isOpen, onClose, initialDateKey, items, onSaveWash }:
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (isOpen) {
+      setDateKey(initialDateKey || formatDateKey(new Date()));
+      setSelectedIds([]);
+    }
+  }, [isOpen, initialDateKey]);
+
   if (!isOpen) return null;
 
   const handleToggle = (id: string) => {
@@ -506,9 +610,11 @@ function LogLaundryModal({ isOpen, onClose, initialDateKey, items, onSaveWash }:
 
   const handleSave = async () => {
     if (selectedIds.length === 0) return;
+    const targetDateKey = dateKey && dateKey.trim() !== '' ? dateKey : (initialDateKey || formatDateKey(new Date()));
+
     setIsSubmitting(true);
     try {
-      await onSaveWash(dateKey, selectedIds);
+      await onSaveWash(targetDateKey, selectedIds);
       onClose();
     } finally {
       setIsSubmitting(false);
@@ -811,6 +917,20 @@ export default function CalendarTab() {
     [currentWeek, plans, outfits, items]
   );
 
+  const weekStats = useMemo(() => {
+    let totalWorn = 0;
+    let totalPlanned = 0;
+    let totalWashed = 0;
+
+    for (const day of calendarWeek.days) {
+      totalWorn += day.wornOutfits.length + day.wornItems.length;
+      totalPlanned += day.plannedOutfits.length;
+      totalWashed += day.washedItems.length;
+    }
+
+    return { totalWorn, totalPlanned, totalWashed };
+  }, [calendarWeek]);
+
   /* ── Stats Calculations ── */
   const logStats = useMemo(() => {
     let totalOutfitWears = 0;
@@ -890,14 +1010,20 @@ export default function CalendarTab() {
     if (outfitId) {
       const outfit = outfits.find(o => o.id === outfitId);
       if (outfit) {
-        const updatedLogs = [...(outfit.wearLogs || []), ts];
-        await updateOutfit({ ...outfit, wearLogs: updatedLogs, lastWornAt: Math.max(outfit.lastWornAt || 0, ts) });
+        const existingLogs = outfit.wearLogs || (outfit.lastWornAt ? [outfit.lastWornAt] : []);
+        const hasLogForDate = existingLogs.some(logTs => timestampToDateKey(logTs) === dateKey);
+        const updatedLogs = hasLogForDate ? existingLogs : [...existingLogs, ts];
+        const newLastWorn = Math.max(...updatedLogs, outfit.lastWornAt || 0);
+        await updateOutfit({ ...outfit, wearLogs: updatedLogs, lastWornAt: newLastWorn });
 
         for (const id of outfit.itemIds) {
           const item = items.find(i => i.id === id);
           if (item) {
-            const itemLogs = [...(item.wearLogs || []), ts];
-            await updateItem({ ...item, wearLogs: itemLogs, lastWornAt: Math.max(item.lastWornAt || 0, ts), status: 'dirty' });
+            const existingItemLogs = item.wearLogs || (item.lastWornAt ? [item.lastWornAt] : []);
+            const hasItemLog = existingItemLogs.some(logTs => timestampToDateKey(logTs) === dateKey);
+            const itemLogs = hasItemLog ? existingItemLogs : [...existingItemLogs, ts];
+            const newItemLastWorn = Math.max(...itemLogs, item.lastWornAt || 0);
+            await updateItem({ ...item, wearLogs: itemLogs, lastWornAt: newItemLastWorn, status: 'dirty' });
           }
         }
         setToast(`✓ Logged wear for ${outfit.name}`);
@@ -906,8 +1032,11 @@ export default function CalendarTab() {
       for (const id of itemIds) {
         const item = items.find(i => i.id === id);
         if (item) {
-          const itemLogs = [...(item.wearLogs || []), ts];
-          await updateItem({ ...item, wearLogs: itemLogs, lastWornAt: Math.max(item.lastWornAt || 0, ts), status: 'dirty' });
+          const existingItemLogs = item.wearLogs || (item.lastWornAt ? [item.lastWornAt] : []);
+          const hasItemLog = existingItemLogs.some(logTs => timestampToDateKey(logTs) === dateKey);
+          const itemLogs = hasItemLog ? existingItemLogs : [...existingItemLogs, ts];
+          const newItemLastWorn = Math.max(...itemLogs, item.lastWornAt || 0);
+          await updateItem({ ...item, wearLogs: itemLogs, lastWornAt: newItemLastWorn, status: 'dirty' });
         }
       }
       setToast(`✓ Logged wear for ${itemIds.length} item(s)`);
@@ -924,8 +1053,11 @@ export default function CalendarTab() {
     for (const id of itemIds) {
       const item = items.find(i => i.id === id);
       if (item) {
-        const washLogs = [...(item.washLogs || []), ts];
-        await updateItem({ ...item, washLogs, lastWashedAt: Math.max(item.lastWashedAt || 0, ts), status: 'ready' });
+        const existingWashLogs = item.washLogs || (item.lastWashedAt ? [item.lastWashedAt] : []);
+        const hasWashLog = existingWashLogs.some(logTs => timestampToDateKey(logTs) === dateKey);
+        const washLogs = hasWashLog ? existingWashLogs : [...existingWashLogs, ts];
+        const newLastWashed = Math.max(...washLogs, item.lastWashedAt || 0);
+        await updateItem({ ...item, washLogs, lastWashedAt: newLastWashed, status: 'ready' });
       }
     }
     setToast(`✓ Logged laundry for ${itemIds.length} item(s)`);
@@ -1199,13 +1331,14 @@ export default function CalendarTab() {
 
         {/* VIEW 2: WEEKLY CALENDAR GRID */}
         {activeView === 'week' && (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+          <div className="log-week-container">
+            {/* Navigation & Stats Header */}
+            <div className="log-week-header-bar">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <button className="btn btn-ghost" onClick={() => setCurrentWeek(getPreviousWeek(currentWeek))} style={{ padding: 6 }}>
                   <ChevronLeft size={18} />
                 </button>
-                <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
+                <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)' }}>
                   {getWeekLabel(calendarWeek)}
                 </span>
                 <button className="btn btn-ghost" onClick={() => setCurrentWeek(getNextWeek(currentWeek))} style={{ padding: 6 }}>
@@ -1213,17 +1346,39 @@ export default function CalendarTab() {
                 </button>
               </div>
 
-              <button className="btn btn-ghost" onClick={() => setCurrentWeek(getCurrentWeek())} style={{ fontSize: 12, padding: '4px 10px' }}>
-                This Week
-              </button>
+              <div className="log-week-stats-bar">
+                {weekStats.totalWorn > 0 && (
+                  <span className="log-week-stat-chip worn">
+                    <Sparkles size={12} /> {weekStats.totalWorn} Worn
+                  </span>
+                )}
+                {weekStats.totalPlanned > 0 && (
+                  <span className="log-week-stat-chip planned">
+                    <CalendarIcon size={12} /> {weekStats.totalPlanned} Planned
+                  </span>
+                )}
+                {weekStats.totalWashed > 0 && (
+                  <span className="log-week-stat-chip washed">
+                    <WashingMachine size={12} /> {weekStats.totalWashed} Washed
+                  </span>
+                )}
+
+                <button className="btn btn-ghost" onClick={() => setCurrentWeek(getCurrentWeek())} style={{ fontSize: 12, padding: '4px 10px', marginLeft: 4 }}>
+                  This Week
+                </button>
+              </div>
             </div>
 
-            <div className="log-calendar-grid">
+            {/* 7-Day Card Grid */}
+            <div className="log-week-grid">
               {calendarWeek.days.map(day => (
                 <WeekDayCell
                   key={day.dateKey}
                   day={day}
+                  items={items}
+                  outfits={outfits}
                   onClick={handleDayClick}
+                  onMarkPlanWorn={handleMarkPlanWorn}
                   isDragOver={dragOverDate === day.dateKey}
                 />
               ))}
