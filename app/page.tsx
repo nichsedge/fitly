@@ -14,6 +14,8 @@ import SettingsModal from './components/SettingsModal';
 import TripsView from './components/TripsView';
 import QuickAddModal from './components/QuickAddModal';
 import MoreMenuModal from './components/MoreMenuModal';
+import LogWearModal from './components/LogWearModal';
+import Toast from './components/Toast';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ActiveTab } from './lib/types';
 import { triggerHaptic } from './lib/haptics';
@@ -28,7 +30,9 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('wardrobe');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [isLogWearOpen, setIsLogWearOpen] = useState(false);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const [toast, setToast] = useState('');
 
   const handleTabChange = (tab: ActiveTab) => {
     triggerHaptic(8);
@@ -188,6 +192,15 @@ export default function Home() {
         <QuickAddModal
           onClose={() => setIsQuickAddOpen(false)}
           onSelectAction={(tab) => handleTabChange(tab)}
+          onOpenLogWear={() => setIsLogWearOpen(true)}
+        />
+      )}
+
+      {isLogWearOpen && (
+        <LogWearModal
+          isOpen={isLogWearOpen}
+          onClose={() => setIsLogWearOpen(false)}
+          onSaveSuccess={(msg) => setToast(msg)}
         />
       )}
 
@@ -199,6 +212,8 @@ export default function Home() {
           onOpenSettings={() => setIsSettingsOpen(true)}
         />
       )}
+
+      {toast && <Toast message={toast} onDone={() => setToast('')} />}
 
       {/* Modern 5-Slot Bottom Nav */}
       <nav className="bottom-nav">

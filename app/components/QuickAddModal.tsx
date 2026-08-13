@@ -9,9 +9,10 @@ import { Shirt, Sparkles, Luggage, ChevronRight, X } from './AppIcon';
 interface QuickAddModalProps {
   onClose: () => void;
   onSelectAction: (tab: ActiveTab) => void;
+  onOpenLogWear?: () => void;
 }
 
-export default function QuickAddModal({ onClose, onSelectAction }: QuickAddModalProps) {
+export default function QuickAddModal({ onClose, onSelectAction, onOpenLogWear }: QuickAddModalProps) {
   const { t } = useSettings();
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -24,6 +25,14 @@ export default function QuickAddModal({ onClose, onSelectAction }: QuickAddModal
   const handleAction = (tab: ActiveTab) => {
     triggerHaptic(12);
     onSelectAction(tab);
+    onClose();
+  };
+
+  const handleLogWear = () => {
+    triggerHaptic(12);
+    if (onOpenLogWear) {
+      onOpenLogWear();
+    }
     onClose();
   };
 
@@ -43,6 +52,20 @@ export default function QuickAddModal({ onClose, onSelectAction }: QuickAddModal
         </div>
 
         <div className="quick-add-grid">
+          <button
+            className="quick-add-card"
+            onClick={handleLogWear}
+          >
+            <div className="quick-add-card__icon-bg log-wear" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(59, 130, 246, 0.15)' }}>
+              <Sparkles size={22} color="#3b82f6" />
+            </div>
+            <div className="quick-add-card__content">
+              <span className="quick-add-card__title">{t('logWear')}</span>
+              <span className="quick-add-card__sub">{t('logWearDesc')}</span>
+            </div>
+            <span className="quick-add-card__arrow"><ChevronRight size={18} /></span>
+          </button>
+
           <button
             className="quick-add-card"
             onClick={() => handleAction('add')}
