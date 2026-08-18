@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { ClothingItem, Outfit, CATEGORIES } from '../lib/types';
 import { useWardrobe } from '../contexts/WardrobeContext';
 import { useOutfits } from '../contexts/OutfitContext';
 import { useSettings } from '../contexts/SettingsContext';
 import Toast from './Toast';
-import { Sparkles, Edit, Trash2, Tag, CategoryIcon } from './AppIcon';
+import { Sparkles, Edit, Trash2, Tag, CategoryIcon, Copy } from './AppIcon';
 import { ResolvedImage } from './ResolvedImage';
 
 interface Props {
@@ -20,7 +21,7 @@ interface Props {
 
 export default function OutfitDetailModal({ outfit, items, onClose, onEdit, logDateKey, onRemoveLogFromDate }: Props) {
   const { updateItem } = useWardrobe();
-  const { deleteOutfit, updateOutfit } = useOutfits();
+  const { deleteOutfit, updateOutfit, addOutfit } = useOutfits();
   const { formatPrice } = useSettings();
 
   useEffect(() => {
@@ -59,6 +60,19 @@ export default function OutfitDetailModal({ outfit, items, onClose, onEdit, logD
   const outfitItems = outfit.itemIds
     .map(id => items.find(i => i.id === id))
     .filter(Boolean) as ClothingItem[];
+
+  const handleDuplicate = async () => {
+    const newOutfit: Outfit = {
+      id: uuidv4(),
+      name: outfit.name,
+      note: outfit.note,
+      itemIds: [...outfit.itemIds],
+      createdAt: Date.now(),
+    };
+    await addOutfit(newOutfit);
+    setToast('✓ Outfit duplicated');
+    setTimeout(onClose, 500);
+  };
 
   const handleDelete = async () => {
     if (!confirming) { setConfirming(true); return; }
@@ -128,6 +142,46 @@ export default function OutfitDetailModal({ outfit, items, onClose, onEdit, logD
           </div>
 
           <div className="modal-body">
+            {/* Actions */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
+              <button id="btn-wear-outfit" className="btn btn-primary btn-full" onClick={handleWear} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <Sparkles size={16} />
+                <span>Wearing this today</span>
+              </button>
+              <button id="btn-duplicate-outfit" className="btn btn-ghost btn-full" onClick={handleDuplicate} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <Copy size={16} />
+                <span>Duplicate outfit</span>
+              </button>
+              <button id="btn-edit-outfit" className="btn btn-ghost btn-full" onClick={onEdit} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <Edit size={16} />
+                <span>Edit outfit</span>
+              </button>
+              {logDateKey && onRemoveLogFromDate ? (
+                <button
+                  id="btn-remove-log"
+                  className="btn btn-danger btn-full"
+                  onClick={async () => {
+                    await onRemoveLogFromDate(logDateKey);
+                    onClose();
+                  }}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                >
+                  <Trash2 size={16} />
+                  <span>Remove log for this day</span>
+                </button>
+              ) : (
+                <button
+                  id="btn-delete-outfit"
+                  className="btn btn-danger btn-full"
+                  onClick={handleDelete}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                >
+                  <Trash2 size={16} />
+                  <span>{confirming ? 'Tap again to confirm delete outfit' : 'Delete outfit'}</span>
+                </button>
+              )}
+            </div>
+
             {/* Image grid */}
             {outfitItems.length > 0 && (
               <div
@@ -229,49 +283,11 @@ export default function OutfitDetailModal({ outfit, items, onClose, onEdit, logD
             </div>
 
             {/* Dates */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-5)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
               <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Created</span>
               <span style={{ fontSize: 13 }}>
                 {new Date(outfit.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
               </span>
-            </div>
-
-            <div className="divider" />
-
-            {/* Actions */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-              <button id="btn-wear-outfit" className="btn btn-primary btn-full" onClick={handleWear} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                <Sparkles size={16} />
-                <span>Wearing this today</span>
-              </button>
-              <button id="btn-edit-outfit" className="btn btn-ghost btn-full" onClick={onEdit} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                <Edit size={16} />
-                <span>Edit outfit</span>
-              </button>
-              {logDateKey && onRemoveLogFromDate ? (
-                <button
-                  id="btn-remove-log"
-                  className="btn btn-danger btn-full"
-                  onClick={async () => {
-                    await onRemoveLogFromDate(logDateKey);
-                    onClose();
-                  }}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-                >
-                  <Trash2 size={16} />
-                  <span>Remove log for this day</span>
-                </button>
-              ) : (
-                <button
-                  id="btn-delete-outfit"
-                  className="btn btn-danger btn-full"
-                  onClick={handleDelete}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-                >
-                  <Trash2 size={16} />
-                  <span>{confirming ? 'Tap again to confirm delete outfit' : 'Delete outfit'}</span>
-                </button>
-              )}
             </div>
           </div>
         </div>

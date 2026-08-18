@@ -69,9 +69,15 @@ export default function LogWearModal({
     return matchesCategory && matchesSearch;
   });
 
-  const filteredOutfits = outfits.filter(o => 
-    search === '' || o.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredOutfits = outfits
+    .filter(o => 
+      search === '' || (o.name || 'Untitled Outfit').toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a, b) => {
+      const nameA = (a.name || 'Untitled Outfit').toLowerCase();
+      const nameB = (b.name || 'Untitled Outfit').toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
 
   const handleToggleItem = (id: string) => {
     setSelectedItemIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);

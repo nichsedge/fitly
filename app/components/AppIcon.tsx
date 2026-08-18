@@ -54,7 +54,8 @@ import {
   Thermometer,
   LayoutGrid,
   Award,
-  Sliders
+  Sliders,
+  Copy
 } from 'lucide-react';
 import { Category } from '../lib/types';
 
@@ -175,5 +176,6 @@ export {
   Thermometer,
   LayoutGrid,
   Award,
-  Sliders
+  Sliders,
+  Copy
 };
