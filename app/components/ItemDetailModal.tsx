@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
-import { ClothingItem, CATEGORIES, COLORS, Category, ItemStatus, ItemCondition } from '../lib/types';
+import { ClothingItem, CATEGORIES, COLORS, Category, ItemStatus, ItemCondition, SparkJoyStatus } from '../lib/types';
 import { useWardrobe } from '../contexts/WardrobeContext';
 import { useSettings } from '../contexts/SettingsContext';
 import Toast from './Toast';
@@ -60,6 +60,7 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
   const [material, setMaterial] = useState(item.material || '');
   const [careInstructions, setCareInstructions] = useState(item.careInstructions || '');
   const [tags, setTags] = useState<string[]>(item.tags || []);
+  const [sparkJoy, setSparkJoy] = useState<SparkJoyStatus | undefined>(item.sparkJoy);
 
   // Tag creation state
   const [newTagText, setNewTagText] = useState('');
@@ -81,6 +82,7 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
     setMaterial(item.material || '');
     setCareInstructions(item.careInstructions || '');
     setTags(item.tags || []);
+    setSparkJoy(item.sparkJoy);
   };
 
   const handleStartEdit = () => {
@@ -113,6 +115,7 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
       material: material.trim() || undefined,
       careInstructions: careInstructions.trim() || undefined,
       tags,
+      sparkJoy,
     };
 
     await updateItem(updatedItem);
@@ -588,6 +591,52 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
                   </div>
                 </div>
 
+                {/* Spark Joy (KonMari) in Edit Mode */}
+                <div>
+                  <label className="form-label">Spark Joy (KonMari)</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-2)' }}>
+                    <button
+                      type="button"
+                      className={`pill ${sparkJoy === 'joy' ? 'active' : ''}`}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        background: sparkJoy === 'joy' ? 'rgba(236, 72, 153, 0.25)' : undefined,
+                        borderColor: sparkJoy === 'joy' ? '#ec4899' : undefined,
+                        color: sparkJoy === 'joy' ? '#ec4899' : undefined
+                      }}
+                      onClick={() => setSparkJoy(sparkJoy === 'joy' ? undefined : 'joy')}
+                    >
+                      <span>💖</span> <span>Sparks Joy</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`pill ${sparkJoy === 'essential' ? 'active' : ''}`}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        background: sparkJoy === 'essential' ? 'rgba(59, 130, 246, 0.25)' : undefined,
+                        borderColor: sparkJoy === 'essential' ? '#3b82f6' : undefined,
+                        color: sparkJoy === 'essential' ? '#3b82f6' : undefined
+                      }}
+                      onClick={() => setSparkJoy(sparkJoy === 'essential' ? undefined : 'essential')}
+                    >
+                      <span>🧺</span> <span>Essential</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`pill ${sparkJoy === 'no-joy' ? 'active' : ''}`}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        background: sparkJoy === 'no-joy' ? 'rgba(245, 158, 11, 0.25)' : undefined,
+                        borderColor: sparkJoy === 'no-joy' ? '#f59e0b' : undefined,
+                        color: sparkJoy === 'no-joy' ? '#f59e0b' : undefined
+                      }}
+                      onClick={() => setSparkJoy(sparkJoy === 'no-joy' ? undefined : 'no-joy')}
+                    >
+                      <span>🍂</span> <span>Let Go</span>
+                    </button>
+                  </div>
+                </div>
+
                 <div className="divider" style={{ margin: 'var(--space-2) 0' }} />
 
                 <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
@@ -693,6 +742,85 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
                     {item.status}
                   </button>
                 </div>
+
+                {/* Spark Joy (KonMari) Row */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
+                  <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Spark Joy</span>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const next: SparkJoyStatus | undefined = item.sparkJoy === 'joy' ? undefined : 'joy';
+                        await updateItem({ ...item, sparkJoy: next });
+                        setSparkJoy(next);
+                        setToast(next ? '💖 Marked as Sparks Joy!' : 'Spark Joy cleared');
+                      }}
+                      style={{
+                        padding: '3px 8px', borderRadius: 'var(--radius-pill)', fontSize: 11, fontWeight: 700,
+                        cursor: 'pointer', border: '1px solid',
+                        background: item.sparkJoy === 'joy' ? 'rgba(236, 72, 153, 0.25)' : 'var(--bg-3)',
+                        borderColor: item.sparkJoy === 'joy' ? '#ec4899' : 'var(--border)',
+                        color: item.sparkJoy === 'joy' ? '#ec4899' : 'var(--text-secondary)'
+                      }}
+                      title="Sparks Joy 💖"
+                    >
+                      💖 Joy
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const next: SparkJoyStatus | undefined = item.sparkJoy === 'essential' ? undefined : 'essential';
+                        await updateItem({ ...item, sparkJoy: next });
+                        setSparkJoy(next);
+                        setToast(next ? '🧺 Marked as Daily Essential' : 'Spark Joy cleared');
+                      }}
+                      style={{
+                        padding: '3px 8px', borderRadius: 'var(--radius-pill)', fontSize: 11, fontWeight: 700,
+                        cursor: 'pointer', border: '1px solid',
+                        background: item.sparkJoy === 'essential' ? 'rgba(59, 130, 246, 0.25)' : 'var(--bg-3)',
+                        borderColor: item.sparkJoy === 'essential' ? '#3b82f6' : 'var(--border)',
+                        color: item.sparkJoy === 'essential' ? '#3b82f6' : 'var(--text-secondary)'
+                      }}
+                      title="Daily Essential 🧺"
+                    >
+                      🧺 Essential
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const next: SparkJoyStatus | undefined = item.sparkJoy === 'no-joy' ? undefined : 'no-joy';
+                        await updateItem({ ...item, sparkJoy: next });
+                        setSparkJoy(next);
+                        setToast(next ? '🍂 Ready to Let Go' : 'Spark Joy cleared');
+                      }}
+                      style={{
+                        padding: '3px 8px', borderRadius: 'var(--radius-pill)', fontSize: 11, fontWeight: 700,
+                        cursor: 'pointer', border: '1px solid',
+                        background: item.sparkJoy === 'no-joy' ? 'rgba(245, 158, 11, 0.25)' : 'var(--bg-3)',
+                        borderColor: item.sparkJoy === 'no-joy' ? '#f59e0b' : 'var(--border)',
+                        color: item.sparkJoy === 'no-joy' ? '#f59e0b' : 'var(--text-secondary)'
+                      }}
+                      title="Ready to Let Go 🍂"
+                    >
+                      🍂 Let Go
+                    </button>
+                  </div>
+                </div>
+
+                {item.gratitudeNote && (
+                  <div style={{
+                    padding: '8px 12px',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'rgba(236, 72, 153, 0.1)',
+                    border: '1px solid rgba(236, 72, 153, 0.25)',
+                    fontSize: 12,
+                    color: 'var(--text-primary)',
+                    fontStyle: 'italic',
+                    margin: '4px 0'
+                  }}>
+                    🌸 &ldquo;{item.gratitudeNote}&rdquo;
+                  </div>
+                )}
 
                 {/* Condition */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>

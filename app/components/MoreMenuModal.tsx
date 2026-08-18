@@ -7,16 +7,17 @@ import { useOutfits } from '../contexts/OutfitContext';
 import { useTrips } from '../contexts/TripContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { triggerHaptic } from '../lib/haptics';
-import { Calendar, Luggage, BarChart3, Settings, ChevronRight, X } from './AppIcon';
+import { Calendar, Luggage, BarChart3, Settings, ChevronRight, X, Sparkles } from './AppIcon';
 
 interface MoreMenuModalProps {
   activeTab: ActiveTab;
   onClose: () => void;
   onSelectTab: (tab: ActiveTab) => void;
   onOpenSettings: () => void;
+  onOpenMinimalism?: () => void;
 }
 
-export default function MoreMenuModal({ activeTab, onClose, onSelectTab, onOpenSettings }: MoreMenuModalProps) {
+export default function MoreMenuModal({ activeTab, onClose, onSelectTab, onOpenSettings, onOpenMinimalism }: MoreMenuModalProps) {
   const { items } = useWardrobe();
   const { outfits } = useOutfits();
   const { trips } = useTrips();
@@ -118,6 +119,25 @@ export default function MoreMenuModal({ activeTab, onClose, onSelectTab, onOpenS
               <span className="more-nav-card__desc">{t('statsDesc')}</span>
             </div>
             {activeTab === 'insights' && <span className="more-nav-card__badge">{t('active')}</span>}
+          </button>
+
+          <button
+            className="more-nav-card"
+            onClick={() => {
+              triggerHaptic(10);
+              onClose();
+              onOpenMinimalism?.();
+            }}
+          >
+            <div className="more-nav-card__icon" style={{ background: 'rgba(236, 72, 153, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Sparkles size={22} color="#ec4899" />
+            </div>
+            <div className="more-nav-card__info">
+              <span className="more-nav-card__title" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {t('minimalismAnalyzerShort')} <span style={{ fontSize: 10, background: 'rgba(236, 72, 153, 0.2)', color: '#ec4899', padding: '1px 6px', borderRadius: 'var(--radius-pill)', fontWeight: 700 }}>KonMari</span>
+              </span>
+              <span className="more-nav-card__desc">{t('minimalismDesc')}</span>
+            </div>
           </button>
         </div>
 

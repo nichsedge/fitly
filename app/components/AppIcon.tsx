@@ -55,7 +55,9 @@ import {
   LayoutGrid,
   Award,
   Sliders,
-  Copy
+  Copy,
+  GripVertical,
+  RotateCcw
 } from 'lucide-react';
 import { Category } from '../lib/types';
 
@@ -177,5 +179,7 @@ export {
   LayoutGrid,
   Award,
   Sliders,
-  Copy
+  Copy,
+  GripVertical,
+  RotateCcw
 };

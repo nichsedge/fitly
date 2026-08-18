@@ -129,6 +129,30 @@ function ItemCardComponent({
         </div>
       )}
 
+      {item.sparkJoy && (
+        <div
+          className={`item-card__joy-badge item-card__joy-badge--${item.sparkJoy}`}
+          title={item.sparkJoy === 'joy' ? 'Sparks Joy 💖' : item.sparkJoy === 'essential' ? 'Daily Essential 🧺' : 'Ready to Let Go 🍂'}
+          aria-label={`Tokimeki: ${item.sparkJoy}`}
+          style={{
+            position: 'absolute',
+            bottom: viewMode === 'grid' ? 52 : 'auto',
+            right: 8,
+            top: viewMode === 'list' ? 8 : 'auto',
+            zIndex: 2,
+            fontSize: 11,
+            lineHeight: 1,
+            padding: '2px 5px',
+            borderRadius: 'var(--radius-pill)',
+            background: item.sparkJoy === 'joy' ? 'rgba(236, 72, 153, 0.2)' : item.sparkJoy === 'essential' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+            border: `1px solid ${item.sparkJoy === 'joy' ? 'rgba(236, 72, 153, 0.4)' : item.sparkJoy === 'essential' ? 'rgba(59, 130, 246, 0.4)' : 'rgba(245, 158, 11, 0.4)'}`,
+            backdropFilter: 'blur(4px)',
+          }}
+        >
+          {item.sparkJoy === 'joy' ? '💖' : item.sparkJoy === 'essential' ? '🧺' : '🍂'}
+        </div>
+      )}
+
       {imageUrl ? (
         <img
           src={imageUrl}

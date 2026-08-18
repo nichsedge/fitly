@@ -57,6 +57,8 @@ export const ClothingItemSchema = z.object({
   retiredAt: z.number().nullable().optional(),
   retirementReason: z.enum(['donated', 'sold', 'recycled', 'discarded']).nullable().optional(),
   donationTarget: z.string().nullable().optional(),
+  sparkJoy: z.enum(['joy', 'essential', 'no-joy']).nullable().optional(),
+  gratitudeNote: z.string().nullable().optional(),
 });
 
 export const OutfitSchema = z.object({

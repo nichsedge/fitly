@@ -25,6 +25,8 @@ export type ItemCondition = 'new' | 'excellent' | 'good' | 'fair' | 'poor' | 'ne
 
 export type RetirementReason = 'donated' | 'sold' | 'recycled' | 'discarded';
 
+export type SparkJoyStatus = 'joy' | 'essential' | 'no-joy';
+
 export interface ClothingItem {
   id: string;
   name: string;
@@ -48,6 +50,8 @@ export interface ClothingItem {
   retiredAt?: number;
   retirementReason?: RetirementReason;
   donationTarget?: string;
+  sparkJoy?: SparkJoyStatus;
+  gratitudeNote?: string;
 }
 
 export interface Outfit {

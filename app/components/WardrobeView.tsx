@@ -31,6 +31,7 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
   const [activeStatus, setActiveStatus] = useState<string>('all');
   const [activeCondition, setActiveCondition] = useState<string>('all');
   const [activeColor, setActiveColor] = useState<string>('all');
+  const [activeSparkJoy, setActiveSparkJoy] = useState<string>('all');
   const [gridDensity, setGridDensity] = usePersistentState<'normal' | 'compact'>('fitly_wardrobe_grid_density', 'normal', ['normal', 'compact']);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = usePersistentState<WardrobeSortOption>('fitly_wardrobe_sort_by', 'newest', WARDROBE_SORT_OPTIONS);
@@ -61,6 +62,7 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
       status: activeStatus,
       condition: activeCondition,
       locationId: activeLocationId,
+      sparkJoy: activeSparkJoy,
       searchQuery,
     });
     if (activeColor === 'all') return baseFiltered;
@@ -69,13 +71,13 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
       return i.color.toLowerCase() === activeColor.toLowerCase() ||
         getColorLabel(i.color).toLowerCase().includes(activeColor.toLowerCase());
     });
-  }, [items, activeCategory, activeTag, activeStatus, activeCondition, activeColor, activeLocationId, searchQuery]);
+  }, [items, activeCategory, activeTag, activeStatus, activeCondition, activeColor, activeSparkJoy, activeLocationId, searchQuery]);
 
   const sorted = useMemo(() => {
     return itemService.sortItems(filtered, sortBy);
   }, [filtered, sortBy]);
 
-  const hasActiveFilters = activeCategory !== 'all' || activeTag !== 'all' || activeStatus !== 'all' || activeCondition !== 'all' || activeColor !== 'all' || searchQuery !== '';
+  const hasActiveFilters = activeCategory !== 'all' || activeTag !== 'all' || activeStatus !== 'all' || activeCondition !== 'all' || activeColor !== 'all' || activeSparkJoy !== 'all' || searchQuery !== '';
 
   const handleResetFilters = () => {
     setActiveCategory('all');
@@ -83,6 +85,7 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
     setActiveStatus('all');
     setActiveCondition('all');
     setActiveColor('all');
+    setActiveSparkJoy('all');
     setSearchQuery('');
   };
 
@@ -549,12 +552,14 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
         activeStatus={activeStatus}
         activeCondition={activeCondition}
         activeColor={activeColor}
+        activeSparkJoy={activeSparkJoy}
         tags={tags}
         onCategoryChange={setActiveCategory}
         onTagChange={setActiveTag}
         onStatusChange={setActiveStatus}
         onConditionChange={setActiveCondition}
         onColorChange={setActiveColor}
+        onSparkJoyChange={setActiveSparkJoy}
         onReset={handleResetFilters}
         hasActiveFilters={hasActiveFilters}
       />

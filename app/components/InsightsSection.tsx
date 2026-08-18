@@ -3,13 +3,22 @@ import { useOutfits } from '../contexts/OutfitContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { CATEGORIES, getColorLabel } from '../lib/types';
 import { useMemo } from 'react';
-import { CategoryIcon } from './AppIcon';
+import { CategoryIcon, Sparkles } from './AppIcon';
 import { ResolvedImage } from './ResolvedImage';
+import { konMariService } from '../services/KonMariService';
 
-export default function InsightsSection() {
+interface InsightsSectionProps {
+  onOpenMinimalism?: () => void;
+}
+
+export default function InsightsSection({ onOpenMinimalism }: InsightsSectionProps) {
   const { items } = useWardrobe();
   const { outfits } = useOutfits();
-  const { formatPrice } = useSettings();
+  const { formatPrice, t } = useSettings();
+
+  const konMariStats = useMemo(() => {
+    return konMariService.calculateKonMariStats(items);
+  }, [items]);
 
   const stats = useMemo(() => {
     if (items.length === 0) return null;
@@ -91,6 +100,76 @@ export default function InsightsSection() {
 
   return (
     <div className="insights-section animate-in">
+      {/* Marie Kondo Minimalism Card */}
+      <div
+        style={{
+          background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.12) 0%, rgba(99, 102, 241, 0.12) 100%)',
+          border: '1px solid rgba(236, 72, 153, 0.3)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '16px 18px',
+          marginBottom: 'var(--space-4)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 16,
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
+              display: 'grid',
+              placeItems: 'center',
+              color: 'white',
+              boxShadow: '0 4px 14px rgba(236, 72, 153, 0.35)',
+              flexShrink: 0,
+            }}
+          >
+            <Sparkles size={22} />
+          </div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)' }}>
+                {t('minimalismAnalyzer')}
+              </span>
+              <span style={{ fontSize: 11, background: 'rgba(236, 72, 153, 0.2)', color: '#ec4899', padding: '1px 6px', borderRadius: 'var(--radius-pill)', fontWeight: 700 }}>
+                {konMariStats.joyIndex}% Joy
+              </span>
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
+              {konMariStats.joyCount} pieces spark joy • {konMariStats.minimalismStage} ({konMariStats.minimalismScore}/100)
+            </p>
+          </div>
+        </div>
+
+        {onOpenMinimalism && (
+          <button
+            className="btn btn-primary"
+            onClick={onOpenMinimalism}
+            style={{
+              fontSize: 12,
+              padding: '8px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              background: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
+              border: 'none',
+              color: 'white',
+              fontWeight: 700,
+              borderRadius: 'var(--radius-pill)',
+              cursor: 'pointer',
+            }}
+          >
+            <Sparkles size={14} />
+            <span>{t('openMinimalismAnalyzer')}</span>
+          </button>
+        )}
+      </div>
+
       <div className="insights-grid">
         {/* Main Stats */}
         <div className="insight-card highlight">

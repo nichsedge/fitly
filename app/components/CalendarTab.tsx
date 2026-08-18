@@ -3,7 +3,7 @@
 import { useMemo, useState, useCallback, useEffect } from 'react';
 import { useWardrobe } from '../contexts/WardrobeContext';
 import { useOutfits } from '../contexts/OutfitContext';
-import { ClothingItem, Outfit } from '../lib/types';
+import { ClothingItem, Outfit, Category } from '../lib/types';
 import Toast from './Toast';
 import LogWearModal from './LogWearModal';
 import { ResolvedImage } from './ResolvedImage';
@@ -19,7 +19,6 @@ import {
   getCurrentWeek,
   getPreviousMonth,
   getNextMonth,
-  getMonthLabel,
   WEEKDAYS,
   CalendarDay,
   DragItem,
@@ -43,63 +42,72 @@ import {
   ChevronRight,
   Grid,
   History,
+  GripVertical,
 } from './AppIcon';
 import {
   DndContext,
   closestCenter,
-  KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
+  useDraggable,
+  useDroppable,
+  DragOverlay,
   DragEndEvent,
   DragStartEvent,
   DragOverEvent,
 } from '@dnd-kit/core';
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 
 /* ─── Draggable Outfit Component ─── */
 interface DraggableOutfitProps {
   outfit: Outfit;
-  dateKey?: string;
-  onDragStart: (item: DragItem) => void;
+  items?: ClothingItem[];
 }
 
-function DraggableOutfit({ outfit, dateKey, onDragStart }: DraggableOutfitProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: outfit.id,
-    data: { type: 'outfit', outfitId: outfit.id, dateKey },
+function DraggableOutfit({ outfit, items = [] }: DraggableOutfitProps) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `outfit-${outfit.id}`,
+    data: { type: 'outfit', id: outfit.id, outfit },
   });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    cursor: 'grab',
+  const style: React.CSSProperties = {
+    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+    opacity: isDragging ? 0.35 : 1,
+    cursor: isDragging ? 'grabbing' : 'grab',
+    touchAction: 'none',
   };
+
+  const outfitItems = outfit.itemIds.map(id => items.find(i => i.id === id)).filter(Boolean) as ClothingItem[];
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="draggable-outfit"
-      onMouseDown={(e) => {
-        if (e.button === 0) onDragStart({ type: 'outfit', id: outfit.id, dateKey });
-      }}
-      onTouchStart={() => {
-        onDragStart({ type: 'outfit', id: outfit.id, dateKey });
-      }}
+      {...attributes}
+      {...listeners}
+      className={`draggable-outfit-card ${isDragging ? 'is-dragging' : ''}`}
+      title={`Drag "${outfit.name}" to any calendar day`}
     >
-      <div style={{ padding: '10px 14px', background: 'var(--surface)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <Sparkles size={16} color="var(--accent)" />
-        <span style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{outfit.name}</span>
-        {dateKey && <span style={{ fontSize: 10, color: 'var(--text-muted)', background: 'var(--bg-3)', padding: '1px 6px', borderRadius: 4 }}>{dateKey}</span>}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+        <div className="draggable-handle">
+          <GripVertical size={16} />
+        </div>
+        <div style={{ width: 34, height: 34, borderRadius: 'var(--radius-sm)', background: 'rgba(139, 92, 246, 0.14)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+          <Sparkles size={16} color="#8b5cf6" />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {outfit.name}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+            {outfit.itemIds.length} item{outfit.itemIds.length !== 1 ? 's' : ''}
+          </div>
+        </div>
       </div>
+      {outfitItems.length > 0 && (
+        <ItemAvatarStack itemIds={outfit.itemIds} items={items} max={3} />
+      )}
     </div>
   );
 }
@@ -107,67 +115,80 @@ function DraggableOutfit({ outfit, dateKey, onDragStart }: DraggableOutfitProps)
 /* ─── Draggable Item Component ─── */
 interface DraggableItemProps {
   item: ClothingItem;
-  dateKey?: string;
-  onDragStart: (item: DragItem) => void;
 }
 
-function DraggableItem({ item, dateKey, onDragStart }: DraggableItemProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: item.id,
-    data: { type: 'item', itemId: item.id, dateKey },
+function DraggableItem({ item }: DraggableItemProps) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `item-${item.id}`,
+    data: { type: 'item', id: item.id, item },
   });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    cursor: 'grab',
+  const style: React.CSSProperties = {
+    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+    opacity: isDragging ? 0.35 : 1,
+    cursor: isDragging ? 'grabbing' : 'grab',
+    touchAction: 'none',
   };
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="draggable-item"
-      onMouseDown={(e) => {
-        if (e.button === 0) onDragStart({ type: 'item', id: item.id, dateKey });
-      }}
-      onTouchStart={() => {
-        onDragStart({ type: 'item', id: item.id, dateKey });
-      }}
+      {...attributes}
+      {...listeners}
+      className={`draggable-item-chip ${isDragging ? 'is-dragging' : ''}`}
+      title={`Drag "${item.name}" to any calendar day`}
     >
-      <div {...attributes} {...listeners} style={{ width: 60, height: 60, borderRadius: 'var(--radius-md)', background: 'var(--bg-3)', overflow: 'hidden', marginBottom: 4, border: '1px solid var(--border)' }}>
+      <div className="draggable-handle">
+        <GripVertical size={14} />
+      </div>
+      <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', overflow: 'hidden', flexShrink: 0 }}>
         <ResolvedImage
           src={item.images && item.images[0]}
           alt={item.name}
           style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           fallback={
             <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}>
-              <CategoryIcon category={item.category} size={22} />
+              <CategoryIcon category={item.category} size={16} />
             </div>
           }
         />
       </div>
-      <div style={{ fontSize: 10, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center', width: 60 }}>{item.name}</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {item.name}
+        </div>
+        <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'capitalize' }}>
+          {item.category}
+        </div>
+      </div>
     </div>
   );
 }
 
-/* ─── Month Day Cell Component ─── */
+/* ─── Month Day Cell Component (Droppable) ─── */
 interface MonthDayCellProps {
   day: CalendarDay;
   onClick: (dateKey: string) => void;
+  isDragOver?: boolean;
 }
 
-function MonthDayCell({ day, onClick }: MonthDayCellProps) {
+function MonthDayCell({ day, onClick, isDragOver }: MonthDayCellProps) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: day.dateKey,
+    data: { dateKey: day.dateKey },
+  });
+
+  const activeOver = isDragOver || isOver;
   const wornCount = day.wornOutfits.length + day.wornItems.length;
   const plannedCount = day.plannedOutfits.length;
   const washedCount = day.washedItems.length;
 
   return (
     <div
+      ref={setNodeRef}
       onClick={() => onClick(day.dateKey)}
-      className={`log-month-cell ${!day.isCurrentMonth ? 'is-other-month' : ''} ${day.isToday ? 'is-today' : ''}`}
+      className={`log-month-cell ${!day.isCurrentMonth ? 'is-other-month' : ''} ${day.isToday ? 'is-today' : ''} ${activeOver ? 'drag-over' : ''}`}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{
@@ -177,6 +198,11 @@ function MonthDayCell({ day, onClick }: MonthDayCellProps) {
         }}>
           {day.date.getDate()}
         </span>
+        {activeOver && (
+          <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--accent)', background: 'rgba(59, 130, 246, 0.2)', padding: '1px 4px', borderRadius: 4 }}>
+            Drop
+          </span>
+        )}
       </div>
 
       <div className="log-month-dots">
@@ -185,11 +211,15 @@ function MonthDayCell({ day, onClick }: MonthDayCellProps) {
         {washedCount > 0 && <div className="log-dot log-dot--washed" title={`${washedCount} washed`} />}
       </div>
 
-      {wornCount > 0 && (
+      {wornCount > 0 ? (
         <div style={{ fontSize: 9, fontWeight: 700, color: '#10b981', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {day.wornOutfits[0]?.name || `${wornCount} Worn`}
         </div>
-      )}
+      ) : plannedCount > 0 ? (
+        <div style={{ fontSize: 9, fontWeight: 700, color: '#8b5cf6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {day.plannedOutfits.length} Plan
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -225,23 +255,30 @@ function ItemAvatarStack({ itemIds, items, max = 3 }: { itemIds: string[]; items
   );
 }
 
-/* ─── Week Day Cell Component ─── */
+/* ─── Week Day Cell Component (Droppable) ─── */
 interface WeekDayCellProps {
   day: CalendarDay;
   items: ClothingItem[];
   outfits: Outfit[];
   onClick: (dateKey: string) => void;
   onMarkPlanWorn?: (plan: any) => void;
-  isDragOver: boolean;
+  isDragOver?: boolean;
 }
 
 function WeekDayCell({ day, items, outfits, onClick, onMarkPlanWorn, isDragOver }: WeekDayCellProps) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: day.dateKey,
+    data: { dateKey: day.dateKey },
+  });
+
+  const activeOver = isDragOver || isOver;
   const isToday = day.isToday;
 
   return (
     <div
+      ref={setNodeRef}
       onClick={() => onClick(day.dateKey)}
-      className={`log-week-card ${isToday ? 'is-today' : ''} ${isDragOver ? 'drag-over' : ''}`}
+      className={`log-week-card ${isToday ? 'is-today' : ''} ${activeOver ? 'drag-over' : ''}`}
     >
       {/* Card Header */}
       <div className="log-week-card__header">
@@ -335,19 +372,23 @@ function WeekDayCell({ day, items, outfits, onClick, onMarkPlanWorn, isDragOver 
           </div>
         )}
 
-        {/* Empty Cell */}
-        {day.totalLogsCount === 0 && (
+        {/* Droppable feedback or Empty State */}
+        {activeOver ? (
+          <div className="week-drop-invitation">
+            <Sparkles size={16} />
+            <span>Drop to Plan</span>
+          </div>
+        ) : day.totalLogsCount === 0 ? (
           <div className="week-empty-cell">
             <Plus size={14} className="week-empty-icon" />
             <span>Log / Plan</span>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );
 }
 
-/* ─── Log Wear Modal ─── */
 /* ─── Log Laundry Modal ─── */
 interface LogLaundryModalProps {
   isOpen: boolean;
@@ -648,9 +689,10 @@ function DayDetailModal({
 /* ─── MAIN CALENDAR / LOG TAB ─── */
 export default function CalendarTab() {
   const { items, updateItem } = useWardrobe();
-  const { outfits, plans, updateOutfit, deletePlan, updatePlan, addPlan, recordOutfitWear } = useOutfits();
+  const { outfits, plans, updateOutfit, deletePlan, updatePlan, addPlan } = useOutfits();
 
-  const [activeView, setActiveView] = useState<'month' | 'week' | 'history' | 'assign'>('month');
+  const [activeView, setActiveView] = useState<'month' | 'week' | 'history' | 'assign'>('assign');
+  const [plannerSubView, setPlannerSubView] = useState<'week' | 'month'>('week');
   const [currentMonthState, setCurrentMonthState] = useState<{ year: number; month: number }>(() => {
     const today = new Date();
     return { year: today.getFullYear(), month: today.getMonth() };
@@ -669,14 +711,26 @@ export default function CalendarTab() {
   const [historySearch, setHistorySearch] = useState('');
   const [historyCategory, setHistoryCategory] = useState<'all' | 'outfits' | 'items' | 'laundry'>('all');
 
+  // Drag & Plan Tray State
+  const [dragSearch, setDragSearch] = useState('');
+  const [dragFilterCategory, setDragFilterCategory] = useState<'all' | 'outfits' | Category>('all');
+
   // Drag state
-  const [draggedItem, setDraggedItem] = useState<DragItem | null>(null);
+  const [draggedItem, setDraggedItem] = useState<{ type: 'outfit' | 'item'; id: string } | null>(null);
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 10 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
+  const pointerSensor = useSensor(PointerSensor, {
+    activationConstraint: {
+      distance: 6,
+    },
+  });
+  const touchSensor = useSensor(TouchSensor, {
+    activationConstraint: {
+      delay: 150,
+      tolerance: 5,
+    },
+  });
+  const sensors = useSensors(pointerSensor, touchSensor);
 
   /* ── Month & Week Data ── */
   const calendarMonth = useMemo(() => 
@@ -723,6 +777,27 @@ export default function CalendarTab() {
       washCount: totalWashes,
     };
   }, [outfits, items]);
+
+  /* ── Filtered Outfits & Items for Drag & Plan ── */
+  const filteredOutfits = useMemo(() => {
+    if (dragFilterCategory !== 'all' && dragFilterCategory !== 'outfits') return [];
+    if (!dragSearch.trim()) return outfits;
+    const q = dragSearch.toLowerCase();
+    return outfits.filter(o => o.name.toLowerCase().includes(q));
+  }, [outfits, dragFilterCategory, dragSearch]);
+
+  const filteredItems = useMemo(() => {
+    if (dragFilterCategory === 'outfits') return [];
+    let list = items;
+    if (dragFilterCategory !== 'all') {
+      list = list.filter(i => i.category === dragFilterCategory);
+    }
+    if (dragSearch.trim()) {
+      const q = dragSearch.toLowerCase();
+      list = list.filter(i => i.name.toLowerCase().includes(q) || i.brand?.toLowerCase().includes(q) || i.category.toLowerCase().includes(q));
+    }
+    return list;
+  }, [items, dragFilterCategory, dragSearch]);
 
   /* ── Past Logs Chronological Feed ── */
   const historyFeed = useMemo(() => {
@@ -896,56 +971,60 @@ export default function CalendarTab() {
     setToast('Plan cancelled');
   };
 
-  /* ── Drag and Drop ── */
-  const handleDragStart = useCallback((item: DragItem) => {
-    setDraggedItem(item);
+  /* ── Drag and Drop Handlers ── */
+  const handleDragStartDnd = useCallback((event: DragStartEvent) => {
+    const data = event.active.data.current as { type: 'outfit' | 'item'; id: string } | undefined;
+    if (data) {
+      setDraggedItem(data);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((event: DragOverEvent) => {
+    setDragOverDate(event.over ? (event.over.id as string) : null);
+  }, []);
+
+  const handleDragCancel = useCallback(() => {
+    setDraggedItem(null);
+    setDragOverDate(null);
   }, []);
 
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
-    const { over } = event;
+    const { active, over } = event;
     setDraggedItem(null);
     setDragOverDate(null);
 
-    if (!over || !draggedItem) return;
+    if (!over) return;
 
     const targetDateKey = over.id as string;
-    if (!targetDateKey || targetDateKey === draggedItem.dateKey) return;
+    const dragData = (active.data?.current || draggedItem) as { type: 'outfit' | 'item'; id: string } | undefined;
+    if (!dragData || !targetDateKey) return;
 
     try {
-      if (draggedItem.type === 'outfit') {
-        const outfit = outfits.find(o => o.id === draggedItem.id);
+      if (dragData.type === 'outfit') {
+        const outfit = outfits.find(o => o.id === dragData.id);
         if (outfit) {
           const plan = createPlanFromOutfit(outfit.id, targetDateKey);
           plan.itemIds = outfit.itemIds;
           await addPlan(plan);
-          setToast(`✓ Planned "${outfit.name}" for ${targetDateKey}`);
+          setToast(`✓ Planned "${outfit.name}" for ${formatDateDisplay(new Date(targetDateKey + 'T12:00:00'))}`);
         }
-      } else if (draggedItem.type === 'item') {
+      } else if (dragData.type === 'item') {
         const existingPlan = plans.find(p => p.date === targetDateKey && !p.outfitId);
         if (existingPlan) {
-          const newItemIds = [...new Set([...existingPlan.itemIds, draggedItem.id])];
+          const newItemIds = [...new Set([...existingPlan.itemIds, dragData.id])];
           await updatePlan({ ...existingPlan, itemIds: newItemIds });
         } else {
-          const plan = createPlanFromItems([draggedItem.id], targetDateKey);
+          const plan = createPlanFromItems([dragData.id], targetDateKey);
           await addPlan(plan);
         }
-        const item = items.find(i => i.id === draggedItem.id);
-        if (item) setToast(`✓ Added "${item.name}" to ${targetDateKey}`);
+        const item = items.find(i => i.id === dragData.id);
+        if (item) setToast(`✓ Added "${item.name}" to ${formatDateDisplay(new Date(targetDateKey + 'T12:00:00'))}`);
       }
     } catch (err) {
       console.error('Failed to plan outfit:', err);
       setToast('✗ Failed to plan outfit');
     }
   }, [draggedItem, outfits, items, plans, addPlan, updatePlan]);
-
-  const handleDragOver = useCallback((event: DragOverEvent) => {
-    setDragOverDate(event.over ? (event.over.id as string) : null);
-  }, []);
-
-  const handleDragStartDnd = useCallback((event: DragStartEvent) => {
-    const data = event.active.data.current as DragItem;
-    if (data) setDraggedItem(data);
-  }, []);
 
   const handleDayClick = (dateKey: string) => {
     setSelectedDateKey(dateKey);
@@ -959,6 +1038,7 @@ export default function CalendarTab() {
       onDragStart={handleDragStartDnd}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
     >
       <div className="page-content animate-fade-in log-page-container">
         
@@ -970,7 +1050,7 @@ export default function CalendarTab() {
                 Style Log & Calendar
               </h1>
               <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                Track daily wear, full monthly calendar & laundry history
+                Schedule looks, track daily wear, monthly calendar & laundry
               </p>
             </div>
             
@@ -990,10 +1070,10 @@ export default function CalendarTab() {
           {/* Mode Switcher Tabs */}
           <div className="log-segmented-tabs">
             <button
-              className={`log-seg-btn ${activeView === 'month' ? 'active' : ''}`}
-              onClick={() => setActiveView('month')}
+              className={`log-seg-btn ${activeView === 'assign' ? 'active' : ''}`}
+              onClick={() => setActiveView('assign')}
             >
-              <CalendarIcon size={15} /> Month View
+              <Sparkles size={15} /> Drag & Plan
             </button>
             <button
               className={`log-seg-btn ${activeView === 'week' ? 'active' : ''}`}
@@ -1002,16 +1082,16 @@ export default function CalendarTab() {
               <Grid size={15} /> Week View
             </button>
             <button
+              className={`log-seg-btn ${activeView === 'month' ? 'active' : ''}`}
+              onClick={() => setActiveView('month')}
+            >
+              <CalendarIcon size={15} /> Month View
+            </button>
+            <button
               className={`log-seg-btn ${activeView === 'history' ? 'active' : ''}`}
               onClick={() => setActiveView('history')}
             >
               <History size={15} /> Style Feed
-            </button>
-            <button
-              className={`log-seg-btn ${activeView === 'assign' ? 'active' : ''}`}
-              onClick={() => setActiveView('assign')}
-            >
-              <Sparkles size={15} /> Drag & Plan
             </button>
           </div>
 
@@ -1046,6 +1126,223 @@ export default function CalendarTab() {
             </div>
           </div>
         </div>
+
+        {/* VIEW: DRAG & PLAN STUDIO */}
+        {activeView === 'assign' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+            
+            {/* Quick Helper Tip */}
+            <div className="drag-plan-tip">
+              <Sparkles size={16} color="var(--accent)" style={{ flexShrink: 0 }} />
+              <div>
+                <strong>Interactive Planner:</strong> Drag any outfit or wardrobe item from below directly onto a calendar day above to schedule it.
+              </div>
+            </div>
+
+            {/* Target Calendar Area with Sub-View Switcher */}
+            <div className="log-week-container">
+              <div className="log-week-header-bar">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {plannerSubView === 'week' ? (
+                    <>
+                      <button className="btn btn-ghost" onClick={() => setCurrentWeek(getPreviousWeek(currentWeek))} style={{ padding: 6 }}>
+                        <ChevronLeft size={18} />
+                      </button>
+                      <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)' }}>
+                        {getWeekLabel(calendarWeek)}
+                      </span>
+                      <button className="btn btn-ghost" onClick={() => setCurrentWeek(getNextWeek(currentWeek))} style={{ padding: 6 }}>
+                        <ChevronRight size={18} />
+                      </button>
+                      <button className="btn btn-ghost" onClick={() => setCurrentWeek(getCurrentWeek())} style={{ fontSize: 12, padding: '4px 10px', marginLeft: 4 }}>
+                        This Week
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button className="btn btn-ghost" onClick={() => setCurrentMonthState(getPreviousMonth(currentMonthState.year, currentMonthState.month))} style={{ padding: 6 }}>
+                        <ChevronLeft size={18} />
+                      </button>
+                      <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)' }}>
+                        {calendarMonth.label}
+                      </span>
+                      <button className="btn btn-ghost" onClick={() => setCurrentMonthState(getNextMonth(currentMonthState.year, currentMonthState.month))} style={{ padding: 6 }}>
+                        <ChevronRight size={18} />
+                      </button>
+                      <button className="btn btn-ghost" onClick={() => {
+                        const today = new Date();
+                        setCurrentMonthState({ year: today.getFullYear(), month: today.getMonth() });
+                      }} style={{ fontSize: 12, padding: '4px 10px', marginLeft: 4 }}>
+                        Today
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button
+                    className={`btn ${plannerSubView === 'week' ? 'btn-primary' : 'btn-ghost'}`}
+                    onClick={() => setPlannerSubView('week')}
+                    style={{ fontSize: 12, padding: '4px 10px' }}
+                  >
+                    Week Grid
+                  </button>
+                  <button
+                    className={`btn ${plannerSubView === 'month' ? 'btn-primary' : 'btn-ghost'}`}
+                    onClick={() => setPlannerSubView('month')}
+                    style={{ fontSize: 12, padding: '4px 10px' }}
+                  >
+                    Month Grid
+                  </button>
+                </div>
+              </div>
+
+              {plannerSubView === 'week' ? (
+                <div className="log-week-grid">
+                  {calendarWeek.days.map(day => (
+                    <WeekDayCell
+                      key={day.dateKey}
+                      day={day}
+                      items={items}
+                      outfits={outfits}
+                      onClick={handleDayClick}
+                      onMarkPlanWorn={handleMarkPlanWorn}
+                      isDragOver={dragOverDate === day.dateKey}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6, marginBottom: 6 }}>
+                    {WEEKDAYS.map((d) => (
+                      <div key={d} style={{ textAlign: 'center', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                        {d}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="log-month-grid">
+                    {calendarMonth.days.map(day => (
+                      <MonthDayCell
+                        key={day.dateKey}
+                        day={day}
+                        onClick={handleDayClick}
+                        isDragOver={dragOverDate === day.dateKey}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Draggable Outfits & Wardrobe Palette Drawer */}
+            <div className="drag-plan-palette-container">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+                <div>
+                  <h3 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <GripVertical size={16} color="var(--accent)" />
+                    Wardrobe & Outfits Palette
+                  </h3>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                    Grab and drag onto any date above
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  {/* Search Bar */}
+                  <div style={{ position: 'relative', minWidth: 160 }}>
+                    <input
+                      type="text"
+                      placeholder="Search..."
+                      value={dragSearch}
+                      onChange={e => setDragSearch(e.target.value)}
+                      style={{
+                        padding: '6px 12px 6px 30px',
+                        fontSize: 12,
+                        background: 'var(--bg-3)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-pill)',
+                        color: 'var(--text-primary)',
+                        outline: 'none',
+                        width: '100%',
+                      }}
+                    />
+                    <Search size={14} color="var(--text-muted)" style={{ position: 'absolute', left: 10, top: 8 }} />
+                  </div>
+
+                  {/* Filter Selector */}
+                  <select
+                    value={dragFilterCategory}
+                    onChange={e => setDragFilterCategory(e.target.value as any)}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: 12,
+                      background: 'var(--bg-3)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-pill)',
+                      color: 'var(--text-primary)',
+                    }}
+                  >
+                    <option value="all">All Outfits & Items</option>
+                    <option value="outfits">Outfits Only ({outfits.length})</option>
+                    <option value="top">Tops</option>
+                    <option value="bottom">Bottoms</option>
+                    <option value="shoes">Shoes</option>
+                    <option value="outerwear">Outerwear</option>
+                    <option value="accessory">Accessories</option>
+                    <option value="bag">Bags</option>
+                    <option value="underwear">Underwear</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Section 1: Draggable Outfits */}
+              {(dragFilterCategory === 'all' || dragFilterCategory === 'outfits') && (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      Outfits ({filteredOutfits.length})
+                    </span>
+                  </div>
+
+                  {filteredOutfits.length === 0 ? (
+                    <div style={{ padding: '16px', background: 'var(--bg-2)', borderRadius: 'var(--radius-md)', textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>
+                      {outfits.length === 0 ? 'No outfits created yet. Create outfits in the Outfits tab to drag and plan them here.' : 'No outfits match your search.'}
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8 }}>
+                      {filteredOutfits.map(outfit => (
+                        <DraggableOutfit key={outfit.id} outfit={outfit} items={items} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Section 2: Draggable Wardrobe Items */}
+              {dragFilterCategory !== 'outfits' && (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, marginTop: 4 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      Single Clothing Items ({filteredItems.length})
+                    </span>
+                  </div>
+
+                  {filteredItems.length === 0 ? (
+                    <div style={{ padding: '16px', background: 'var(--bg-2)', borderRadius: 'var(--radius-md)', textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>
+                      No items found.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8, maxHeight: 320, overflowY: 'auto' }}>
+                      {filteredItems.map(item => (
+                        <DraggableItem key={item.id} item={item} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* VIEW 1: FULL MONTH CALENDAR GRID */}
         {activeView === 'month' && (
@@ -1095,7 +1392,12 @@ export default function CalendarTab() {
             {/* Month Grid Cells */}
             <div className="log-month-grid">
               {calendarMonth.days.map(day => (
-                <MonthDayCell key={day.dateKey} day={day} onClick={handleDayClick} />
+                <MonthDayCell
+                  key={day.dateKey}
+                  day={day}
+                  onClick={handleDayClick}
+                  isDragOver={dragOverDate === day.dateKey}
+                />
               ))}
             </div>
           </div>
@@ -1252,36 +1554,46 @@ export default function CalendarTab() {
           </div>
         )}
 
-        {/* VIEW 4: QUICK DRAG & PLAN */}
-        {activeView === 'assign' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-            <div>
-              <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase' }}>
-                Drag Outfits to Calendar
-              </h3>
-              <SortableContext items={outfits.map(o => o.id)} strategy={verticalListSortingStrategy}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 240, overflowY: 'auto' }}>
-                  {outfits.map(outfit => (
-                    <DraggableOutfit key={outfit.id} outfit={outfit} onDragStart={handleDragStart} />
-                  ))}
-                </div>
-              </SortableContext>
-            </div>
-
-            <div>
-              <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase' }}>
-                Drag Items to Calendar
-              </h3>
-              <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {items.map(item => (
-                    <DraggableItem key={item.id} item={item} onDragStart={handleDragStart} />
-                  ))}
-                </div>
-              </SortableContext>
-            </div>
-          </div>
-        )}
+        {/* Floating Drag Overlay */}
+        <DragOverlay dropAnimation={{ duration: 150, easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)' }}>
+          {draggedItem ? (
+            draggedItem.type === 'outfit' ? (
+              (() => {
+                const outfit = outfits.find(o => o.id === draggedItem.id);
+                if (!outfit) return null;
+                return (
+                  <div className="draggable-outfit-card dragging-overlay">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 34, height: 34, borderRadius: 'var(--radius-sm)', background: '#8b5cf6', display: 'grid', placeItems: 'center', color: '#fff' }}>
+                        <Sparkles size={16} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{outfit.name}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{outfit.itemIds.length} items • Drop on a day</div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()
+            ) : (
+              (() => {
+                const item = items.find(i => i.id === draggedItem.id);
+                if (!item) return null;
+                return (
+                  <div className="draggable-item-chip dragging-overlay">
+                    <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-sm)', background: 'var(--bg-3)', overflow: 'hidden' }}>
+                      <ResolvedImage src={item.images?.[0]} alt={item.name} fallback={<CategoryIcon category={item.category} size={16} />} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700 }}>{item.name}</div>
+                      <div style={{ fontSize: 9, color: 'var(--accent)' }}>Drop on a day to plan</div>
+                    </div>
+                  </div>
+                );
+              })()
+            )
+          ) : null}
+        </DragOverlay>
 
         {/* Modals */}
         {selectedDateKey && (

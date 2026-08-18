@@ -8,6 +8,7 @@ export interface WardrobeFilterOptions {
   status?: string | 'all';
   condition?: string | 'all';
   locationId?: string | 'all';
+  sparkJoy?: string | 'all';
   searchQuery?: string;
   showRetired?: boolean;
 }
@@ -24,6 +25,11 @@ export class ItemService {
       const matchStatus = !filters.status || filters.status === 'all' || item.status === filters.status;
       const matchCondition = !filters.condition || filters.condition === 'all' || (item.condition || 'good') === filters.condition;
       const matchRetired = filters.showRetired || !item.retiredAt;
+      const matchSparkJoy = !filters.sparkJoy || filters.sparkJoy === 'all'
+        ? true
+        : filters.sparkJoy === 'unrated'
+          ? !item.sparkJoy
+          : item.sparkJoy === filters.sparkJoy;
 
       let matchSearch = true;
       if (filters.searchQuery && filters.searchQuery.trim()) {
@@ -38,7 +44,7 @@ export class ItemService {
           item.tags.some(t => t.toLowerCase().includes(query));
       }
 
-      return matchLocation && matchCat && matchTag && matchStatus && matchCondition && matchRetired && matchSearch;
+      return matchLocation && matchCat && matchTag && matchStatus && matchCondition && matchSparkJoy && matchRetired && matchSearch;
     });
   }
 

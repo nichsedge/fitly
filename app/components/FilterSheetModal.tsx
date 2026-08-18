@@ -13,12 +13,14 @@ interface FilterSheetModalProps {
     activeStatus: string;
     activeCondition: string;
     activeColor: string;
+    activeSparkJoy?: string;
     tags: { id: string; label: string }[];
     onCategoryChange: (cat: Category | 'all') => void;
     onTagChange: (tag: string) => void;
     onStatusChange: (status: string) => void;
     onConditionChange: (condition: string) => void;
     onColorChange: (color: string) => void;
+    onSparkJoyChange?: (joy: string) => void;
     onReset: () => void;
     hasActiveFilters: boolean;
 }
@@ -28,6 +30,14 @@ const STATUS_OPTIONS = [
     { value: 'ready', icon: '✅', key: 'ready' },
     { value: 'dirty', icon: '🧺', key: 'dirty' },
     { value: 'cleaning', icon: '🧼', key: 'cleaning' },
+];
+
+const SPARK_JOY_OPTIONS = [
+    { value: 'all', icon: '✨', key: 'allJoyStatuses' },
+    { value: 'joy', icon: '💖', key: 'sparksJoy' },
+    { value: 'essential', icon: '🧺', key: 'essential' },
+    { value: 'no-joy', icon: '🍂', key: 'noJoy' },
+    { value: 'unrated', icon: '❓', key: 'unrated' },
 ];
 
 const CONDITION_OPTIONS = [
@@ -48,12 +58,14 @@ export default function FilterSheetModal({
     activeStatus,
     activeCondition,
     activeColor,
+    activeSparkJoy = 'all',
     tags,
     onCategoryChange,
     onTagChange,
     onStatusChange,
     onConditionChange,
     onColorChange,
+    onSparkJoyChange,
     onReset,
     hasActiveFilters,
 }: FilterSheetModalProps) {
@@ -185,6 +197,25 @@ export default function FilterSheetModal({
                                     className={`filter-chip ${activeStatus === opt.value ? 'active' : ''}`}
                                     onClick={() => onStatusChange(opt.value)}
                                     aria-pressed={activeStatus === opt.value}
+                                >
+                                    {opt.icon} {t(opt.key as any)}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Spark Joy (KonMari) */}
+                    <div className="filter-sheet__section">
+                        <div className="filter-sheet__label">
+                            <span>{t('sparkJoyFilter')}</span>
+                        </div>
+                        <div className="filter-sheet__chips">
+                            {SPARK_JOY_OPTIONS.map(opt => (
+                                <button
+                                    key={opt.value}
+                                    className={`filter-chip ${activeSparkJoy === opt.value ? 'active' : ''}`}
+                                    onClick={() => onSparkJoyChange?.(opt.value)}
+                                    aria-pressed={activeSparkJoy === opt.value}
                                 >
                                     {opt.icon} {t(opt.key as any)}
                                 </button>

@@ -15,6 +15,7 @@ import TripsView from './components/TripsView';
 import QuickAddModal from './components/QuickAddModal';
 import MoreMenuModal from './components/MoreMenuModal';
 import LogWearModal from './components/LogWearModal';
+import MinimalismAnalyzerModal from './components/MinimalismAnalyzerModal';
 import Toast from './components/Toast';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ActiveTab } from './lib/types';
@@ -32,6 +33,7 @@ export default function Home() {
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [isLogWearOpen, setIsLogWearOpen] = useState(false);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const [isMinimalismOpen, setIsMinimalismOpen] = useState(false);
   const [toast, setToast] = useState('');
 
   const handleTabChange = (tab: ActiveTab) => {
@@ -172,7 +174,7 @@ export default function Home() {
                 <div className="section-header">
                   <h2 className="section-title">{t('stats')}</h2>
                 </div>
-                <InsightsSection />
+                <InsightsSection onOpenMinimalism={() => setIsMinimalismOpen(true)} />
               </div>
             </ErrorBoundary>
           )}
@@ -210,7 +212,12 @@ export default function Home() {
           onClose={() => setIsMoreOpen(false)}
           onSelectTab={(tab) => handleTabChange(tab)}
           onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenMinimalism={() => setIsMinimalismOpen(true)}
         />
+      )}
+
+      {isMinimalismOpen && (
+        <MinimalismAnalyzerModal onClose={() => setIsMinimalismOpen(false)} />
       )}
 
       {toast && <Toast message={toast} onDone={() => setToast('')} />}
