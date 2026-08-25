@@ -11,7 +11,7 @@ import { ImageService } from '../services/ImageService';
 import { CategoryIcon, Camera, Wand2, Shirt, Trash2, Edit, CheckCircle2, X } from './AppIcon';
 import ItemPhotoCarousel from './itemDetail/ItemPhotoCarousel';
 import { SparkJoyPills, SparkJoyCompactButtons } from './itemDetail/SparkJoySelector';
-import { useItemForm, isValidForm, ItemFormData } from './itemDetail/useItemForm';
+import { useItemForm, isValidForm } from './itemDetail/useItemForm';
 
 interface Props {
   item: ClothingItem;
@@ -243,7 +243,6 @@ export default function ItemDetailModal({ item, onClose, logDateKey, onRemoveLog
               item={item}
               isEditing={isEditing}
               uploadingPhoto={uploadingPhoto}
-              fileRef={fileRef}
               onColorPick={(hex) => { void handleColorPick(hex); }}
               onDeleteImage={handleDeleteImage}
               onAddPhotoClick={() => fileRef.current?.click()}

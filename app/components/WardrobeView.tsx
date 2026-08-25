@@ -371,7 +371,7 @@ export default function WardrobeView({ onNavigateToAdd }: Props) {
               )}
               {searchQuery && (
                 <span style={{ fontSize: 11, background: 'var(--accent-subtle)', color: 'var(--accent)', padding: '2px 8px', borderRadius: 'var(--radius-pill)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  "{searchQuery}" <button onClick={() => setSearchQuery('')} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0 }}>✕</button>
+                  &quot;{searchQuery}&quot; <button onClick={() => setSearchQuery('')} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0 }}>✕</button>
                 </span>
               )}
             </div>

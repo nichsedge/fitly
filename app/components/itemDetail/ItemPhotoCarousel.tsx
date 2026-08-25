@@ -8,7 +8,6 @@ interface ItemPhotoCarouselProps {
   item: ClothingItem;
   isEditing: boolean;
   uploadingPhoto: boolean;
-  fileRef: React.RefObject<HTMLInputElement | null>;
   onColorPick: (hex: string, e: React.MouseEvent) => void;
   onDeleteImage: (idx: number, e: React.MouseEvent) => void;
   onAddPhotoClick: () => void;
@@ -22,7 +21,6 @@ export default function ItemPhotoCarousel({
   item,
   isEditing,
   uploadingPhoto,
-  fileRef,
   onColorPick,
   onDeleteImage,
   onAddPhotoClick,

@@ -7,7 +7,7 @@ import { useOutfits } from '../contexts/OutfitContext';
 import { ClothingItem, CATEGORIES, Category, Outfit } from '../lib/types';
 import ItemCard from './ItemCard';
 import Toast from './Toast';
-import { CategoryIcon, Sparkles, Wand2 } from './AppIcon';
+import { CategoryIcon, Wand2 } from './AppIcon';
 import { ResolvedImage } from './ResolvedImage';
 
 interface Props {

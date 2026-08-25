@@ -8,38 +8,40 @@ interface ResolvedImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   fallback?: React.ReactNode;
 }
 
-export function ResolvedImage({ src, fallback, ...props }: ResolvedImageProps) {
-  const [resolvedSrc, setResolvedSrc] = useState<string>('');
+/** Sources that can be used directly in an <img> without IndexedDB resolution. */
+function isDirectSrc(src?: string): boolean {
+  return !src || src.startsWith('data:') || src.startsWith('http') || src.startsWith('blob:');
+}
+
+export function ResolvedImage({ src, fallback, alt = '', ...props }: ResolvedImageProps) {
+  // State is only needed for asynchronous blob-reference resolution.
+  const [resolvedBlobUrl, setResolvedBlobUrl] = useState<string>('');
+
+  const needsResolution = !!src && !isDirectSrc(src);
 
   useEffect(() => {
+    if (!needsResolution || !src) return;
     let active = true;
-    if (!src) {
-      setResolvedSrc('');
-      return;
-    }
-    if (src.startsWith('data:') || src.startsWith('http') || src.startsWith('blob:')) {
-      setResolvedSrc(src);
-    } else {
-      ImageService.resolveImageUrl(src).then(url => {
-        if (active) setResolvedSrc(url);
-      });
-    }
+    ImageService.resolveImageUrl(src).then(url => {
+      if (active) setResolvedBlobUrl(url);
+    });
     return () => {
       active = false;
     };
-  }, [src]);
+  }, [src, needsResolution]);
+
+  const resolvedSrc = needsResolution ? resolvedBlobUrl : (src || '');
 
   if (!resolvedSrc) {
     return fallback ? <>{fallback}</> : null;
   }
 
-  // eslint-disable-next-line @next/next/no-img-element
   return (
     <img
       src={resolvedSrc}
+      alt={alt}
       {...props}
       style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover', ...props.style }}
     />
   );
 }
-

@@ -30,7 +30,7 @@ const STATUS_OPTIONS = [
     { value: 'ready', icon: '✅', key: 'ready' },
     { value: 'dirty', icon: '🧺', key: 'dirty' },
     { value: 'cleaning', icon: '🧼', key: 'cleaning' },
-];
+] as const;
 
 const SPARK_JOY_OPTIONS = [
     { value: 'all', icon: '✨', key: 'allJoyStatuses' },
@@ -38,7 +38,7 @@ const SPARK_JOY_OPTIONS = [
     { value: 'essential', icon: '🧺', key: 'essential' },
     { value: 'no-joy', icon: '🍂', key: 'noJoy' },
     { value: 'unrated', icon: '❓', key: 'unrated' },
-];
+] as const;
 
 const CONDITION_OPTIONS = [
     { value: 'all', key: 'allConditions' },
@@ -48,7 +48,7 @@ const CONDITION_OPTIONS = [
     { value: 'fair', key: 'condFair' },
     { value: 'poor', key: 'condPoor' },
     { value: 'needs-repair', key: 'condRepair' },
-];
+] as const;
 
 export default function FilterSheetModal({
     isOpen,
@@ -198,7 +198,7 @@ export default function FilterSheetModal({
                                     onClick={() => onStatusChange(opt.value)}
                                     aria-pressed={activeStatus === opt.value}
                                 >
-                                    {opt.icon} {t(opt.key as any)}
+                                    {opt.icon} {t(opt.key)}
                                 </button>
                             ))}
                         </div>
@@ -217,7 +217,7 @@ export default function FilterSheetModal({
                                     onClick={() => onSparkJoyChange?.(opt.value)}
                                     aria-pressed={activeSparkJoy === opt.value}
                                 >
-                                    {opt.icon} {t(opt.key as any)}
+                                    {opt.icon} {t(opt.key)}
                                 </button>
                             ))}
                         </div>
@@ -236,7 +236,7 @@ export default function FilterSheetModal({
                                     onClick={() => onConditionChange(opt.value)}
                                     aria-pressed={activeCondition === opt.value}
                                 >
-                                    {t(opt.key as any)}
+                                    {t(opt.key)}
                                 </button>
                             ))}
                         </div>

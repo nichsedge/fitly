@@ -7,8 +7,8 @@ import {
   addWashLog,
   removeWashLog,
 } from './wearLogs';
+import { ClothingItem } from '../types';
 import { timestampToDateKey } from './calendar';
-import { ClothingItem, Outfit } from '../types';
 
 const item = (overrides: Partial<ClothingItem> = {}): ClothingItem => ({
   id: 'i1',
@@ -18,13 +18,6 @@ const item = (overrides: Partial<ClothingItem> = {}): ClothingItem => ({
   updatedAt: 0,
   ...overrides,
 } as ClothingItem);
-
-const outfit = (overrides: Partial<Outfit> = {}): Outfit => ({
-  id: 'o1',
-  name: 'Casual',
-  itemIds: [],
-  ...overrides,
-} as Outfit);
 
 describe('getWearLogs', () => {
   it('returns wearLogs when present', () => {
@@ -46,8 +39,7 @@ describe('getWashLogs', () => {
 
 describe('addWearLog', () => {
   it('adds a log and updates lastWornAt', () => {
-    const dk = timestampToDateKey(1704067200000); // some date
-    const result = addWearLog(item(), dk);
+    const result = addWearLog(item(), '2024-01-01');
     expect(result).not.toBeNull();
     expect(result!.wearLogs).toHaveLength(1);
     expect(result!.lastWornAt).toBe(result!.wearLogs![0]);
@@ -55,7 +47,6 @@ describe('addWearLog', () => {
   it('returns null when date already logged (idempotent)', () => {
     const ts = Date.now();
     const entity = item({ wearLogs: [ts] });
-    const dk = timestampToDateKey(ts);
     // Same day via legacy fallback path
     const result = addWearLog(entity, timestampToDateKey(ts));
     if (result === null) {

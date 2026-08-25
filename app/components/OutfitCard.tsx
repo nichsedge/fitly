@@ -13,12 +13,12 @@ interface Props {
 }
 
 function OutfitCardComponent({ outfit, items, onClick, viewMode = 'grid' }: Props) {
-  const outfitItems = outfit.itemIds
+  const outfitItems = React.useMemo(() => outfit.itemIds
     .map(id => items.find(i => i.id === id))
-    .filter(Boolean) as ClothingItem[];
+    .filter(Boolean) as ClothingItem[], [outfit.itemIds, items]);
 
   const count = outfitItems.length;
-  const displayItems = count > 0 ? outfitItems.slice(0, 4) : [];
+  const displayItems = React.useMemo(() => count > 0 ? outfitItems.slice(0, 4) : [], [count, outfitItems]);
 
   const slotsToRender = count === 0 
     ? [null, null, null, null] 
@@ -44,7 +44,7 @@ function OutfitCardComponent({ outfit, items, onClick, viewMode = 'grid' }: Prop
     };
     loadUrls();
     return () => { active = false; };
-  }, [items, outfit.itemIds]);
+  }, [displayItems]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {

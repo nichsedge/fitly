@@ -1,4 +1,4 @@
-import { ClothingItem, Category, SparkJoyStatus } from '../lib/types';
+import { ClothingItem, Category } from '../lib/types';
 
 export const KONMARI_CATEGORY_ORDER: Category[] = [
   'top',

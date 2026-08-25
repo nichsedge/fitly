@@ -73,6 +73,7 @@ export default function InsightsSection({ onOpenMinimalism }: InsightsSectionPro
     });
 
     // Utilization rate (items worn in last 30 days)
+    // eslint-disable-next-line react-hooks/purity
     const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
     const wornLast30Days = items.filter(item => {
       if (!item.wearLogs || item.wearLogs.length === 0) return false;

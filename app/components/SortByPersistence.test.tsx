@@ -43,7 +43,7 @@ describe('Sort by state persistence across view changes', () => {
   });
 
   it('persists WardrobeView sort selection in localStorage across remounts', () => {
-    const { unmount, rerender } = render(<WardrobeView />);
+    const { unmount } = render(<WardrobeView />);
     
     const select = screen.getByLabelText('Sort items') as HTMLSelectElement;
     expect(select.value).toBe('newest');

@@ -12,14 +12,9 @@ import {
   Sparkles,
   CategoryIcon,
   X,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   AlertTriangle,
-  RotateCcw,
-  Tag,
-  Shirt,
-  Trash2,
   Award
 } from './AppIcon';
 
@@ -30,7 +25,7 @@ interface Props {
 type TabMode = 'overview' | 'audit' | 'release' | 'capsule';
 
 export default function MinimalismAnalyzerModal({ onClose }: Props) {
-  const { items, updateItem, deleteItem } = useWardrobe();
+  const { items, updateItem } = useWardrobe();
   const { formatPrice, t } = useSettings();
 
   const [activeTab, setActiveTab] = useState<TabMode>('overview');
@@ -103,6 +98,7 @@ export default function MinimalismAnalyzerModal({ onClose }: Props) {
 
     const updated: ClothingItem = {
       ...item,
+      // eslint-disable-next-line react-hooks/purity
       retiredAt: Date.now(),
       retirementReason: reason,
       gratitudeNote: userNote,
