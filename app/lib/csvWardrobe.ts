@@ -72,7 +72,7 @@ export function parseItemsCsv(text: string): CsvItemDraft[] {
     const parts = lines[i].split(',');
     if (parts.length < 2) continue;
 
-    const name = clean(parts[1] || parts[0]);
+    const name = clean(parts[1]);
     if (!name || name.toLowerCase() === 'name') continue;
 
     drafts.push({

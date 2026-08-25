@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useWardrobe } from './contexts/WardrobeContext';
 import { useSettings } from './contexts/SettingsContext';
 import { useAppLoading } from './contexts/AppContextProvider';
@@ -17,6 +17,7 @@ import MoreMenuModal from './components/MoreMenuModal';
 import LogWearModal from './components/LogWearModal';
 import MinimalismAnalyzerModal from './components/MinimalismAnalyzerModal';
 import Toast from './components/Toast';
+import { getBackupNudge, getLastBackupAt } from './lib/backupReminder';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ActiveTab } from './lib/types';
 import { triggerHaptic } from './lib/haptics';
@@ -35,6 +36,17 @@ export default function Home() {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [isMinimalismOpen, setIsMinimalismOpen] = useState(false);
   const [toast, setToast] = useState('');
+
+  // Gentle backup nudge on app open when data is stale or never backed up.
+  useEffect(() => {
+    if (!items.length) return;
+    const nudge = getBackupNudge(getLastBackupAt(), Date.now());
+    if (nudge.level === 'stale') {
+      setToast('⏰ ' + nudge.message);
+    }
+    // Only check once per session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleTabChange = (tab: ActiveTab) => {
     triggerHaptic(8);

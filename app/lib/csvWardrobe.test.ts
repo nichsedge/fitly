@@ -70,16 +70,15 @@ describe('parseItemsCsv', () => {
     });
   });
 
-  it('skips header-like rows; empty-name rows fall back to first column (legacy quirk)', () => {
+  it('skips rows without a usable name and header-like rows', () => {
     const csv = [
       'id,name,category',
-      'i1,,top', // legacy fallback: uses id column as name
+      'i1,,top', // empty name -> skipped
       'i2,Real Item,bottom',
     ].join('\n');
     const drafts = parseItemsCsv(csv);
-    expect(drafts).toHaveLength(2);
-    expect(drafts[0].name).toBe('i1');
-    expect(drafts[1]).toMatchObject({ name: 'Real Item', category: 'bottom' });
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0]).toMatchObject({ name: 'Real Item', category: 'bottom' });
   });
 
   it('applies defaults for missing optional fields', () => {

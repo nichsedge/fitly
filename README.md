@@ -34,12 +34,33 @@ cd fitly
 
 ### 2. Install dependencies
 ```bash
-npm install
+bun install
 ```
 
 ### 3. Run the development server
 ```bash
-npm run dev
+bun run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+---
+
+## 🧪 Testing & Quality
+
+The project uses [Vitest](https://vitest.dev/) with React Testing Library and fake-indexeddb:
+
+```bash
+bun run test          # run all tests once
+bun run test:watch    # watch mode
+bun run test:coverage # coverage report
+bun run lint          # eslint (must exit clean)
+```
+
+Tested modules include the wear/wash log domain logic, CSV export/import round-trips, KonMari statistics, and core UI components.
+
+---
+
+## 💾 Backups
+
+All data lives only in your browser, so backups matter. Use **Settings → Backup Data → Backup All** for a full ZIP export (with photos). Fitly shows a reminder when your last backup is more than 14 days old.
