@@ -9,7 +9,8 @@ import { useRestoreBackup } from '../contexts/AppContextProvider';
 import Toast from './Toast';
 import TagsManagerModal from './TagsManagerModal';
 import { Currency } from '../lib/i18n';
-import { Category, ItemCondition, ClothingItem, Outfit, CustomTag, WardrobeLocation, Trip } from '../lib/types';
+import { ClothingItem, Outfit, CustomTag, WardrobeLocation, Trip } from '../lib/types';
+import { buildItemsCsv, parseItemsCsv, csvFilename } from '../lib/csvWardrobe';
 import { v4 as uuidv4 } from 'uuid';
 import { exportWardrobeZip, importWardrobeZip, downloadZipBlob, restoreZipImages } from '../lib/zipBackup';
 import { clearAllAppData } from '../lib/db';
@@ -184,28 +185,8 @@ export default function SettingsModal({ onClose }: Props) {
 
   const handleExportCSV = () => {
     try {
-      const headers = ['id', 'name', 'category', 'brand', 'price', 'color', 'tags', 'status', 'condition', 'material', 'careInstructions', 'locationId', 'createdAt', 'wearCount'];
-      const rows = items.map(item => {
-        return [
-          item.id,
-          `"${(item.name || '').replace(/"/g, '""')}"`,
-          item.category,
-          `"${(item.brand || '').replace(/"/g, '""')}"`,
-          item.price || '',
-          item.color,
-          `"${(item.tags || []).join(';')}"`,
-          item.status,
-          item.condition || 'good',
-          `"${(item.material || '').replace(/"/g, '""')}"`,
-          `"${(item.careInstructions || '').replace(/"/g, '""')}"`,
-          item.locationId || 'loc-home',
-          item.createdAt,
-          item.wearLogs ? item.wearLogs.length : 0
-        ].join(',');
-      });
-
-      const csvContent = [headers.join(','), ...rows].join('\n');
-      const filename = `fitly-wardrobe-${new Date().toISOString().split('T')[0]}.csv`;
+      const csvContent = buildItemsCsv(items);
+      const filename = csvFilename();
 
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
@@ -236,47 +217,27 @@ export default function SettingsModal({ onClose }: Props) {
     reader.onload = async (ev) => {
       try {
         const text = ev.target?.result as string;
-        const lines = text.split('\n').filter(l => l.trim().length > 0);
-        if (lines.length <= 1) {
+        const drafts = parseItemsCsv(text);
+
+        if (drafts.length === 0) {
           alert('CSV file is empty or missing headers');
           return;
         }
 
         const { addItem } = await import('../lib/db');
-        let count = 0;
 
-        for (let i = 1; i < lines.length; i++) {
-          const line = lines[i];
-          const parts = line.split(',');
-          if (parts.length < 2) continue;
-
-          const clean = (val: string) => (val || '').replace(/^"|"$/g, '').replace(/""/g, '"').trim();
-          const name = clean(parts[1] || parts[0]);
-          if (!name || name.toLowerCase() === 'name') continue;
-
-          const newItem = {
+        for (const draft of drafts) {
+          await addItem({
             id: uuidv4(),
-            name,
-            category: (clean(parts[2]) as Category) || 'top',
-            brand: clean(parts[3]),
-            price: parts[4] ? parseFloat(clean(parts[4])) || undefined : undefined,
-            color: clean(parts[5]) || '#1a1a1a',
-            tags: clean(parts[6]) ? clean(parts[6]).split(';').map(t => t.trim()) : [],
+            ...draft,
             status: 'ready' as const,
-            condition: (clean(parts[8]) as ItemCondition) || 'good',
-            material: clean(parts[9]),
-            careInstructions: clean(parts[10]),
-            locationId: clean(parts[11]) || 'loc-home',
             createdAt: Date.now(),
             images: [],
-            wearLogs: []
-          };
-
-          await addItem(newItem);
-          count++;
+            wearLogs: [],
+          });
         }
 
-        setToast(`✓ Imported ${count} item(s) from CSV!`);
+        setToast(`✓ Imported ${drafts.length} item(s) from CSV!`);
         setTimeout(() => window.location.reload(), 1200);
       } catch (err) {
         console.error('CSV import failed:', err);
