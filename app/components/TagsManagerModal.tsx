@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { v4 as uuidv4 } from 'uuid';
+import { uuidv4 } from '../lib/id';
 import { useWardrobe } from '../contexts/WardrobeContext';
 import { CustomTag } from '../lib/types';
 import Toast from './Toast';

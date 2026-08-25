@@ -7,7 +7,7 @@ import { useSettings } from '../contexts/SettingsContext';
 import OutfitCard from './OutfitCard';
 import OutfitDetailModal from './OutfitDetailModal';
 import OutfitBuilderModal from './OutfitBuilderModal';
-import { v4 as uuidv4 } from 'uuid';
+import { uuidv4 } from '../lib/id';
 import { Outfit } from '../lib/types';
 import Toast from './Toast';
 import { triggerHaptic } from '../lib/haptics';

@@ -1,6 +1,6 @@
 import { getDB } from './RepositoryFactory';
 import { CustomTag, DEFAULT_TAG_NAMES } from '../lib/types';
-import { v4 as uuidv4 } from 'uuid';
+import { uuidv4 } from '../lib/id';
 
 export class TagRepository {
   async getAll(): Promise<CustomTag[]> {

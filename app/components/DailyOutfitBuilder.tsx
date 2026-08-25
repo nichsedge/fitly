@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ClothingItem, Category, CATEGORIES } from '../lib/types';
 import { useWardrobe } from '../contexts/WardrobeContext';
 import { useOutfits } from '../contexts/OutfitContext';
-import { v4 as uuidv4 } from 'uuid';
+import { uuidv4 } from '../lib/id';
 import Toast from './Toast';
 import { CategoryIcon } from './AppIcon';
 import { ResolvedImage } from './ResolvedImage';

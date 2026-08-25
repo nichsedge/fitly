@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { v4 as uuidv4 } from 'uuid';
+import { uuidv4 } from '../lib/id';
 import { ClothingItem, CATEGORIES, COLORS, Category } from '../lib/types';
 import { useWardrobe } from '../contexts/WardrobeContext';
 import { useSettings } from '../contexts/SettingsContext';

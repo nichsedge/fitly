@@ -1,5 +1,5 @@
 import { Outfit, ClothingItem, Category } from '../lib/types';
-import { v4 as uuidv4 } from 'uuid';
+import { uuidv4 } from '../lib/id';
 
 export class OutfitService {
   createOutfit(name: string, itemIds: string[], note: string = ''): Outfit {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { v4 as uuidv4 } from 'uuid';
+import { uuidv4 } from '../lib/id';
 import { ClothingItem, Outfit, CATEGORIES } from '../lib/types';
 import { useWardrobe } from '../contexts/WardrobeContext';
 import { useOutfits } from '../contexts/OutfitContext';

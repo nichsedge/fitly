@@ -6,7 +6,7 @@ import { useWardrobe } from '../contexts/WardrobeContext';
 import { useSettings } from '../contexts/SettingsContext';
 import Toast from './Toast';
 import DailyOutfitBuilder from './DailyOutfitBuilder';
-import { v4 as uuidv4 } from 'uuid';
+import { uuidv4 } from '../lib/id';
 import { ImageService } from '../services/ImageService';
 import { CategoryIcon, Camera, Wand2, Shirt, Trash2, Edit, CheckCircle2, X } from './AppIcon';
 import ItemPhotoCarousel from './itemDetail/ItemPhotoCarousel';

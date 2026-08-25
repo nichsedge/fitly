@@ -11,7 +11,7 @@ import TagsManagerModal from './TagsManagerModal';
 import { Currency } from '../lib/i18n';
 import { ClothingItem, Outfit, CustomTag, WardrobeLocation, Trip } from '../lib/types';
 import { buildItemsCsv, parseItemsCsv, csvFilename } from '../lib/csvWardrobe';
-import { v4 as uuidv4 } from 'uuid';
+import { uuidv4 } from '../lib/id';
 import { exportWardrobeZip, importWardrobeZip, downloadZipBlob, restoreZipImages } from '../lib/zipBackup';
 import { clearAllAppData } from '../lib/db';
 import { getLastBackupAt, markBackupDone, getBackupNudge } from '../lib/backupReminder';

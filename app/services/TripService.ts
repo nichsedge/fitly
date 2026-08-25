@@ -1,5 +1,5 @@
 import { Trip, ClothingItem, Outfit, Category } from '../lib/types';
-import { v4 as uuidv4 } from 'uuid';
+import { uuidv4 } from '../lib/id';
 
 export class TripService {
   createTrip(name: string, startDate: string, endDate: string, destination?: string): Trip {

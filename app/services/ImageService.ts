@@ -1,6 +1,6 @@
 import { dataUrlToBlob, getOrCreateObjectUrl, revokeObjectUrl } from '../lib/mediaStorage';
 import { imageRepository } from '../repositories/ImageRepository';
-import { v4 as uuidv4 } from 'uuid';
+import { uuidv4 } from '../lib/id';
 
 export class ImageService {
   private static readonly MAX_WIDTH = 1024;
