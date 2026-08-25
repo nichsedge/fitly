@@ -13,6 +13,7 @@ import { Category, ItemCondition, ClothingItem, Outfit, CustomTag, WardrobeLocat
 import { v4 as uuidv4 } from 'uuid';
 import { exportWardrobeZip, importWardrobeZip, downloadZipBlob, restoreZipImages } from '../lib/zipBackup';
 import { clearAllAppData } from '../lib/db';
+import { getLastBackupAt, markBackupDone, getBackupNudge } from '../lib/backupReminder';
 import { LocationIcon, PRESET_LOCATION_ICONS, Trash2, Globe, Package, Download, Upload, Tag, AlertTriangle, Database, MapPin } from './AppIcon';
 
 interface Props {
@@ -42,6 +43,15 @@ export default function SettingsModal({ onClose }: Props) {
   const [storageStats, setStorageStats] = useState<{ usedMB: string; quotaMB: string; percent: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [exportingZip, setExportingZip] = useState(false);
+  const [lastBackupAt, setLastBackupAt] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setLastBackupAt(getLastBackupAt());
+    }
+  }, []);
+
+  const backupNudge = typeof window !== 'undefined' ? getBackupNudge(lastBackupAt, Date.now()) : { level: 'none' as const };
 
   useEffect(() => {
     if (typeof window !== 'undefined' && navigator.storage && navigator.storage.estimate) {
@@ -75,6 +85,8 @@ export default function SettingsModal({ onClose }: Props) {
       setExportingZip(true);
       const zipBlob = await exportWardrobeZip(items, outfits, tags, locations, trips);
       downloadZipBlob(zipBlob);
+      markBackupDone();
+      setLastBackupAt(getLastBackupAt());
       setToast('✓ Full ZIP Backup (with photos) downloaded!');
     } catch (err) {
       console.error('ZIP export failed:', err);
@@ -561,6 +573,20 @@ export default function SettingsModal({ onClose }: Props) {
                 <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '0 0 10px 0' }}>
                   Save a complete backup file containing all your clothes, outfits, tags, locations, and photos.
                 </p>
+
+                {backupNudge.level !== 'none' && (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '8px 10px', marginBottom: 8,
+                    borderRadius: 'var(--radius-md)', fontSize: 11, fontWeight: 600,
+                    background: backupNudge.level === 'never' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+                    border: `1px solid ${backupNudge.level === 'never' ? 'rgba(239, 68, 68, 0.35)' : 'rgba(245, 158, 11, 0.35)'}`,
+                    color: backupNudge.level === 'never' ? '#ef4444' : '#f59e0b'
+                  }}>
+                    <AlertTriangle size={14} style={{ flexShrink: 0 }} />
+                    <span>{backupNudge.message}</span>
+                  </div>
+                )}
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <button
