@@ -1,66 +1,38 @@
 # 👗 Fitly
 
-A modern, privacy-focused digital wardrobe and outfit manager built with [Next.js](https://nextjs.org/) and IndexedDB.
-
-🔗 **Live Demo**: [fitly-ruddy.vercel.app](https://fitly-ruddy.vercel.app/)
+A modern, privacy-focused digital wardrobe, outfit manager, and minimalism tracker built as a native Android app (Kotlin + Jetpack Compose + Room) and Next.js web application.
 
 ---
 
-## ✨ Features
+## 📱 Native Android App (`android/`)
 
-- 👕 **Clothing Catalog**: Organize and manage your wardrobe with custom categories and tags.
-- 🎨 **Outfit Planner**: Create, style, and save custom outfits seamlessly.
-- 📊 **Wear Tracking**: Track wear history and statistics for your clothing collection.
-- 🔒 **Local-First & Private**: All data is stored locally in your browser using IndexedDB—no server or database tracking required.
+The native Android app provides a local-first mobile client with 100% feature parity:
 
----
+- 👕 **Wardrobe Catalog**: Real photo grid, live search, category filtering (tops, bottoms, outerwear, shoes, accessories, bags, underwear), color swatches, and wear count tracking.
+- 🔍 **Item Detail & Edit**: View full specs, edit metadata, camera & gallery photo replacement, Cost-Per-Wear calculation (`price / wearCount`), condition, and care instructions.
+- 🎨 **Outfit Builder & Wear Logging**: Select items grouped by category to build outfits; "Wear Outfit" automatically logs wear for both the outfit and each individual clothing piece.
+- 🧺 **Laundry Tracker**: Track dirty, cleaning, and clean items with one-tap "Mark Washed" and batch "Wash All" actions.
+- 📅 **Calendar & Wear History**: Monthly calendar grid highlighting days with wear or wash logs, day detail breakdown, and manual wear logging.
+- 🧳 **Trips & Packing**: Plan trips, assign packing lists, track packed items with checkboxes and progress bars.
+- 📊 **Minimalism & Capsule Analytics**: KonMari audit (Spark Joy, Daily Essentials, Candidates to Release), Cost-Per-Wear ranking leaderboard, and unworn dust collectors list (>60 days inactive).
+- ☁️ **Cloudflare R2 & ZIP Backups**: Zero-dependency AWS SigV4 signed backups to Cloudflare R2 (`db/fitly_latest.sqlite` in `ichsanul-dev`) plus in-app complete ZIP export/import (database + images).
 
-## 🛠️ Tech Stack
-
-- **Framework**: [Next.js](https://nextjs.org/) (App Router)
-- **Language**: TypeScript
-- **UI**: React 19, CSS / Tailwind
-- **Storage**: IndexedDB (`idb`)
-
----
-
-## 🚀 Getting Started
-
-### 1. Clone the repository
-```bash
-git clone https://github.com/nichsedge/fitly.git
-cd fitly
-```
-
-### 2. Install dependencies
-```bash
-bun install
-```
-
-### 3. Run the development server
-```bash
-bun run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
----
-
-## 🧪 Testing & Quality
-
-The project uses [Vitest](https://vitest.dev/) with React Testing Library and fake-indexeddb:
+### Running Android App
 
 ```bash
-bun run test          # run all tests once
-bun run test:watch    # watch mode
-bun run test:coverage # coverage report
-bun run lint          # eslint (must exit clean)
+cd android
+make build   # Build debug APK
+make run     # Deploy and run on connected Android phone via ADB
 ```
-
-Tested modules include the wear/wash log domain logic, CSV export/import round-trips, KonMari statistics, and core UI components.
 
 ---
 
-## 💾 Backups
+## 🌐 Web Application (`./`)
 
-All data lives only in your browser, so backups matter. Use **Settings → Backup Data → Backup All** for a full ZIP export (with photos). Fitly shows a reminder when your last backup is more than 14 days old.
+- **Framework**: Next.js 15 (App Router), React 19, Tailwind CSS, IndexedDB (`idb`)
+- **Commands**:
+  ```bash
+  bun install
+  bun run dev    # Local dev server on http://localhost:3001
+  bun run test   # Run Vitest test suite
+  ```

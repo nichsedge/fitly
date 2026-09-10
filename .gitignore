@@ -45,3 +45,16 @@ next-env.d.ts
 # lockfiles
 package-lock.json
 yarn.lock
+
+# Android & credentials
+**/r2_cred*.json
+**/seed_wardrobe.json
+.gradle/
+**/.gradle/
+**/build/
+.idea/
+**/.idea/
+**/local.properties
+*.iml
+*.apk
+*.aar
