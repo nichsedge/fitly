@@ -47,8 +47,11 @@ fun CalendarScreen(
     val currentMonth by viewModel.currentMonth.collectAsState()
     val logsForMonth by viewModel.logsForCurrentMonth.collectAsState()
     val logsForDate by viewModel.logsForSelectedDate.collectAsState()
+    val plannedOutfitsForMonth by viewModel.plannedOutfitsForMonth.collectAsState()
+    val planForSelectedDate by viewModel.planForSelectedDate.collectAsState()
 
     var showLogWearPicker by remember { mutableStateOf(false) }
+    var showPlanOutfitDialog by remember { mutableStateOf(false) }
 
     // Month calendar calculation
     val cal = remember(currentMonth) {
@@ -79,6 +82,14 @@ fun CalendarScreen(
     val activeDays = remember(logsForMonth) {
         logsForMonth.mapNotNull { log ->
             val p = log.wornDate.split("-")
+            if (p.size == 3) p[2].toIntOrNull() else null
+        }.toSet()
+    }
+
+    // Set of day numbers in this month with planned outfits
+    val plannedDays = remember(plannedOutfitsForMonth) {
+        plannedOutfitsForMonth.mapNotNull { plan ->
+            val p = plan.date.split("-")
             if (p.size == 3) p[2].toIntOrNull() else null
         }.toSet()
     }
@@ -160,6 +171,7 @@ fun CalendarScreen(
                             if (dayNum in 1..daysInMonth) {
                                 val isSelected = dayNum == selectedDayNum
                                 val hasActivity = activeDays.contains(dayNum)
+                                val hasPlan = plannedDays.contains(dayNum)
                                 val dateStr = String.format(Locale.US, "%s-%02d", currentMonth, dayNum)
 
                                 Box(
@@ -168,22 +180,37 @@ fun CalendarScreen(
                                         .clip(CircleShape)
                                         .background(
                                             if (isSelected) MaterialTheme.colorScheme.primary
-                                            else if (hasActivity) MaterialTheme.colorScheme.primaryContainer
-                                            else Color.Transparent
+                                             else if (hasActivity) MaterialTheme.colorScheme.primaryContainer
+                                             else Color.Transparent
+                                         )
+                                        .border(
+                                            width = if (hasPlan && !isSelected) 1.5.dp else 0.dp,
+                                            color = if (hasPlan && !isSelected) MaterialTheme.colorScheme.tertiary else Color.Transparent,
+                                            shape = CircleShape
                                         )
                                         .clickable {
                                             viewModel.setSelectedDate(dateStr)
                                         },
-                                    contentAlignment = Alignment.Center
+                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(
-                                        text = dayNum.toString(),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        fontWeight = if (isSelected || hasActivity) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary
-                                        else if (hasActivity) MaterialTheme.colorScheme.onPrimaryContainer
-                                        else MaterialTheme.colorScheme.onSurface
-                                    )
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            text = dayNum.toString(),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = if (isSelected || hasActivity || hasPlan) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                                            else if (hasActivity) MaterialTheme.colorScheme.onPrimaryContainer
+                                            else MaterialTheme.colorScheme.onSurface
+                                        )
+                                        if (hasPlan && !isSelected) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(4.dp)
+                                                    .clip(CircleShape)
+                                                    .background(MaterialTheme.colorScheme.tertiary)
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -208,13 +235,91 @@ fun CalendarScreen(
                 fontWeight = FontWeight.Bold
             )
 
-            Button(
-                onClick = { showLogWearPicker = true },
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                OutlinedButton(
+                    onClick = { showPlanOutfitDialog = true },
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Icon(Icons.Default.EventAvailable, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Plan Look")
+                }
+
+                Button(
+                    onClick = { showLogWearPicker = true },
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Log Wear")
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Planned Outfit Banner if scheduled for this date
+        planForSelectedDate?.let { plan ->
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 10.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
             ) {
-                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Log Wear")
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(Icons.Default.EventAvailable, contentDescription = null, tint = MaterialTheme.colorScheme.onTertiaryContainer)
+                            Text(
+                                text = "PLANNED OUTFIT (OOTD)",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                        }
+                        IconButton(
+                            onClick = { viewModel.deletePlan(plan) },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(Icons.Default.Close, contentDescription = "Cancel Plan", tint = MaterialTheme.colorScheme.onTertiaryContainer, modifier = Modifier.size(16.dp))
+                        }
+                    }
+
+                    val planName = remember(plan, allOutfits) {
+                        plan.outfitId?.let { oId -> allOutfits.find { it.id == oId }?.name } ?: "Custom Styled Look"
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = planName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                    if (!plan.note.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Note: ${plan.note}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.85f)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Button(
+                        onClick = { viewModel.wearPlannedOutfit(plan) },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Check, contentDescription = null)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Wear Planned Outfit Today")
+                    }
+                }
             }
         }
 
@@ -354,4 +459,160 @@ fun CalendarScreen(
             }
         )
     }
+
+    // Plan Outfit Dialog
+    if (showPlanOutfitDialog) {
+        PlanOutfitDialog(
+            selectedDate = selectedDate,
+            allOutfits = allOutfits,
+            allItems = allItems,
+            onSave = { outfitId, itemIds, note ->
+                viewModel.planOutfitForDate(selectedDate, outfitId, itemIds, note) {
+                    showPlanOutfitDialog = false
+                }
+            },
+            onDismiss = { showPlanOutfitDialog = false }
+        )
+    }
+}
+
+@Composable
+fun PlanOutfitDialog(
+    selectedDate: String,
+    allOutfits: List<OutfitEntity>,
+    allItems: List<ClothingItemEntity>,
+    onSave: (outfitId: String?, itemIds: List<String>, note: String?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var planTab by remember { mutableIntStateOf(0) } // 0: Existing Outfits, 1: Pick Items
+    var selectedOutfitId by remember { mutableStateOf<String?>(null) }
+    val selectedItemIds = remember { mutableStateListOf<String>() }
+    var note by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Plan Look for $selectedDate") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(380.dp)
+            ) {
+                OutlinedTextField(
+                    value = note,
+                    onValueChange = { note = it },
+                    label = { Text("Occasion / Styling Note (Optional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+
+                TabRow(selectedTabIndex = planTab) {
+                    Tab(selected = planTab == 0, onClick = { planTab = 0 }, text = { Text("From Outfits") })
+                    Tab(selected = planTab == 1, onClick = { planTab = 1 }, text = { Text("From Pieces (${selectedItemIds.size})") })
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+
+                if (planTab == 0) {
+                    if (allOutfits.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("No outfits created yet. Create one in Outfits tab.")
+                        }
+                    } else {
+                        LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            items(allOutfits) { outfit ->
+                                val isSelected = selectedOutfitId == outfit.id
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            selectedOutfitId = outfit.id
+                                            selectedItemIds.clear()
+                                            try {
+                                                val arr = JSONArray(outfit.itemIds)
+                                                for (i in 0 until arr.length()) selectedItemIds.add(arr.getString(i))
+                                            } catch (_: Exception) {}
+                                        },
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                                    )
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        RadioButton(selected = isSelected, onClick = {
+                                            selectedOutfitId = outfit.id
+                                            selectedItemIds.clear()
+                                            try {
+                                                val arr = JSONArray(outfit.itemIds)
+                                                for (i in 0 until arr.length()) selectedItemIds.add(arr.getString(i))
+                                            } catch (_: Exception) {}
+                                        })
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Column {
+                                            Text(outfit.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                            if (!outfit.note.isNullOrBlank()) {
+                                                Text(outfit.note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(allItems) { item ->
+                            val isSelected = selectedItemIds.contains(item.id)
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        selectedOutfitId = null
+                                        if (isSelected) selectedItemIds.remove(item.id) else selectedItemIds.add(item.id)
+                                    },
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Checkbox(
+                                        checked = isSelected,
+                                        onCheckedChange = {
+                                            selectedOutfitId = null
+                                            if (isSelected) selectedItemIds.remove(item.id) else selectedItemIds.add(item.id)
+                                        }
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Column {
+                                        Text(item.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                        Text(item.category.uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onSave(selectedOutfitId, selectedItemIds.toList(), note.trim().ifBlank { null })
+                },
+                enabled = selectedOutfitId != null || selectedItemIds.isNotEmpty()
+            ) {
+                Text("Schedule Look")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }

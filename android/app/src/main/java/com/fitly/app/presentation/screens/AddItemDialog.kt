@@ -16,10 +16,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddPhotoAlternate
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import org.json.JSONArray
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,6 +50,12 @@ fun AddItemDialog(
     var careInstructions by remember { mutableStateOf("") }
     var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
     var isSaving by remember { mutableStateOf(false) }
+
+    val locations by viewModel.locations.collectAsState()
+    val tags by viewModel.tags.collectAsState()
+    var selectedLocationId by remember { mutableStateOf<String?>(null) }
+    val selectedTags = remember { mutableStateListOf<String>() }
+    var newTagInput by remember { mutableStateOf("") }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -229,6 +234,77 @@ fun AddItemDialog(
                     singleLine = true
                 )
 
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Storage Location
+                Text("Storage Location", style = MaterialTheme.typography.labelMedium)
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(vertical = 6.dp)
+                ) {
+                    item {
+                        FilterChip(
+                            selected = selectedLocationId == null,
+                            onClick = { selectedLocationId = null },
+                            label = { Text("None") }
+                        )
+                    }
+                    items(locations) { loc ->
+                        FilterChip(
+                            selected = selectedLocationId == loc.id,
+                            onClick = { selectedLocationId = if (selectedLocationId == loc.id) null else loc.id },
+                            label = { Text("${loc.icon ?: "📍"} ${loc.name}") }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Style Tags
+                Text("Style Tags (${selectedTags.size})", style = MaterialTheme.typography.labelMedium)
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = newTagInput,
+                        onValueChange = { newTagInput = it },
+                        placeholder = { Text("Add custom tag...") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                    IconButton(
+                        onClick = {
+                            val clean = newTagInput.trim().lowercase()
+                            if (clean.isNotBlank() && !selectedTags.contains(clean)) {
+                                selectedTags.add(clean)
+                                viewModel.addTag(clean)
+                                newTagInput = ""
+                            }
+                        }
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "Add tag")
+                    }
+                }
+                if (tags.isNotEmpty() || selectedTags.isNotEmpty()) {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    ) {
+                        items(tags) { t ->
+                            val isSel = selectedTags.contains(t.label)
+                            FilterChip(
+                                selected = isSel,
+                                onClick = {
+                                    if (isSel) selectedTags.remove(t.label) else selectedTags.add(t.label)
+                                },
+                                label = { Text("#${t.label}") }
+                            )
+                        }
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Button(
@@ -242,6 +318,8 @@ fun AddItemDialog(
                             category = category,
                             price = price.toDoubleOrNull(),
                             color = color,
+                            locationId = selectedLocationId,
+                            tags = JSONArray(selectedTags.toList()).toString(),
                             material = material.trim().ifBlank { null },
                             careInstructions = careInstructions.trim().ifBlank { null },
                             status = "ready",

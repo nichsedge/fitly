@@ -31,9 +31,11 @@ fun LaundryScreen(
     viewModel: WardrobeViewModel,
     onItemClick: (ClothingItemEntity) -> Unit
 ) {
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val dirtyItems by viewModel.dirtyItems.collectAsState()
     val cleaningItems by viewModel.cleaningItems.collectAsState()
     val readyItems by viewModel.readyItems.collectAsState()
+    val wearLogs by viewModel.allWearLogs.collectAsState()
 
     var selectedTab by remember { mutableIntStateOf(0) } // 0: Dirty, 1: In Cleaning, 2: Ready
     val displayedItems = when (selectedTab) {
@@ -61,12 +63,27 @@ fun LaundryScreen(
 
             if (selectedTab == 0 && dirtyItems.isNotEmpty()) {
                 Button(
-                    onClick = { viewModel.markAllDirtyWashed() },
+                    onClick = {
+                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                        viewModel.markAllDirtyWashed()
+                    },
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                 ) {
                     Icon(Icons.Default.DoneAll, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("Wash All")
+                }
+            } else if (selectedTab == 1 && cleaningItems.isNotEmpty()) {
+                Button(
+                    onClick = {
+                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                        viewModel.markAllCleaningWashed()
+                    },
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Icon(Icons.Default.DoneAll, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Clean All")
                 }
             }
         }
@@ -122,11 +139,25 @@ fun LaundryScreen(
                 contentPadding = PaddingValues(bottom = 80.dp)
             ) {
                 items(displayedItems, key = { it.id }) { item ->
+                    val wearsSinceWash = remember(item, wearLogs) {
+                        if (item.lastWashedAt != null) {
+                            wearLogs.count { it.itemId == item.id && it.type == "wear" && it.timestamp > item.lastWashedAt }
+                        } else {
+                            item.wearCount
+                        }
+                    }
                     LaundryItemCard(
                         item = item,
+                        wearsSinceWash = wearsSinceWash,
                         onClick = { onItemClick(item) },
-                        onMarkWashed = { viewModel.markItemWashed(item) },
-                        onMoveToCleaning = { viewModel.setItemStatus(item, "cleaning") }
+                        onMarkWashed = {
+                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                            viewModel.markItemWashed(item)
+                        },
+                        onMoveToCleaning = {
+                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                            viewModel.setItemStatus(item, "cleaning")
+                        }
                     )
                 }
             }
@@ -137,6 +168,7 @@ fun LaundryScreen(
 @Composable
 fun LaundryItemCard(
     item: ClothingItemEntity,
+    wearsSinceWash: Int,
     onClick: () -> Unit,
     onMarkWashed: () -> Unit,
     onMoveToCleaning: () -> Unit
@@ -192,11 +224,17 @@ fun LaundryItemCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Text(
+                    text = "Worn ${wearsSinceWash}x since last wash",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (wearsSinceWash >= 3) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                )
                 if (!item.careInstructions.isNullOrBlank()) {
                     Text(
                         text = "🧼 ${item.careInstructions}",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }

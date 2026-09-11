@@ -15,11 +15,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.fitly.app.data.local.entity.ClothingItemEntity
+import com.fitly.app.data.local.entity.OutfitEntity
 import com.fitly.app.data.local.entity.TripEntity
 import com.fitly.app.presentation.WardrobeViewModel
 import org.json.JSONArray
@@ -33,6 +36,7 @@ fun TripsScreen(
 ) {
     val trips by viewModel.trips.collectAsState()
     val allItems by viewModel.allItems.collectAsState()
+    val outfits by viewModel.outfits.collectAsState()
 
     var showCreateTripDialog by remember { mutableStateOf(false) }
     var selectedTripForPacking by remember { mutableStateOf<TripEntity?>(null) }
@@ -106,6 +110,7 @@ fun TripsScreen(
         PackingChecklistDialog(
             trip = latestTrip,
             allItems = allItems,
+            allOutfits = outfits,
             onTogglePacked = { itemId -> viewModel.toggleTripItemPacked(latestTrip, itemId) },
             onItemClick = onItemClick,
             onDismiss = { selectedTripForPacking = null }
@@ -116,6 +121,7 @@ fun TripsScreen(
     if (showCreateTripDialog) {
         CreateTripDialog(
             allItems = allItems,
+            allOutfits = outfits,
             onSave = { newTrip ->
                 viewModel.saveTrip(newTrip) {
                     showCreateTripDialog = false
@@ -207,19 +213,31 @@ fun TripCard(
 fun PackingChecklistDialog(
     trip: TripEntity,
     allItems: List<ClothingItemEntity>,
+    allOutfits: List<OutfitEntity>,
     onTogglePacked: (String) -> Unit,
     onItemClick: (ClothingItemEntity) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val tripItems = remember(trip.itemIds, allItems) {
+    val haptic = LocalHapticFeedback.current
+
+    val tripItems = remember(trip.itemIds, trip.outfitIds, allItems, allOutfits) {
+        val ids = mutableSetOf<String>()
         try {
             val arr = JSONArray(trip.itemIds)
-            val ids = mutableSetOf<String>()
             for (i in 0 until arr.length()) ids.add(arr.getString(i))
-            allItems.filter { ids.contains(it.id) }
-        } catch (_: Exception) {
-            emptyList()
-        }
+        } catch (_: Exception) {}
+        try {
+            val outArr = JSONArray(trip.outfitIds)
+            val outIdSet = mutableSetOf<String>()
+            for (i in 0 until outArr.length()) outIdSet.add(outArr.getString(i))
+            allOutfits.filter { outIdSet.contains(it.id) }.forEach { outfit ->
+                try {
+                    val itArr = JSONArray(outfit.itemIds)
+                    for (i in 0 until itArr.length()) ids.add(itArr.getString(i))
+                } catch (_: Exception) {}
+            }
+        } catch (_: Exception) {}
+        allItems.filter { ids.contains(it.id) }
     }
 
     val packedIds = remember(trip.packedItemIds) {
@@ -231,6 +249,10 @@ fun PackingChecklistDialog(
         } catch (_: Exception) {
             emptySet<String>()
         }
+    }
+
+    val groupedTripItems = remember(tripItems) {
+        tripItems.groupBy { it.category.ifBlank { "other" }.lowercase() }
     }
 
     Dialog(
@@ -285,37 +307,68 @@ fun PackingChecklistDialog(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.weight(1f)
                     ) {
-                        items(tripItems, key = { it.id }) { item ->
-                            val isPacked = packedIds.contains(item.id)
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onTogglePacked(item.id) },
-                                colors = CardDefaults.cardColors(
-                                    containerColor = if (isPacked) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                                    else MaterialTheme.colorScheme.surfaceVariant
-                                )
-                            ) {
+                        groupedTripItems.forEach { (cat, itemsInCategory) ->
+                            val packedInCat = itemsInCategory.count { packedIds.contains(it.id) }
+                            item(key = "header_$cat") {
                                 Row(
-                                    modifier = Modifier.padding(12.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 10.dp, bottom = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Checkbox(
-                                        checked = isPacked,
-                                        onCheckedChange = { onTogglePacked(item.id) }
+                                    Text(
+                                        text = cat.uppercase(),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = item.name,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.SemiBold
+                                    Text(
+                                        text = "$packedInCat/${itemsInCategory.size} packed",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            items(itemsInCategory, key = { it.id }) { item ->
+                                val isPacked = packedIds.contains(item.id)
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            onTogglePacked(item.id)
+                                        },
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = if (isPacked) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                                        else MaterialTheme.colorScheme.surfaceVariant
+                                    )
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Checkbox(
+                                            checked = isPacked,
+                                            onCheckedChange = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                onTogglePacked(item.id)
+                                            }
                                         )
-                                        Text(
-                                            text = "${item.category.uppercase()} • ${item.brand ?: ""}",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = item.name,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                            Text(
+                                                text = "${item.category.uppercase()} • ${item.brand ?: ""}",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -330,15 +383,23 @@ fun PackingChecklistDialog(
 @Composable
 fun CreateTripDialog(
     allItems: List<ClothingItemEntity>,
+    allOutfits: List<OutfitEntity>,
     onSave: (TripEntity) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val haptic = LocalHapticFeedback.current
     val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
     var name by remember { mutableStateOf("") }
     var destination by remember { mutableStateOf("") }
     var startDate by remember { mutableStateOf(today) }
     var endDate by remember { mutableStateOf(today) }
+    var packMode by remember { mutableStateOf(0) } // 0 = Items, 1 = Outfits
     val selectedItemIds = remember { mutableStateListOf<String>() }
+    val selectedOutfitIds = remember { mutableStateListOf<String>() }
+
+    val groupedAllItems = remember(allItems) {
+        allItems.groupBy { it.category.ifBlank { "other" }.lowercase() }
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -379,7 +440,8 @@ fun CreateTripDialog(
                                     destination = destination.trim().ifBlank { null },
                                     startDate = startDate,
                                     endDate = endDate,
-                                    itemIds = JSONArray(selectedItemIds.toList()).toString(),
+                                    itemIds = JSONArray(selectedItemIds.distinct()).toString(),
+                                    outfitIds = JSONArray(selectedOutfitIds.distinct()).toString(),
                                     packedItemIds = "[]",
                                     completed = false,
                                     createdAt = System.currentTimeMillis()
@@ -434,47 +496,176 @@ fun CreateTripDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Text(
-                    text = "Select Items to Pack (${selectedItemIds.size} selected)",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
-                )
+                TabRow(
+                    selectedTabIndex = packMode,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Tab(
+                        selected = packMode == 0,
+                        onClick = { packMode = 0 },
+                        text = { Text("Items (${selectedItemIds.size})") }
+                    )
+                    Tab(
+                        selected = packMode == 1,
+                        onClick = { packMode = 1 },
+                        text = { Text("Outfits (${selectedOutfitIds.size})") }
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    items(allItems, key = { it.id }) { item ->
-                        val isSelected = selectedItemIds.contains(item.id)
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    if (isSelected) selectedItemIds.remove(item.id)
-                                    else selectedItemIds.add(item.id)
-                                },
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                                else MaterialTheme.colorScheme.surfaceVariant
-                            )
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Checkbox(
-                                    checked = isSelected,
-                                    onCheckedChange = {
-                                        if (isSelected) selectedItemIds.remove(item.id)
-                                        else selectedItemIds.add(item.id)
+                if (packMode == 0) {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        groupedAllItems.forEach { (cat, itemsInCat) ->
+                            val selectedInCat = itemsInCat.count { selectedItemIds.contains(it.id) }
+                            item(key = "header_select_$cat") {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp, bottom = 2.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = cat.uppercase(),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        text = "$selectedInCat selected",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            items(itemsInCat, key = { it.id }) { item ->
+                                val isSelected = selectedItemIds.contains(item.id)
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            if (isSelected) selectedItemIds.remove(item.id)
+                                            else selectedItemIds.add(item.id)
+                                        },
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                                        else MaterialTheme.colorScheme.surfaceVariant
+                                    )
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Checkbox(
+                                            checked = isSelected,
+                                            onCheckedChange = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                if (isSelected) selectedItemIds.remove(item.id)
+                                                else selectedItemIds.add(item.id)
+                                            }
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Column {
+                                            Text(item.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                            Text(item.category.uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                        }
                                     }
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Column {
-                                    Text(item.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                                    Text(item.category.uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    if (allOutfits.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "No saved outfits yet.\nCreate outfits in the Outfits tab to pack them here.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            items(allOutfits, key = { it.id }) { outfit ->
+                                val isSelected = selectedOutfitIds.contains(outfit.id)
+                                val outfitItemCount = remember(outfit.itemIds) {
+                                    try { JSONArray(outfit.itemIds).length() } catch (_: Exception) { 0 }
+                                }
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            if (isSelected) {
+                                                selectedOutfitIds.remove(outfit.id)
+                                            } else {
+                                                selectedOutfitIds.add(outfit.id)
+                                                try {
+                                                    val arr = JSONArray(outfit.itemIds)
+                                                    for (i in 0 until arr.length()) {
+                                                        val itId = arr.getString(i)
+                                                        if (!selectedItemIds.contains(itId)) {
+                                                            selectedItemIds.add(itId)
+                                                        }
+                                                    }
+                                                } catch (_: Exception) {}
+                                            }
+                                        },
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                                        else MaterialTheme.colorScheme.surfaceVariant
+                                    )
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Checkbox(
+                                            checked = isSelected,
+                                            onCheckedChange = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                if (isSelected) {
+                                                    selectedOutfitIds.remove(outfit.id)
+                                                } else {
+                                                    selectedOutfitIds.add(outfit.id)
+                                                    try {
+                                                        val arr = JSONArray(outfit.itemIds)
+                                                        for (i in 0 until arr.length()) {
+                                                            val itId = arr.getString(i)
+                                                            if (!selectedItemIds.contains(itId)) {
+                                                                selectedItemIds.add(itId)
+                                                            }
+                                                        }
+                                                    } catch (_: Exception) {}
+                                                }
+                                            }
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Column {
+                                            Text(
+                                                text = outfit.name,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                            Text(
+                                                text = "$outfitItemCount items${if (!outfit.note.isNullOrBlank()) " • ${outfit.note}" else ""}",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }

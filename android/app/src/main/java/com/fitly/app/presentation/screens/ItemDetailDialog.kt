@@ -72,6 +72,14 @@ fun ItemDetailDialog(
     var showRetireDialog by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
+    val locations by viewModel.locations.collectAsState()
+    val tags by viewModel.tags.collectAsState()
+    val allWearLogs by viewModel.allWearLogs.collectAsState()
+
+    val itemWearLogs = remember(allWearLogs, item.id) {
+        allWearLogs.filter { it.itemId == item.id }.sortedByDescending { it.timestamp }
+    }
+
     // Edit fields
     var editName by remember { mutableStateOf(item.name) }
     var editBrand by remember { mutableStateOf(item.brand ?: "") }
@@ -83,6 +91,17 @@ fun ItemDetailDialog(
     var editCondition by remember { mutableStateOf(item.condition ?: "good") }
     var editStatus by remember { mutableStateOf(item.status) }
     var editSparkJoy by remember { mutableStateOf(item.sparkJoy ?: "essential") }
+    var editLocationId by remember { mutableStateOf(item.locationId) }
+    val editTagsList = remember {
+        val list = mutableStateListOf<String>()
+        try {
+            val arr = JSONArray(item.tags)
+            for (i in 0 until arr.length()) list.add(arr.getString(i))
+        } catch (_: Exception) {}
+        list
+    }
+    var newTagInput by remember { mutableStateOf("") }
+    var selectedImageIndex by remember { mutableIntStateOf(0) }
     var newPhotoUri by remember { mutableStateOf<Uri?>(null) }
 
     // Pick photo launcher
@@ -138,17 +157,21 @@ fun ItemDetailDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Photo Display
-                val imageFile = remember(item.images, newPhotoUri) {
+                // Photos List
+                val imageList = remember(item.images, newPhotoUri) {
                     try {
                         val arr = JSONArray(item.images)
-                        if (arr.length() > 0) {
-                            val imgId = arr.getString(0)
-                            ImageStorageHelper.getImageFile(context, imgId)
-                        } else null
+                        val list = mutableListOf<String>()
+                        for (i in 0 until arr.length()) list.add(arr.getString(i))
+                        list
                     } catch (_: Exception) {
-                        null
+                        emptyList()
                     }
+                }
+
+                val currentImgId = imageList.getOrNull(selectedImageIndex) ?: imageList.firstOrNull()
+                val imageFile = remember(currentImgId, newPhotoUri) {
+                    if (currentImgId != null) ImageStorageHelper.getImageFile(context, currentImgId) else null
                 }
 
                 Box(
@@ -188,7 +211,41 @@ fun ItemDetailDialog(
                             .size(44.dp),
                         containerColor = MaterialTheme.colorScheme.primaryContainer
                     ) {
-                        Icon(Icons.Default.CameraAlt, contentDescription = "Change photo", modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.CameraAlt, contentDescription = "Add/Change photo", modifier = Modifier.size(20.dp))
+                    }
+                }
+
+                // Thumbnail strip if multiple photos
+                if (imageList.size > 1) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(imageList.indices.toList()) { idx ->
+                            val thumbId = imageList[idx]
+                            val thumbFile = remember(thumbId) { ImageStorageHelper.getImageFile(context, thumbId) }
+                            Box(
+                                modifier = Modifier
+                                    .size(52.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .border(
+                                        width = if (selectedImageIndex == idx) 2.dp else 1.dp,
+                                        color = if (selectedImageIndex == idx) MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.4f),
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .clickable { selectedImageIndex = idx }
+                            ) {
+                                if (thumbFile != null) {
+                                    AsyncImage(
+                                        model = thumbFile,
+                                        contentDescription = null,
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -310,6 +367,74 @@ fun ItemDetailDialog(
                             )
                         }
                     }
+
+                    // Storage Location
+                    Text("Storage Location", style = MaterialTheme.typography.labelMedium)
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(vertical = 6.dp)
+                    ) {
+                        item {
+                            FilterChip(
+                                selected = editLocationId == null,
+                                onClick = { editLocationId = null },
+                                label = { Text("None") }
+                            )
+                        }
+                        items(locations) { loc ->
+                            FilterChip(
+                                selected = editLocationId == loc.id,
+                                onClick = { editLocationId = if (editLocationId == loc.id) null else loc.id },
+                                label = { Text("${loc.icon ?: "📍"} ${loc.name}") }
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Style Tags
+                    Text("Style Tags (${editTagsList.size})", style = MaterialTheme.typography.labelMedium)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = newTagInput,
+                            onValueChange = { newTagInput = it },
+                            placeholder = { Text("Add custom tag...") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                        IconButton(
+                            onClick = {
+                                val clean = newTagInput.trim().lowercase()
+                                if (clean.isNotBlank() && !editTagsList.contains(clean)) {
+                                    editTagsList.add(clean)
+                                    viewModel.addTag(clean)
+                                    newTagInput = ""
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = "Add tag")
+                        }
+                    }
+                    if (editTagsList.isNotEmpty() || tags.isNotEmpty()) {
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        ) {
+                            items(tags) { t ->
+                                val hasTag = editTagsList.contains(t.label)
+                                FilterChip(
+                                    selected = hasTag,
+                                    onClick = {
+                                        if (hasTag) editTagsList.remove(t.label) else editTagsList.add(t.label)
+                                    },
+                                    label = { Text("#${t.label}") }
+                                )
+                            }
+                        }
+                    }
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // Save Button
@@ -321,6 +446,8 @@ fun ItemDetailDialog(
                                 category = editCategory,
                                 price = editPrice.toDoubleOrNull() ?: item.price,
                                 color = editColor,
+                                locationId = editLocationId,
+                                tags = JSONArray(editTagsList.toList()).toString(),
                                 material = editMaterial.ifBlank { null },
                                 careInstructions = editCare.ifBlank { null },
                                 condition = editCondition,
@@ -456,8 +583,36 @@ fun ItemDetailDialog(
                     SpecRow(label = "Condition", value = item.condition?.replaceFirstChar { it.uppercase() } ?: "Good")
                     SpecRow(label = "Worn Count", value = "${item.wearCount} times")
 
+                    // Location
+                    val locName = remember(item.locationId, locations) {
+                        item.locationId?.let { lId -> locations.find { it.id == lId }?.name }
+                    }
+                    if (!locName.isNullOrBlank()) {
+                        SpecRow(label = "Location", value = "📍 $locName")
+                    }
+
                     val addedDateStr = SimpleDateFormat("MMM d, yyyy", Locale.US).format(Date(item.createdAt))
                     SpecRow(label = "Added", value = addedDateStr)
+
+                    // Tags
+                    val itemTags = remember(item.tags) {
+                        try {
+                            val arr = JSONArray(item.tags)
+                            val list = mutableListOf<String>()
+                            for (i in 0 until arr.length()) list.add(arr.getString(i))
+                            list
+                        } catch (_: Exception) {
+                            emptyList()
+                        }
+                    }
+                    if (itemTags.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            items(itemTags) { t ->
+                                AssistChip(onClick = {}, label = { Text("#$t", style = MaterialTheme.typography.labelSmall) })
+                            }
+                        }
+                    }
 
                     if (!item.gratitudeNote.isNullOrBlank()) {
                         Spacer(modifier = Modifier.height(8.dp))
@@ -470,6 +625,52 @@ fun ItemDetailDialog(
                                 style = MaterialTheme.typography.bodySmall,
                                 modifier = Modifier.padding(12.dp)
                             )
+                        }
+                    }
+
+                    // Wear & Wash History Timeline
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = "Wear & Wash History (${itemWearLogs.size})",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    if (itemWearLogs.isEmpty()) {
+                        Text("No logs recorded yet.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            itemWearLogs.take(5).forEach { log ->
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            Icon(
+                                                imageVector = if (log.type == "wash") Icons.Default.LocalLaundryService else Icons.Default.Check,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp),
+                                                tint = if (log.type == "wash") MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+                                            )
+                                            Text(
+                                                text = if (log.type == "wash") "Washed / Cleaned" else "Worn",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+                                        Text(
+                                            text = log.wornDate,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
 

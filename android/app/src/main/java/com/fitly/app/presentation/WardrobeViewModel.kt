@@ -19,6 +19,24 @@ import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.*
 
+enum class WardrobeSort(val label: String) {
+    RECENT("Recently Added"),
+    MOST_WORN("Most Worn"),
+    LEAST_WORN("Least Worn"),
+    CPW_LOWEST("Best Value (Lowest CPW)"),
+    CPW_HIGHEST("Highest CPW"),
+    PRICE_HIGH("Price: High to Low"),
+    PRICE_LOW("Price: Low to High"),
+    NAME("Name (A-Z)")
+}
+
+enum class WardrobeViewMode {
+    GRID_2,
+    GRID_3,
+    LIST
+}
+
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class WardrobeViewModel(application: Application) : AndroidViewModel(application) {
 
     val db = FitlyDatabase.getDatabase(application)
@@ -29,6 +47,18 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    private val _sortOption = MutableStateFlow(WardrobeSort.RECENT)
+    val sortOption: StateFlow<WardrobeSort> = _sortOption.asStateFlow()
+
+    private val _statusFilter = MutableStateFlow<String?>(null)
+    val statusFilter: StateFlow<String?> = _statusFilter.asStateFlow()
+
+    private val _sparkJoyFilter = MutableStateFlow<String?>(null)
+    val sparkJoyFilter: StateFlow<String?> = _sparkJoyFilter.asStateFlow()
+
+    private val _viewMode = MutableStateFlow(WardrobeViewMode.GRID_2)
+    val viewMode: StateFlow<WardrobeViewMode> = _viewMode.asStateFlow()
 
     private val _syncStatus = MutableStateFlow<String?>(null)
     val syncStatus: StateFlow<String?> = _syncStatus.asStateFlow()
@@ -43,15 +73,40 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
     val filteredItems: StateFlow<List<ClothingItemEntity>> = combine(
         allItems,
         _selectedCategory,
-        _searchQuery
-    ) { items, category, query ->
-        items.filter { item ->
+        _searchQuery,
+        _sortOption,
+        _statusFilter,
+        _sparkJoyFilter
+    ) { args: Array<Any?> ->
+        @Suppress("UNCHECKED_CAST")
+        val items = args[0] as List<ClothingItemEntity>
+        val category = args[1] as String?
+        val query = args[2] as String
+        val sort = args[3] as WardrobeSort
+        val status = args[4] as String?
+        val sparkJoy = args[5] as String?
+
+        val filtered = items.filter { item ->
             val matchesCategory = category == null || item.category.equals(category, ignoreCase = true)
             val matchesQuery = query.isBlank() ||
                     item.name.contains(query, ignoreCase = true) ||
                     (item.brand?.contains(query, ignoreCase = true) == true) ||
                     (item.color?.contains(query, ignoreCase = true) == true)
-            matchesCategory && matchesQuery
+            val matchesStatus = status == null || item.status.equals(status, ignoreCase = true)
+            val matchesJoy = sparkJoy == null || item.sparkJoy.equals(sparkJoy, ignoreCase = true)
+
+            matchesCategory && matchesQuery && matchesStatus && matchesJoy
+        }
+
+        when (sort) {
+            WardrobeSort.RECENT -> filtered.sortedByDescending { it.createdAt }
+            WardrobeSort.MOST_WORN -> filtered.sortedByDescending { it.wearCount }
+            WardrobeSort.LEAST_WORN -> filtered.sortedBy { it.wearCount }
+            WardrobeSort.CPW_LOWEST -> filtered.sortedBy { (it.price ?: 0.0) / it.wearCount.coerceAtLeast(1) }
+            WardrobeSort.CPW_HIGHEST -> filtered.sortedByDescending { (it.price ?: 0.0) / it.wearCount.coerceAtLeast(1) }
+            WardrobeSort.PRICE_HIGH -> filtered.sortedByDescending { it.price ?: 0.0 }
+            WardrobeSort.PRICE_LOW -> filtered.sortedBy { it.price ?: 0.0 }
+            WardrobeSort.NAME -> filtered.sortedBy { it.name.lowercase() }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -101,6 +156,14 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
         dao.getLogsForMonth(month)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val plannedOutfitsForMonth: StateFlow<List<PlannedOutfitEntity>> = _currentMonth.flatMapLatest { month ->
+        dao.getPlansForMonth(month)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val planForSelectedDate: StateFlow<PlannedOutfitEntity?> = _selectedDate.flatMapLatest { date ->
+        dao.getPlanForDateFlow(date)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
     init {
         viewModelScope.launch {
             JsonBackupImporter.importFromAssetsIfEmpty(getApplication(), dao)
@@ -113,6 +176,22 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
 
     fun setSearchQuery(query: String) {
         _searchQuery.value = query
+    }
+
+    fun setSortOption(sort: WardrobeSort) {
+        _sortOption.value = sort
+    }
+
+    fun setStatusFilter(status: String?) {
+        _statusFilter.value = status
+    }
+
+    fun setSparkJoyFilter(joy: String?) {
+        _sparkJoyFilter.value = joy
+    }
+
+    fun setViewMode(mode: WardrobeViewMode) {
+        _viewMode.value = mode
     }
 
     fun setSelectedDate(date: String) {
@@ -258,6 +337,69 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    // --- Planned Outfits ---
+    fun planOutfitForDate(date: String, outfitId: String?, itemIds: List<String>, note: String?, onComplete: (() -> Unit)? = null) {
+        viewModelScope.launch {
+            val plan = PlannedOutfitEntity(
+                id = "plan_${UUID.randomUUID()}",
+                date = date,
+                outfitId = outfitId,
+                itemIds = JSONArray(itemIds).toString(),
+                note = note,
+                createdAt = System.currentTimeMillis()
+            )
+            dao.insertPlan(plan)
+            onComplete?.invoke()
+        }
+    }
+
+    fun deletePlan(plan: PlannedOutfitEntity, onComplete: (() -> Unit)? = null) {
+        viewModelScope.launch {
+            dao.deletePlan(plan)
+            onComplete?.invoke()
+        }
+    }
+
+    fun wearPlannedOutfit(plan: PlannedOutfitEntity, onComplete: (() -> Unit)? = null) {
+        viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            val oId = plan.outfitId
+            if (!oId.isNullOrBlank()) {
+                dao.recordOutfitWear(oId, now)
+                dao.insertWearLog(
+                    WearLogEntity(
+                        id = "outfit_wear_${UUID.randomUUID()}",
+                        outfitId = oId,
+                        wornDate = plan.date,
+                        timestamp = now,
+                        type = "wear"
+                    )
+                )
+            }
+            try {
+                val arr = JSONArray(plan.itemIds)
+                for (i in 0 until arr.length()) {
+                    val itemId = arr.getString(i)
+                    dao.recordItemWear(itemId, now)
+                    dao.insertWearLog(
+                        WearLogEntity(
+                            id = "item_wear_${UUID.randomUUID()}",
+                            itemId = itemId,
+                            outfitId = oId,
+                            wornDate = plan.date,
+                            timestamp = now,
+                            type = "wear"
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            dao.deletePlan(plan)
+            onComplete?.invoke()
+        }
+    }
+
     // --- Laundry ---
     fun markItemWashed(item: ClothingItemEntity) {
         setItemStatus(item, "ready")
@@ -267,6 +409,13 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             val now = System.currentTimeMillis()
             dao.markAllDirtyWashed(now)
+        }
+    }
+
+    fun markAllCleaningWashed() {
+        viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            dao.markAllCleaningWashed(now)
         }
     }
 
@@ -338,12 +487,26 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
     fun restoreFromR2() {
         viewModelScope.launch {
             _syncStatus.value = "Restoring from Cloudflare R2..."
-            val destFile = File(getApplication<Application>().cacheDir, "fitly_restore.sqlite")
-            val res = CloudStorageSyncer.downloadDatabaseBackup(getApplication(), destFile)
-            _syncStatus.value = res.fold(
-                onSuccess = { "✅ R2 Snapshot downloaded! Restart app to load." },
-                onFailure = { "❌ Restore error: ${it.localizedMessage}" }
-            )
+            val context = getApplication<Application>()
+            val destFile = File(context.cacheDir, "fitly_restore.sqlite")
+            val res = CloudStorageSyncer.downloadDatabaseBackup(context, destFile)
+            if (res.isFailure) {
+                _syncStatus.value = "❌ Restore error: ${res.exceptionOrNull()?.localizedMessage}"
+                return@launch
+            }
+            try {
+                FitlyDatabase.closeAndReset()
+                val dbFile = context.getDatabasePath("fitly_db")
+                val walFile = File(dbFile.path + "-wal")
+                val shmFile = File(dbFile.path + "-shm")
+                if (walFile.exists()) walFile.delete()
+                if (shmFile.exists()) shmFile.delete()
+                destFile.copyTo(dbFile, overwrite = true)
+                destFile.delete()
+                _syncStatus.value = "✅ Database restored from R2! Please restart app to reload all tables."
+            } catch (e: Exception) {
+                _syncStatus.value = "❌ Database swap error: ${e.localizedMessage}"
+            }
         }
     }
 

@@ -1,5 +1,6 @@
 package com.fitly.app.presentation.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,8 +18,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -36,6 +39,7 @@ fun OutfitBuilderDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     val allItems by viewModel.allItems.collectAsState()
 
     var outfitName by remember { mutableStateOf("") }
@@ -45,6 +49,16 @@ fun OutfitBuilderDialog(
     val selectedItems = remember(selectedItemIds.toList(), allItems) {
         val set = selectedItemIds.toSet()
         allItems.filter { set.contains(it.id) }
+    }
+
+    val totalPrice = remember(selectedItems) {
+        selectedItems.mapNotNull { it.price }.sum()
+    }
+    val totalWears = remember(selectedItems) {
+        selectedItems.sumOf { it.wearCount }
+    }
+    val combinedCpw = remember(totalPrice, totalWears) {
+        if (totalWears > 0 && totalPrice > 0) totalPrice / totalWears else null
     }
 
     Dialog(
@@ -125,6 +139,49 @@ fun OutfitBuilderDialog(
                     fontWeight = FontWeight.SemiBold
                 )
 
+                if (selectedItems.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Total Value",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = if (totalPrice > 0) "Rp ${"%,d".format(totalPrice)}" else "Free / Unset",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = "Combined CPW",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = if (combinedCpw != null) "Rp ${"%,d".format(combinedCpw)}/wear" else "Rp 0/wear",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
+                            }
+                        }
+                    }
+                }
+
                 if (selectedItems.isEmpty()) {
                     Box(
                         modifier = Modifier
@@ -163,7 +220,10 @@ fun OutfitBuilderDialog(
                                     .size(72.dp)
                                     .clip(RoundedCornerShape(12.dp))
                                     .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
-                                    .clickable { selectedItemIds.remove(item.id) }
+                                    .clickable {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        selectedItemIds.remove(item.id)
+                                    }
                             ) {
                                 if (imageFile != null) {
                                     AsyncImage(
@@ -227,6 +287,7 @@ fun OutfitBuilderDialog(
                                             modifier = Modifier
                                                 .width(100.dp)
                                                 .clickable {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                     if (isSelected) selectedItemIds.remove(item.id)
                                                     else selectedItemIds.add(item.id)
                                                 },

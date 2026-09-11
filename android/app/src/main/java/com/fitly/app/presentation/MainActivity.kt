@@ -2,6 +2,7 @@ package com.fitly.app.presentation
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
@@ -38,6 +39,14 @@ class MainActivity : ComponentActivity() {
                 var currentTab by remember { mutableStateOf(FitlyTab.WARDROBE) }
                 var previousTab by remember { mutableStateOf(FitlyTab.WARDROBE) }
                 var activeDetailItem by remember { mutableStateOf<ClothingItemEntity?>(null) }
+
+                BackHandler(enabled = currentTab != FitlyTab.WARDROBE) {
+                    if (currentTab == FitlyTab.ANALYTICS || currentTab == FitlyTab.SETTINGS) {
+                        currentTab = previousTab
+                    } else {
+                        currentTab = FitlyTab.WARDROBE
+                    }
+                }
 
                 val dirtyItems by viewModel.dirtyItems.collectAsState()
 
