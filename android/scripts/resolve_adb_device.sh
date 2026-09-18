@@ -78,8 +78,8 @@ resolve_device() {
 
     # 4. Check Tailscale for known Android devices
     if command -v tailscale >/dev/null 2>&1; then
-        local ts_ip
-        ts_ip="$(tailscale status 2>/dev/null | grep -iE 'xiaomi|phone|android' | awk '{print $1}' | head -n 1)"
+        local ts_filter="${TAILSCALE_DEVICE_FILTER:-xiaomi|phone|android|pixel|samsung|oneplus}"
+        ts_ip="$(tailscale status 2>/dev/null | grep -iE "$ts_filter" | awk '{print $1}' | head -n 1)"
         if [ -n "$ts_ip" ]; then
             echo "🔍 Discovered Tailscale Android node: $ts_ip" >&2
             echo "   Connect using: adb connect $ts_ip:<WIRELESS_ADB_PORT>" >&2

@@ -76,7 +76,7 @@ fun WardrobeScreen(
                     value = searchQuery,
                     onValueChange = { viewModel.setSearchQuery(it) },
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("Search brand, color, name...") },
+                    placeholder = { Text("Search...") },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
                     trailingIcon = {
                         if (searchQuery.isNotBlank()) {

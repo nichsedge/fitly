@@ -8,9 +8,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Style
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,6 +22,7 @@ import coil3.compose.AsyncImage
 import com.fitly.app.data.local.entity.ClothingItemEntity
 import com.fitly.app.data.local.entity.OutfitEntity
 import com.fitly.app.data.util.ImageStorageHelper
+import com.fitly.app.presentation.OutfitSort
 import com.fitly.app.presentation.WardrobeViewModel
 import org.json.JSONArray
 
@@ -32,10 +31,14 @@ fun OutfitsScreen(
     viewModel: WardrobeViewModel,
     onItemClick: (ClothingItemEntity) -> Unit
 ) {
-    val outfits by viewModel.outfits.collectAsState()
+    val outfits by viewModel.sortedOutfits.collectAsState()
+    val rawOutfits by viewModel.outfits.collectAsState()
     val allItems by viewModel.allItems.collectAsState()
+    val outfitSort by viewModel.outfitSort.collectAsState()
+    val searchQuery by viewModel.outfitSearchQuery.collectAsState()
 
     var showOutfitBuilder by remember { mutableStateOf(false) }
+    var showSortMenu by remember { mutableStateOf(false) }
     var selectedOutfitForDetail by remember { mutableStateOf<OutfitEntity?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -44,6 +47,7 @@ fun OutfitsScreen(
                 .fillMaxSize()
                 .padding(16.dp)
         ) {
+            // Header Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -61,9 +65,76 @@ fun OutfitsScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            // Search & Sort Bar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { viewModel.setOutfitSearchQuery(it) },
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("Search...") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
+                    trailingIcon = {
+                        if (searchQuery.isNotBlank()) {
+                            IconButton(onClick = { viewModel.setOutfitSearchQuery("") }) {
+                                Icon(Icons.Default.Clear, contentDescription = "Clear")
+                            }
+                        }
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
 
-            if (outfits.isEmpty()) {
+                // Sort Menu
+                Box {
+                    FilledTonalIconButton(onClick = { showSortMenu = true }) {
+                        Icon(Icons.Default.Sort, contentDescription = "Sort Outfits")
+                    }
+                    DropdownMenu(
+                        expanded = showSortMenu,
+                        onDismissRequest = { showSortMenu = false }
+                    ) {
+                        OutfitSort.entries.forEach { sort ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = sort.label,
+                                        fontWeight = if (sort == outfitSort) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                },
+                                onClick = {
+                                    viewModel.setOutfitSort(sort)
+                                    showSortMenu = false
+                                },
+                                leadingIcon = if (sort == outfitSort) {
+                                    { Icon(Icons.Default.Check, contentDescription = null) }
+                                } else null
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Active sort indicator
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Sorted by: ${outfitSort.label}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            if (rawOutfits.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -83,6 +154,16 @@ fun OutfitsScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                }
+            } else if (outfits.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No outfits match \"$searchQuery\"",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             } else {
                 LazyColumn(

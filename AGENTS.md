@@ -28,11 +28,12 @@ Fitly consists of two presentation interfaces backed by standard SQLite / Indexe
 - **Features (100% Parity with Web)**:
   - **Wardrobe**: Filter by category (tops, bottoms, shoes, etc.), live search, real photo grid with color swatches, wear count, and status badges.
   - **Item Detail & Edit**: View full specs, photo capture/gallery replacement, Cost-Per-Wear calculation (`price / wearCount`), spark joy status, care info, status toggle (ready/dirty/cleaning), and retirement workflow.
-  - **Outfit Builder & Detail**: Compose outfits with visual category-based piece picker; "Wear Outfit" automatically logs wear for the outfit and all composed items.
+  - **Outfit Builder & Management**: Compose outfits with visual category piece picker; live search, custom sorting (Recently Created, Oldest, Name A-Z, Most Worn, Recently Worn, Most Items); "Wear Outfit" logs wear for the outfit and all composed items.
   - **Laundry Tracker**: Separate tabs for Dirty, Cleaning, and Clean with one-tap "Mark Washed" and "Wash All" batch actions.
   - **Calendar & History**: Monthly interactive calendar marking active wear and wash days, daily breakdown, and manual wear logging.
   - **Trips & Packing**: Trip itinerary management with packing checklists, checkboxes, and real-time progress bars.
   - **Analytics & Minimalism**: KonMari Spark Joy audit, Cost-Per-Wear leaderboard, and unworn dust collectors list (>60 days inactive).
+  - **Theming & Motion**: Material You dynamic color scheme (Android 12+), edge-to-edge UI, and fluid `AnimatedContent` tab navigation.
 - **Data Backup & Cloud Parity**:
   - **In-App ZIP Archive**: Export and import complete `.zip` archives (database + `images/*`) directly via Android document pickers.
   - **Cloudflare R2**: Automated zero-dependency AWS SigV4 signed sync to `db/fitly_latest.sqlite` in bucket `ichsanul-dev`.
@@ -62,3 +63,13 @@ Fitly consists of two presentation interfaces backed by standard SQLite / Indexe
 2. **Local-First & Privacy First**: All catalog data must remain client-side in Room (Android) or IndexedDB (Web).
 3. **Cloudflare R2 Parity with Sans Finance**: Cloud backups use AWS SigV4 directly to Cloudflare R2 (`db/fitly_latest.sqlite`). Keep this implementation standard and zero-dependency.
 4. **Deterministic Modern Code**: Use modern Kotlin / Jetpack Compose and Next.js App Router patterns with zero legacy shims.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

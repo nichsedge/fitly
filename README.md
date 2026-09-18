@@ -10,11 +10,12 @@ The native Android app provides a local-first mobile client with 100% feature pa
 
 - 👕 **Wardrobe Catalog**: Real photo grid, live search, category filtering (tops, bottoms, outerwear, shoes, accessories, bags, underwear), color swatches, and wear count tracking.
 - 🔍 **Item Detail & Edit**: View full specs, edit metadata, camera & gallery photo replacement, Cost-Per-Wear calculation (`price / wearCount`), condition, and care instructions.
-- 🎨 **Outfit Builder & Wear Logging**: Select items grouped by category to build outfits; "Wear Outfit" automatically logs wear for both the outfit and each individual clothing piece.
+- 🎨 **Outfit Builder & Search**: Compose outfits with visual category piece picker, search by name, and custom sort (Recently Created, Oldest, Name A-Z, Most Worn, Recently Worn, Most Items); "Wear Outfit" automatically logs wear for both the outfit and each individual piece.
 - 🧺 **Laundry Tracker**: Track dirty, cleaning, and clean items with one-tap "Mark Washed" and batch "Wash All" actions.
 - 📅 **Calendar & Wear History**: Monthly calendar grid highlighting days with wear or wash logs, day detail breakdown, and manual wear logging.
 - 🧳 **Trips & Packing**: Plan trips, assign packing lists, track packed items with checkboxes and progress bars.
 - 📊 **Minimalism & Capsule Analytics**: KonMari audit (Spark Joy, Daily Essentials, Candidates to Release), Cost-Per-Wear ranking leaderboard, and unworn dust collectors list (>60 days inactive).
+- 🎨 **Material You & Fluid Navigation**: System wallpaper dynamic color extraction (Android 12+), edge-to-edge rendering, and animated tab transitions.
 - ☁️ **Cloudflare R2 & ZIP Backups**: Zero-dependency AWS SigV4 signed backups to Cloudflare R2 (`db/fitly_latest.sqlite` in `ichsanul-dev`) plus in-app complete ZIP export/import (database + images).
 
 ### Running Android App

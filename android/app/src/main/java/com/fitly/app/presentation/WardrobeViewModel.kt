@@ -1,11 +1,13 @@
 package com.fitly.app.presentation
 
 import android.app.Application
+import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.fitly.app.data.local.FitlyDatabase
 import com.fitly.app.data.local.entity.*
+import com.fitly.app.data.util.AppConstants
 import com.fitly.app.data.util.CloudStorageSyncer
 import com.fitly.app.data.util.ImageStorageHelper
 import com.fitly.app.data.util.JsonBackupImporter
@@ -36,11 +38,29 @@ enum class WardrobeViewMode {
     LIST
 }
 
+enum class OutfitSort(val label: String) {
+    NEWEST("Recently Created"),
+    OLDEST("Oldest Created"),
+    NAME("Name (A-Z)"),
+    MOST_WORN("Most Worn"),
+    RECENTLY_WORN("Recently Worn"),
+    ITEMS_COUNT("Most Items")
+}
+
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class WardrobeViewModel(application: Application) : AndroidViewModel(application) {
 
     val db = FitlyDatabase.getDatabase(application)
     val dao = db.fitlyDao()
+
+    private val prefs = application.getSharedPreferences(AppConstants.PREFS_NAME, Context.MODE_PRIVATE)
+    private val _dynamicColorEnabled = MutableStateFlow(prefs.getBoolean(AppConstants.PREF_KEY_DYNAMIC_COLOR, true))
+    val dynamicColorEnabled: StateFlow<Boolean> = _dynamicColorEnabled.asStateFlow()
+
+    fun setDynamicColorEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(AppConstants.PREF_KEY_DYNAMIC_COLOR, enabled).apply()
+        _dynamicColorEnabled.value = enabled
+    }
 
     private val _selectedCategory = MutableStateFlow<String?>(null)
     val selectedCategory: StateFlow<String?> = _selectedCategory.asStateFlow()
@@ -114,14 +134,64 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
     val outfits: StateFlow<List<OutfitEntity>> = dao.getAllOutfits()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    private val _outfitSort = MutableStateFlow(
+        try {
+            OutfitSort.valueOf(prefs.getString(AppConstants.PREF_KEY_OUTFITS_SORT, OutfitSort.NEWEST.name) ?: OutfitSort.NEWEST.name)
+        } catch (_: Exception) {
+            OutfitSort.NEWEST
+        }
+    )
+    val outfitSort: StateFlow<OutfitSort> = _outfitSort.asStateFlow()
+
+    private val _outfitSearchQuery = MutableStateFlow("")
+    val outfitSearchQuery: StateFlow<String> = _outfitSearchQuery.asStateFlow()
+
+    fun setOutfitSort(sort: OutfitSort) {
+        prefs.edit().putString(AppConstants.PREF_KEY_OUTFITS_SORT, sort.name).apply()
+        _outfitSort.value = sort
+    }
+
+    fun setOutfitSearchQuery(query: String) {
+        _outfitSearchQuery.value = query
+    }
+
+    val sortedOutfits: StateFlow<List<OutfitEntity>> = combine(
+        dao.getAllOutfits(),
+        _outfitSort,
+        _outfitSearchQuery
+    ) { rawOutfits, sort, query ->
+        val filtered = if (query.isBlank()) {
+            rawOutfits
+        } else {
+            rawOutfits.filter {
+                it.name.contains(query, ignoreCase = true) ||
+                (it.note?.contains(query, ignoreCase = true) == true)
+            }
+        }
+        when (sort) {
+            OutfitSort.NEWEST -> filtered.sortedByDescending { it.createdAt }
+            OutfitSort.OLDEST -> filtered.sortedBy { it.createdAt }
+            OutfitSort.NAME -> filtered.sortedBy { it.name.lowercase() }
+            OutfitSort.MOST_WORN -> filtered.sortedByDescending { it.wearCount }
+            OutfitSort.RECENTLY_WORN -> filtered.sortedByDescending { it.lastWornAt ?: 0L }
+            OutfitSort.ITEMS_COUNT -> filtered.sortedByDescending {
+                try {
+                    JSONArray(it.itemIds).length()
+                } catch (_: Exception) {
+                    0
+                }
+            }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     // Laundry
-    val dirtyItems: StateFlow<List<ClothingItemEntity>> = dao.getItemsByStatus("dirty")
+    val dirtyItems: StateFlow<List<ClothingItemEntity>> = dao.getItemsByStatus(AppConstants.STATUS_DIRTY)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val cleaningItems: StateFlow<List<ClothingItemEntity>> = dao.getItemsByStatus("cleaning")
+    val cleaningItems: StateFlow<List<ClothingItemEntity>> = dao.getItemsByStatus(AppConstants.STATUS_CLEANING)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val readyItems: StateFlow<List<ClothingItemEntity>> = dao.getItemsByStatus("ready")
+    val readyItems: StateFlow<List<ClothingItemEntity>> = dao.getItemsByStatus(AppConstants.STATUS_READY)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Trips

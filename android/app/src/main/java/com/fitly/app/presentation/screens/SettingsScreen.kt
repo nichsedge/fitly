@@ -11,10 +11,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.fitly.app.data.util.AppConstants
 import com.fitly.app.presentation.WardrobeViewModel
 import java.io.File
 import java.io.FileOutputStream
@@ -25,10 +27,11 @@ import java.util.*
 fun SettingsScreen(viewModel: WardrobeViewModel) {
     val context = LocalContext.current
     val syncStatus by viewModel.syncStatus.collectAsState()
+    val dynamicColor by viewModel.dynamicColorEnabled.collectAsState()
 
     // Export ZIP launcher (Create Document)
     val exportZipLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/zip")
+        contract = ActivityResultContracts.CreateDocument(AppConstants.MIME_TYPE_ZIP)
     ) { uri: Uri? ->
         if (uri != null) {
             context.contentResolver.openOutputStream(uri)?.use { os ->
@@ -55,6 +58,60 @@ fun SettingsScreen(viewModel: WardrobeViewModel) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Appearance Section
+        Text(
+            text = "Appearance",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold
+        )
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Palette,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "Dynamic Color (Material You)",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S)
+                                "Match app colors to your system wallpaper"
+                            else
+                                "Requires Android 12+",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Switch(
+                    checked = dynamicColor,
+                    onCheckedChange = { viewModel.setDynamicColorEnabled(it) },
+                    enabled = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+                )
+            }
+        }
+
         Text(
             text = "Data, Backups & Cloud Sync",
             style = MaterialTheme.typography.titleLarge,

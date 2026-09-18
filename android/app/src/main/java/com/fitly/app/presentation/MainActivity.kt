@@ -4,7 +4,10 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -14,6 +17,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import com.fitly.app.data.local.entity.ClothingItemEntity
+import com.fitly.app.data.util.AppConstants
 import com.fitly.app.presentation.screens.*
 import com.fitly.app.presentation.theme.FitlyTheme
 
@@ -34,8 +38,10 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         setContent {
-            FitlyTheme {
+            val dynamicColor by viewModel.dynamicColorEnabled.collectAsState()
+            FitlyTheme(dynamicColor = dynamicColor) {
                 var currentTab by remember { mutableStateOf(FitlyTab.WARDROBE) }
                 var previousTab by remember { mutableStateOf(FitlyTab.WARDROBE) }
                 var activeDetailItem by remember { mutableStateOf<ClothingItemEntity?>(null) }
@@ -139,34 +145,45 @@ class MainActivity : ComponentActivity() {
                             .fillMaxSize()
                             .padding(innerPadding)
                     ) {
-                        when (currentTab) {
-                            FitlyTab.WARDROBE -> WardrobeScreen(
-                                viewModel = viewModel,
-                                onItemClick = { activeDetailItem = it }
-                            )
-                            FitlyTab.OUTFITS -> OutfitsScreen(
-                                viewModel = viewModel,
-                                onItemClick = { activeDetailItem = it }
-                            )
-                            FitlyTab.LAUNDRY -> LaundryScreen(
-                                viewModel = viewModel,
-                                onItemClick = { activeDetailItem = it }
-                            )
-                            FitlyTab.CALENDAR -> CalendarScreen(
-                                viewModel = viewModel,
-                                onItemClick = { activeDetailItem = it }
-                            )
-                            FitlyTab.TRIPS -> TripsScreen(
-                                viewModel = viewModel,
-                                onItemClick = { activeDetailItem = it }
-                            )
-                            FitlyTab.ANALYTICS -> AnalyticsScreen(
-                                viewModel = viewModel,
-                                onItemClick = { activeDetailItem = it }
-                            )
-                            FitlyTab.SETTINGS -> SettingsScreen(
-                                viewModel = viewModel
-                            )
+                        AnimatedContent(
+                            targetState = currentTab,
+                            transitionSpec = {
+                                val isForward = targetState.ordinal > initialState.ordinal
+                                val enter = (if (isForward) slideInHorizontally { it / AppConstants.TRANSITION_SLIDE_DIVISOR } else slideInHorizontally { -it / AppConstants.TRANSITION_SLIDE_DIVISOR }) + fadeIn(animationSpec = tween(AppConstants.TRANSITION_DURATION_ENTER_MS))
+                                val exit = (if (isForward) slideOutHorizontally { -it / AppConstants.TRANSITION_SLIDE_DIVISOR } else slideOutHorizontally { it / AppConstants.TRANSITION_SLIDE_DIVISOR }) + fadeOut(animationSpec = tween(AppConstants.TRANSITION_DURATION_EXIT_MS))
+                                enter togetherWith exit
+                            },
+                            label = "TabTransition"
+                        ) { tab ->
+                            when (tab) {
+                                FitlyTab.WARDROBE -> WardrobeScreen(
+                                    viewModel = viewModel,
+                                    onItemClick = { activeDetailItem = it }
+                                )
+                                FitlyTab.OUTFITS -> OutfitsScreen(
+                                    viewModel = viewModel,
+                                    onItemClick = { activeDetailItem = it }
+                                )
+                                FitlyTab.LAUNDRY -> LaundryScreen(
+                                    viewModel = viewModel,
+                                    onItemClick = { activeDetailItem = it }
+                                )
+                                FitlyTab.CALENDAR -> CalendarScreen(
+                                    viewModel = viewModel,
+                                    onItemClick = { activeDetailItem = it }
+                                )
+                                FitlyTab.TRIPS -> TripsScreen(
+                                    viewModel = viewModel,
+                                    onItemClick = { activeDetailItem = it }
+                                )
+                                FitlyTab.ANALYTICS -> AnalyticsScreen(
+                                    viewModel = viewModel,
+                                    onItemClick = { activeDetailItem = it }
+                                )
+                                FitlyTab.SETTINGS -> SettingsScreen(
+                                    viewModel = viewModel
+                                )
+                            }
                         }
 
                         // Shared global item detail dialog if clicked from any screen
