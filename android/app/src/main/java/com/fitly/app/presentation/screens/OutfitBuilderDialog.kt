@@ -57,12 +57,14 @@ fun OutfitBuilderDialog(
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val allItems by viewModel.allItems.collectAsState()
+    val locations by viewModel.locations.collectAsState()
 
     var outfitName by remember { mutableStateOf("") }
     var outfitNote by remember { mutableStateOf("") }
     val selectedItemIds = remember { mutableStateListOf<String>() }
 
     var selectedCategoryFilter by remember { mutableStateOf<String?>(null) }
+    var selectedLocationFilter by remember { mutableStateOf<String?>(viewModel.selectedLocationId.value) }
     var searchQuery by remember { mutableStateOf("") }
 
     val selectedItems = remember(selectedItemIds.toList(), allItems) {
@@ -80,13 +82,14 @@ fun OutfitBuilderDialog(
         if (totalWears > 0 && totalPrice > 0) totalPrice / totalWears else null
     }
 
-    val availableItems = remember(allItems, selectedCategoryFilter, searchQuery) {
+    val availableItems = remember(allItems, selectedCategoryFilter, selectedLocationFilter, searchQuery) {
         allItems.filter { item ->
             val matchCat = selectedCategoryFilter == null || item.category.equals(selectedCategoryFilter, ignoreCase = true)
             val matchQuery = searchQuery.isBlank() ||
                     item.name.contains(searchQuery, ignoreCase = true) ||
                     (item.brand?.contains(searchQuery, ignoreCase = true) == true)
-            matchCat && matchQuery
+            val matchLoc = selectedLocationFilter == null || item.locationId == selectedLocationFilter || (selectedLocationFilter == "loc-home" && item.locationId == null)
+            matchCat && matchQuery && matchLoc
         }
     }
 
@@ -304,6 +307,36 @@ fun OutfitBuilderDialog(
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
+
+                if (locations.isNotEmpty()) {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)
+                    ) {
+                        item {
+                            FilterChip(
+                                selected = selectedLocationFilter == null,
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    selectedLocationFilter = null
+                                },
+                                label = { Text("📍 All Places", style = MaterialTheme.typography.labelSmall) },
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                        }
+                        items(locations) { loc ->
+                            FilterChip(
+                                selected = selectedLocationFilter == loc.id,
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    selectedLocationFilter = if (selectedLocationFilter == loc.id) null else loc.id
+                                },
+                                label = { Text("${loc.icon ?: "📍"} ${loc.name}", style = MaterialTheme.typography.labelSmall) },
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                        }
+                    }
+                }
 
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),

@@ -77,6 +77,13 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
     private val _sparkJoyFilter = MutableStateFlow<String?>(null)
     val sparkJoyFilter: StateFlow<String?> = _sparkJoyFilter.asStateFlow()
 
+    private val _selectedLocationId = MutableStateFlow<String?>(null)
+    val selectedLocationId: StateFlow<String?> = _selectedLocationId.asStateFlow()
+
+    fun setSelectedLocationId(locationId: String?) {
+        _selectedLocationId.value = locationId
+    }
+
     private val _viewMode = MutableStateFlow(WardrobeViewMode.GRID_2)
     val viewMode: StateFlow<WardrobeViewMode> = _viewMode.asStateFlow()
 
@@ -108,7 +115,8 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
         _searchQuery,
         _sortOption,
         _statusFilter,
-        _sparkJoyFilter
+        _sparkJoyFilter,
+        _selectedLocationId
     ) { args: Array<Any?> ->
         @Suppress("UNCHECKED_CAST")
         val items = args[0] as List<ClothingItemEntity>
@@ -117,6 +125,7 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
         val sort = args[3] as WardrobeSort
         val status = args[4] as String?
         val sparkJoy = args[5] as String?
+        val locationId = args[6] as String?
 
         val filtered = items.filter { item ->
             val matchesCategory = category == null || item.category.equals(category, ignoreCase = true)
@@ -126,8 +135,9 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
                     (item.color?.contains(query, ignoreCase = true) == true)
             val matchesStatus = status == null || item.status.equals(status, ignoreCase = true)
             val matchesJoy = sparkJoy == null || item.sparkJoy.equals(sparkJoy, ignoreCase = true)
+            val matchesLocation = locationId == null || item.locationId == locationId || (locationId == "loc-home" && item.locationId == null)
 
-            matchesCategory && matchesQuery && matchesStatus && matchesJoy
+            matchesCategory && matchesQuery && matchesStatus && matchesJoy && matchesLocation
         }
 
         when (sort) {
@@ -170,15 +180,34 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
     val sortedOutfits: StateFlow<List<OutfitEntity>> = combine(
         dao.getAllOutfits(),
         _outfitSort,
-        _outfitSearchQuery
-    ) { rawOutfits, sort, query ->
-        val filtered = if (query.isBlank()) {
-            rawOutfits
-        } else {
-            rawOutfits.filter {
-                it.name.contains(query, ignoreCase = true) ||
-                (it.note?.contains(query, ignoreCase = true) == true)
+        _outfitSearchQuery,
+        _selectedLocationId,
+        allItems
+    ) { rawOutfits, sort, query, locationId, itemsList ->
+        val itemMap = itemsList.associateBy { it.id }
+        val filtered = rawOutfits.filter { outfit ->
+            val matchesQuery = if (query.isBlank()) {
+                true
+            } else {
+                outfit.name.contains(query, ignoreCase = true) ||
+                (outfit.note?.contains(query, ignoreCase = true) == true)
             }
+            val matchesLocation = if (locationId == null) {
+                true
+            } else {
+                try {
+                    val array = JSONArray(outfit.itemIds)
+                    val ids = (0 until array.length()).map { array.getString(it) }
+                    if (ids.isEmpty()) true
+                    else ids.all { id ->
+                        val itLoc = itemMap[id]?.locationId ?: "loc-home"
+                        itLoc == locationId
+                    }
+                } catch (_: Exception) {
+                    true
+                }
+            }
+            matchesQuery && matchesLocation
         }
         when (sort) {
             OutfitSort.NEWEST -> filtered.sortedByDescending { it.createdAt }

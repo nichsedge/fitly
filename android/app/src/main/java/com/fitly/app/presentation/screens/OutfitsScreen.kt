@@ -22,6 +22,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import com.fitly.app.data.local.entity.ClothingItemEntity
 import com.fitly.app.data.local.entity.OutfitEntity
 import com.fitly.app.data.util.ImageStorageHelper
@@ -34,9 +36,12 @@ fun OutfitsScreen(
     viewModel: WardrobeViewModel,
     onItemClick: (ClothingItemEntity) -> Unit
 ) {
+    val haptic = LocalHapticFeedback.current
     val outfits by viewModel.sortedOutfits.collectAsState()
     val rawOutfits by viewModel.outfits.collectAsState()
     val allItems by viewModel.allItems.collectAsState()
+    val locations by viewModel.locations.collectAsState()
+    val selectedLocationId by viewModel.selectedLocationId.collectAsState()
     val outfitSort by viewModel.outfitSort.collectAsState()
     val searchQuery by viewModel.outfitSearchQuery.collectAsState()
 
@@ -113,6 +118,47 @@ fun OutfitsScreen(
                                 } else null
                             )
                         }
+                    }
+                }
+            }
+
+            // Location Filter Chips (All, 🏠 Home, 🏢 Rent Room / Kos)
+            if (locations.isNotEmpty()) {
+                LazyRow(
+                    modifier = Modifier.padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    item {
+                        FilterChip(
+                            selected = selectedLocationId == null,
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                viewModel.setSelectedLocationId(null)
+                            },
+                            label = { Text("📍 All Places") },
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
+                    items(locations) { loc ->
+                        val locOutfitCount = rawOutfits.count { outfit ->
+                            try {
+                                val array = JSONArray(outfit.itemIds)
+                                val ids = (0 until array.length()).map { array.getString(it) }
+                                val itemMap = allItems.associateBy { it.id }
+                                ids.isNotEmpty() && ids.all { id -> (itemMap[id]?.locationId ?: "loc-home") == loc.id }
+                            } catch (_: Exception) {
+                                false
+                            }
+                        }
+                        FilterChip(
+                            selected = selectedLocationId == loc.id,
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                viewModel.setSelectedLocationId(if (selectedLocationId == loc.id) null else loc.id)
+                            },
+                            label = { Text("${loc.icon ?: "📍"} ${loc.name} ($locOutfitCount)") },
+                            shape = RoundedCornerShape(12.dp)
+                        )
                     }
                 }
             }

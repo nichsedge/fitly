@@ -135,6 +135,8 @@ fun WardrobeScreen(
     val sortOption by viewModel.sortOption.collectAsState()
     val statusFilter by viewModel.statusFilter.collectAsState()
     val sparkJoyFilter by viewModel.sparkJoyFilter.collectAsState()
+    val locations by viewModel.locations.collectAsState()
+    val selectedLocationId by viewModel.selectedLocationId.collectAsState()
     val viewMode by viewModel.viewMode.collectAsState()
 
     var showAddItemDialog by remember { mutableStateOf(false) }
@@ -164,7 +166,7 @@ fun WardrobeScreen(
                 )
 
                 // Filter Sheet Toggle Button
-                val hasActiveFilters = statusFilter != null || sparkJoyFilter != null
+                val hasActiveFilters = statusFilter != null || sparkJoyFilter != null || selectedLocationId != null
                 BadgedBox(
                     badge = {
                         if (hasActiveFilters) {
@@ -211,6 +213,38 @@ fun WardrobeScreen(
                                 } else null
                             )
                         }
+                    }
+                }
+            }
+
+            // Location Pills (All, 🏠 Home, 🏢 Rent Room / Kos)
+            if (locations.isNotEmpty()) {
+                LazyRow(
+                    modifier = Modifier.padding(bottom = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    item {
+                        FilterChip(
+                            selected = selectedLocationId == null,
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                viewModel.setSelectedLocationId(null)
+                            },
+                            label = { Text("📍 All Places") },
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
+                    items(locations) { loc ->
+                        val locCount = allItems.count { (it.locationId ?: "loc-home") == loc.id }
+                        FilterChip(
+                            selected = selectedLocationId == loc.id,
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                viewModel.setSelectedLocationId(if (selectedLocationId == loc.id) null else loc.id)
+                            },
+                            label = { Text("${loc.icon ?: "📍"} ${loc.name} ($locCount)") },
+                            shape = RoundedCornerShape(12.dp)
+                        )
                     }
                 }
             }
@@ -431,8 +465,30 @@ fun WardrobeScreen(
                         TextButton(onClick = {
                             viewModel.setStatusFilter(null)
                             viewModel.setSparkJoyFilter(null)
+                            viewModel.setSelectedLocationId(null)
                         }) {
                             Text("Reset All")
+                        }
+                    }
+
+                    // Storage Location Filter
+                    if (locations.isNotEmpty()) {
+                        Text("Storage Location (Kos vs Rumah)", style = MaterialTheme.typography.titleSmall)
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            item {
+                                FilterChip(
+                                    selected = selectedLocationId == null,
+                                    onClick = { viewModel.setSelectedLocationId(null) },
+                                    label = { Text("All Locations") }
+                                )
+                            }
+                            items(locations) { loc ->
+                                FilterChip(
+                                    selected = selectedLocationId == loc.id,
+                                    onClick = { viewModel.setSelectedLocationId(if (selectedLocationId == loc.id) null else loc.id) },
+                                    label = { Text("${loc.icon ?: "📍"} ${loc.name}") }
+                                )
+                            }
                         }
                     }
 
