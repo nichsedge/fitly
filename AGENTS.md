@@ -40,8 +40,9 @@ Fitly consists of two presentation interfaces backed by standard SQLite / Indexe
 - **Commands**:
   ```bash
   cd android
-  make build   # Build debug APK (app/build/outputs/apk/debug/app-debug.apk)
-  make run     # Build and deploy to connected Android phone (via ADB)
+  make build     # Build debug APK (app/build/outputs/apk/debug/app-debug.apk)
+  make release   # Build lightweight minified APK (app/build/outputs/apk/release/app-release.apk)
+  make run       # Build and deploy to connected Android phone (via ADB)
   ```
 
 ### 2. 🌐 Web Application (`./`)

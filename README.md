@@ -22,8 +22,9 @@ The native Android app provides a local-first mobile client with 100% feature pa
 
 ```bash
 cd android
-make build   # Build debug APK
-make run     # Deploy and run on connected Android phone via ADB
+make build     # Build debug APK
+make release   # Build lightweight minified APK (11MB)
+make run       # Deploy and run on connected Android phone via ADB
 ```
 
 ---

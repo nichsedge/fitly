@@ -11,6 +11,7 @@ help:
 	@echo ""
 	@echo "Build Targets:"
 	@echo "  build              Build debug APK"
+	@echo "  release            Build optimized minified APK"
 	@echo "  clean              Clean build artifacts"
 
 run:
@@ -18,6 +19,9 @@ run:
 
 build:
 	./gradlew assembleDebug
+
+release:
+	./gradlew assembleRelease
 
 clean:
 	./gradlew clean
