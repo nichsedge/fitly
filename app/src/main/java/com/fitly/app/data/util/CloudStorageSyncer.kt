@@ -1,6 +1,7 @@
 package com.fitly.app.data.util
 
 import android.content.Context
+import androidx.core.content.edit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -59,24 +60,24 @@ object CloudStorageSyncer {
 
     fun saveR2Config(context: Context, config: R2Config) {
         val prefs = context.getSharedPreferences(AppConstants.PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit()
-            .putString(AppConstants.PREF_KEY_R2_ACCOUNT_ID, config.accountId.trim())
-            .putString(AppConstants.PREF_KEY_R2_ACCESS_KEY_ID, config.accessKeyId.trim())
-            .putString(AppConstants.PREF_KEY_R2_SECRET_ACCESS_KEY, config.secretAccessKey.trim())
-            .putString(AppConstants.PREF_KEY_R2_BUCKET_NAME, config.bucketName.trim())
-            .putString(AppConstants.PREF_KEY_R2_OBJECT_KEY, config.objectKey.trim())
-            .apply()
+        prefs.edit {
+            putString(AppConstants.PREF_KEY_R2_ACCOUNT_ID, config.accountId.trim())
+            putString(AppConstants.PREF_KEY_R2_ACCESS_KEY_ID, config.accessKeyId.trim())
+            putString(AppConstants.PREF_KEY_R2_SECRET_ACCESS_KEY, config.secretAccessKey.trim())
+            putString(AppConstants.PREF_KEY_R2_BUCKET_NAME, config.bucketName.trim())
+            putString(AppConstants.PREF_KEY_R2_OBJECT_KEY, config.objectKey.trim())
+        }
     }
 
     fun clearR2Config(context: Context) {
         val prefs = context.getSharedPreferences(AppConstants.PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit()
-            .remove(AppConstants.PREF_KEY_R2_ACCOUNT_ID)
-            .remove(AppConstants.PREF_KEY_R2_ACCESS_KEY_ID)
-            .remove(AppConstants.PREF_KEY_R2_SECRET_ACCESS_KEY)
-            .remove(AppConstants.PREF_KEY_R2_BUCKET_NAME)
-            .remove(AppConstants.PREF_KEY_R2_OBJECT_KEY)
-            .apply()
+        prefs.edit {
+            remove(AppConstants.PREF_KEY_R2_ACCOUNT_ID)
+            remove(AppConstants.PREF_KEY_R2_ACCESS_KEY_ID)
+            remove(AppConstants.PREF_KEY_R2_SECRET_ACCESS_KEY)
+            remove(AppConstants.PREF_KEY_R2_BUCKET_NAME)
+            remove(AppConstants.PREF_KEY_R2_OBJECT_KEY)
+        }
     }
 
     suspend fun uploadDatabaseBackup(context: Context, dbFile: File): Result<String> = withContext(Dispatchers.IO) {

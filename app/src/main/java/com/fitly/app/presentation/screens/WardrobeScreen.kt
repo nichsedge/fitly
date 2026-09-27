@@ -1,5 +1,6 @@
 package com.fitly.app.presentation.screens
 
+import androidx.core.graphics.toColorInt
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -652,7 +653,7 @@ fun WardrobeItemCard(
                 // Bottom-Left: Color Swatch + Category tag
                 val swatchColor = remember(item.color) {
                     try {
-                        if (!item.color.isNullOrBlank()) Color(android.graphics.Color.parseColor(item.color)) else null
+                        if (!item.color.isNullOrBlank()) Color(item.color.toColorInt()) else null
                     } catch (_: Exception) {
                         null
                     }

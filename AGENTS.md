@@ -24,7 +24,7 @@ Fitly is a specialized domain recorder in the workstation's Personal Data Archit
 Fitly is a standalone native Android application located directly at repository root:
 
 ### 📱 Native Android App (`./`)
-- **Stack**: Kotlin 2.x, Jetpack Compose Material 3, Room SQLite (`fitly_db` v2), Coil 3.1, Coroutines.
+- **Stack**: Kotlin 2.x, Jetpack Compose Material 3, Room SQLite (`fitly_db` v2), Coil 3.6, Coroutines.
 - **Features**:
   - **Wardrobe**: Filter by category (tops, bottoms, shoes, etc.) and storage location (Kos vs. Rumah), live search, real photo grid with color swatches, wear count, and status badges.
   - **Item Detail & Edit**: View full specs, photo capture/gallery replacement, Cost-Per-Wear calculation (`price / wearCount`), spark joy status, care info, status toggle (ready/dirty/cleaning), and retirement workflow.

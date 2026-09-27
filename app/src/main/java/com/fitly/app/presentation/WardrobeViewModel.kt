@@ -2,6 +2,7 @@ package com.fitly.app.presentation
 
 import android.app.Application
 import android.content.Context
+import androidx.core.content.edit
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -59,7 +60,7 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
     val dynamicColorEnabled: StateFlow<Boolean> = _dynamicColorEnabled.asStateFlow()
 
     fun setDynamicColorEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean(AppConstants.PREF_KEY_DYNAMIC_COLOR, enabled).apply()
+        prefs.edit { putBoolean(AppConstants.PREF_KEY_DYNAMIC_COLOR, enabled) }
         _dynamicColorEnabled.value = enabled
     }
 
@@ -110,38 +111,44 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
     val allItemsIncludingRetired: StateFlow<List<ClothingItemEntity>> = dao.getAllItems()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    private data class WardrobeFilters(
+        val category: String?,
+        val query: String,
+        val sort: WardrobeSort,
+        val status: String?,
+        val sparkJoy: String?,
+        val locationId: String?
+    )
+
+    private val wardrobeFilters: Flow<WardrobeFilters> = combine(
+        combine(_selectedCategory, _searchQuery, _sortOption) { category, query, sort ->
+            Triple(category, query, sort)
+        },
+        combine(_statusFilter, _sparkJoyFilter, _selectedLocationId) { status, sparkJoy, locationId ->
+            Triple(status, sparkJoy, locationId)
+        }
+    ) { (category, query, sort), (status, sparkJoy, locationId) ->
+        WardrobeFilters(category, query, sort, status, sparkJoy, locationId)
+    }
+
     val filteredItems: StateFlow<List<ClothingItemEntity>> = combine(
         allItems,
-        _selectedCategory,
-        _searchQuery,
-        _sortOption,
-        _statusFilter,
-        _sparkJoyFilter,
-        _selectedLocationId
-    ) { args: Array<Any?> ->
-        @Suppress("UNCHECKED_CAST")
-        val items = args[0] as List<ClothingItemEntity>
-        val category = args[1] as String?
-        val query = args[2] as String
-        val sort = args[3] as WardrobeSort
-        val status = args[4] as String?
-        val sparkJoy = args[5] as String?
-        val locationId = args[6] as String?
-
+        wardrobeFilters
+    ) { items, filters ->
         val filtered = items.filter { item ->
-            val matchesCategory = category == null || item.category.equals(category, ignoreCase = true)
-            val matchesQuery = query.isBlank() ||
-                    item.name.contains(query, ignoreCase = true) ||
-                    (item.brand?.contains(query, ignoreCase = true) == true) ||
-                    (item.color?.contains(query, ignoreCase = true) == true)
-            val matchesStatus = status == null || item.status.equals(status, ignoreCase = true)
-            val matchesJoy = sparkJoy == null || item.sparkJoy.equals(sparkJoy, ignoreCase = true)
-            val matchesLocation = locationId == null || item.locationId == locationId || (locationId == "loc-home" && item.locationId == null)
+            val matchesCategory = filters.category == null || item.category.equals(filters.category, ignoreCase = true)
+            val matchesQuery = filters.query.isBlank() ||
+                    item.name.contains(filters.query, ignoreCase = true) ||
+                    (item.brand?.contains(filters.query, ignoreCase = true) == true) ||
+                    (item.color?.contains(filters.query, ignoreCase = true) == true)
+            val matchesStatus = filters.status == null || item.status.equals(filters.status, ignoreCase = true)
+            val matchesJoy = filters.sparkJoy == null || item.sparkJoy.equals(filters.sparkJoy, ignoreCase = true)
+            val matchesLocation = filters.locationId == null || item.locationId == filters.locationId || (filters.locationId == "loc-home" && item.locationId == null)
 
             matchesCategory && matchesQuery && matchesStatus && matchesJoy && matchesLocation
         }
 
-        when (sort) {
+        when (filters.sort) {
             WardrobeSort.RECENT -> filtered.sortedByDescending { it.createdAt }
             WardrobeSort.MOST_WORN -> filtered.sortedByDescending { it.wearCount }
             WardrobeSort.LEAST_WORN -> filtered.sortedBy { it.wearCount }
@@ -170,7 +177,7 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
     val outfitSearchQuery: StateFlow<String> = _outfitSearchQuery.asStateFlow()
 
     fun setOutfitSort(sort: OutfitSort) {
-        prefs.edit().putString(AppConstants.PREF_KEY_OUTFITS_SORT, sort.name).apply()
+        prefs.edit { putString(AppConstants.PREF_KEY_OUTFITS_SORT, sort.name) }
         _outfitSort.value = sort
     }
 

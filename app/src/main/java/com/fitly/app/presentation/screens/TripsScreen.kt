@@ -405,7 +405,7 @@ fun CreateTripDialog(
     var destination by remember { mutableStateOf("") }
     var startDate by remember { mutableStateOf(today) }
     var endDate by remember { mutableStateOf(today) }
-    var packMode by remember { mutableStateOf(0) } // 0 = Items, 1 = Outfits
+    var packMode by remember { mutableIntStateOf(0) } // 0 = Items, 1 = Outfits
     val selectedItemIds = remember { mutableStateListOf<String>() }
     val selectedOutfitIds = remember { mutableStateListOf<String>() }
 

@@ -2,6 +2,7 @@ package com.fitly.app.presentation.screens
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.core.graphics.toColorInt
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -447,7 +448,7 @@ fun ItemDetailDialog(
                                     modifier = Modifier.padding(top = 6.dp)
                                 ) {
                                     items(COLOR_OPTIONS) { (hex, _) ->
-                                        val colorInt = android.graphics.Color.parseColor(hex)
+                                        val colorInt = hex.toColorInt()
                                         Box(
                                             modifier = Modifier
                                                 .size(36.dp)
@@ -692,7 +693,7 @@ fun ItemDetailDialog(
                                             Text("Color", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                             val parsedColor = remember(item.color) {
                                                 try {
-                                                    Color(android.graphics.Color.parseColor(item.color))
+                                                    Color(item.color.toColorInt())
                                                 } catch (_: Exception) {
                                                     null
                                                 }

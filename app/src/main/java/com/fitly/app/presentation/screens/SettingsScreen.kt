@@ -205,10 +205,7 @@ fun SettingsScreen(viewModel: WardrobeViewModel) {
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S)
-                                "Adapts UI palette to your device wallpaper"
-                            else
-                                "Requires Android 12+",
+                            text = "Adapts UI palette to your device wallpaper",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -220,8 +217,7 @@ fun SettingsScreen(viewModel: WardrobeViewModel) {
                     onCheckedChange = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         viewModel.setDynamicColorEnabled(it)
-                    },
-                    enabled = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+                    }
                 )
             }
         }
