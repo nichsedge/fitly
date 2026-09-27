@@ -22,9 +22,12 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fitly.app.data.util.AppConstants
+import com.fitly.app.data.util.R2Config
 import com.fitly.app.presentation.WardrobeViewModel
 import java.text.SimpleDateFormat
 import java.util.*
@@ -36,6 +39,8 @@ fun SettingsScreen(viewModel: WardrobeViewModel) {
     val syncStatus by viewModel.syncStatus.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
     val dynamicColor by viewModel.dynamicColorEnabled.collectAsState()
+    val r2Config by viewModel.r2Config.collectAsState()
+    var showR2ConfigDialog by remember { mutableStateOf(false) }
 
     val allItems by viewModel.allItems.collectAsState()
     val outfits by viewModel.outfits.collectAsState()
@@ -294,22 +299,64 @@ fun SettingsScreen(viewModel: WardrobeViewModel) {
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
         ) {
             Column(modifier = Modifier.padding(18.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Cloud, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = "Cloudflare R2 (SigV4 Zero-Dependency)",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Cloud, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Cloudflare R2 Storage",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (r2Config != null) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer
+                    ) {
+                        Text(
+                            text = if (r2Config != null) "✓ Configured" else "Keys Missing",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (r2Config != null) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
                 }
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Sync SQLite database snapshot (db/fitly_latest.sqlite) directly with your private R2 bucket (ichsanul-dev). Instant zero-downtime backups.",
+                    text = if (r2Config != null) {
+                        "Bucket: ${r2Config?.bucketName} • Object: ${r2Config?.objectKey}\nDirect zero-egress SQLite snapshot sync via AWS SigV4."
+                    } else {
+                        "Cloudflare R2 API credentials have not been configured yet. Set up your Account ID, Access Key, and Secret to enable cloud backups."
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Configure / Edit Keys Button
+                OutlinedButton(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        showR2ConfigDialog = true
+                    },
+                    modifier = Modifier.fillMaxWidth().height(42.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(
+                        if (r2Config != null) Icons.Default.Edit else Icons.Default.Key,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(if (r2Config != null) "Edit R2 Settings & API Keys" else "Configure R2 Credentials")
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -318,7 +365,11 @@ fun SettingsScreen(viewModel: WardrobeViewModel) {
                     Button(
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            viewModel.backupToR2()
+                            if (r2Config == null) {
+                                showR2ConfigDialog = true
+                            } else {
+                                viewModel.backupToR2()
+                            }
                         },
                         modifier = Modifier.weight(1f).height(46.dp),
                         shape = RoundedCornerShape(12.dp),
@@ -331,7 +382,11 @@ fun SettingsScreen(viewModel: WardrobeViewModel) {
                     OutlinedButton(
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            viewModel.restoreFromR2()
+                            if (r2Config == null) {
+                                showR2ConfigDialog = true
+                            } else {
+                                viewModel.restoreFromR2()
+                            }
                         },
                         modifier = Modifier.weight(1f).height(46.dp),
                         shape = RoundedCornerShape(12.dp),
@@ -345,42 +400,138 @@ fun SettingsScreen(viewModel: WardrobeViewModel) {
             }
         }
 
-        // 3. Re-seed Migration
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-        ) {
-            Column(modifier = Modifier.padding(18.dp)) {
+        Spacer(modifier = Modifier.height(30.dp))
+    }
+
+    if (showR2ConfigDialog) {
+        R2ConfigDialog(
+            currentConfig = r2Config,
+            onDismiss = { showR2ConfigDialog = false },
+            onSave = { accId, keyId, secKey, bucket, objKey ->
+                viewModel.saveR2Config(accId, keyId, secKey, bucket, objKey)
+                showR2ConfigDialog = false
+            },
+            onClear = {
+                viewModel.clearR2Config()
+                showR2ConfigDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun R2ConfigDialog(
+    currentConfig: R2Config?,
+    onDismiss: () -> Unit,
+    onSave: (accountId: String, accessKeyId: String, secretAccessKey: String, bucketName: String, objectKey: String) -> Unit,
+    onClear: () -> Unit
+) {
+    var accountId by remember { mutableStateOf(currentConfig?.accountId ?: "") }
+    var bucketName by remember { mutableStateOf(currentConfig?.bucketName ?: "ichsanul-dev") }
+    var accessKeyId by remember { mutableStateOf(currentConfig?.accessKeyId ?: "") }
+    var secretAccessKey by remember { mutableStateOf(currentConfig?.secretAccessKey ?: "") }
+    var objectKey by remember { mutableStateOf(currentConfig?.objectKey ?: AppConstants.DEFAULT_R2_OBJECT_KEY) }
+    var showSecret by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Cloud, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Cloudflare R2 Credentials", fontWeight = FontWeight.Bold)
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 Text(
-                    text = "Seed Data Migration",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "Re-import original wardrobe items and outfits from the initial backup JSON assets if database is reset.",
+                    text = "Configure your private Cloudflare R2 storage credentials (AWS SigV4 zero-dependency sync).",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(modifier = Modifier.height(14.dp))
 
-                OutlinedButton(
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        viewModel.reloadSeedBackup()
+                OutlinedTextField(
+                    value = accountId,
+                    onValueChange = { accountId = it },
+                    label = { Text("Account ID") },
+                    placeholder = { Text("e.g. 9a8b7c...") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = bucketName,
+                    onValueChange = { bucketName = it },
+                    label = { Text("Bucket Name") },
+                    placeholder = { Text("ichsanul-dev") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = accessKeyId,
+                    onValueChange = { accessKeyId = it },
+                    label = { Text("Access Key ID") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = secretAccessKey,
+                    onValueChange = { secretAccessKey = it },
+                    label = { Text("Secret Access Key") },
+                    singleLine = true,
+                    visualTransformation = if (showSecret) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        IconButton(onClick = { showSecret = !showSecret }) {
+                            Icon(
+                                if (showSecret) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = if (showSecret) "Hide secret" else "Show secret"
+                            )
+                        }
                     },
-                    modifier = Modifier.fillMaxWidth().height(46.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    enabled = !isSyncing
-                ) {
-                    Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Reload Seed Backup")
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = objectKey,
+                    onValueChange = { objectKey = it },
+                    label = { Text("Object Key / Path") },
+                    placeholder = { Text("db/fitly_latest.sqlite") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onSave(accountId, accessKeyId, secretAccessKey, bucketName, objectKey)
+                },
+                enabled = accountId.isNotBlank() && accessKeyId.isNotBlank() && secretAccessKey.isNotBlank() && bucketName.isNotBlank()
+            ) {
+                Text("Save Credentials")
+            }
+        },
+        dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (currentConfig != null) {
+                    TextButton(
+                        onClick = onClear,
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("Clear Keys")
+                    }
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel")
                 }
             }
         }
-
-        Spacer(modifier = Modifier.height(30.dp))
-    }
+    )
 }

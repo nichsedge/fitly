@@ -11,6 +11,7 @@ import com.fitly.app.data.util.AppConstants
 import com.fitly.app.data.util.CloudStorageSyncer
 import com.fitly.app.data.util.ImageStorageHelper
 import com.fitly.app.data.util.JsonBackupImporter
+import com.fitly.app.data.util.R2Config
 import com.fitly.app.data.util.ZipBackupManager
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -590,10 +591,39 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
     }
 
     // --- Backup & Cloud ---
+    private val _r2Config = MutableStateFlow<R2Config?>(CloudStorageSyncer.loadR2Config(application))
+    val r2Config: StateFlow<R2Config?> = _r2Config.asStateFlow()
+
+    fun saveR2Config(accountId: String, accessKeyId: String, secretAccessKey: String, bucketName: String, objectKey: String = AppConstants.DEFAULT_R2_OBJECT_KEY) {
+        val config = R2Config(
+            accountId = accountId.trim(),
+            accessKeyId = accessKeyId.trim(),
+            secretAccessKey = secretAccessKey.trim(),
+            bucketName = bucketName.trim(),
+            objectKey = if (objectKey.isBlank()) AppConstants.DEFAULT_R2_OBJECT_KEY else objectKey.trim()
+        )
+        CloudStorageSyncer.saveR2Config(getApplication(), config)
+        _r2Config.value = config
+        notify("Cloudflare R2 settings saved")
+    }
+
+    fun clearR2Config() {
+        CloudStorageSyncer.clearR2Config(getApplication())
+        _r2Config.value = null
+        notify("Cloudflare R2 settings cleared")
+    }
+
     fun backupToR2() {
         viewModelScope.launch {
+            val config = CloudStorageSyncer.loadR2Config(getApplication())
+            if (config == null) {
+                val msg = "⚠️ Cloudflare R2 credentials not configured. Please tap 'Configure' first."
+                _syncStatus.value = msg
+                notify(msg)
+                return@launch
+            }
             _isSyncing.value = true
-            _syncStatus.value = "Backing up to Cloudflare R2..."
+            _syncStatus.value = "Backing up to Cloudflare R2 (${config.bucketName})..."
             try {
                 val dbFile = getApplication<Application>().getDatabasePath("fitly_db")
                 if (!dbFile.exists()) {
@@ -615,8 +645,15 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
 
     fun restoreFromR2() {
         viewModelScope.launch {
+            val config = CloudStorageSyncer.loadR2Config(getApplication())
+            if (config == null) {
+                val msg = "⚠️ Cloudflare R2 credentials not configured. Please tap 'Configure' first."
+                _syncStatus.value = msg
+                notify(msg)
+                return@launch
+            }
             _isSyncing.value = true
-            _syncStatus.value = "Restoring from Cloudflare R2..."
+            _syncStatus.value = "Restoring from Cloudflare R2 (${config.bucketName})..."
             try {
                 val context = getApplication<Application>()
                 val destFile = File(context.cacheDir, "fitly_restore.sqlite")

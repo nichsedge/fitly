@@ -11,6 +11,11 @@ object AppConstants {
     const val PREF_KEY_OUTFITS_SORT = "outfits_sort"
     const val PREF_KEY_WARDROBE_SORT = "wardrobe_sort"
     const val PREF_KEY_VIEW_MODE = "wardrobe_view_mode"
+    const val PREF_KEY_R2_ACCOUNT_ID = "r2_account_id"
+    const val PREF_KEY_R2_ACCESS_KEY_ID = "r2_access_key_id"
+    const val PREF_KEY_R2_SECRET_ACCESS_KEY = "r2_secret_access_key"
+    const val PREF_KEY_R2_BUCKET_NAME = "r2_bucket_name"
+    const val PREF_KEY_R2_OBJECT_KEY = "r2_object_key"
 
     // Asset & Backup Files
     const val SEED_BACKUP_ASSET_FILE = "seed_wardrobe.json"

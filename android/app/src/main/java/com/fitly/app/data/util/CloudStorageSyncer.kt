@@ -25,6 +25,23 @@ data class R2Config(
 object CloudStorageSyncer {
 
     fun loadR2Config(context: Context): R2Config? {
+        val prefs = context.getSharedPreferences(AppConstants.PREFS_NAME, Context.MODE_PRIVATE)
+        val accountId = prefs.getString(AppConstants.PREF_KEY_R2_ACCOUNT_ID, null)?.trim()
+        val accessKeyId = prefs.getString(AppConstants.PREF_KEY_R2_ACCESS_KEY_ID, null)?.trim()
+        val secretAccessKey = prefs.getString(AppConstants.PREF_KEY_R2_SECRET_ACCESS_KEY, null)?.trim()
+        val bucketName = prefs.getString(AppConstants.PREF_KEY_R2_BUCKET_NAME, "ichsanul-dev")?.trim() ?: "ichsanul-dev"
+        val objectKey = prefs.getString(AppConstants.PREF_KEY_R2_OBJECT_KEY, AppConstants.DEFAULT_R2_OBJECT_KEY)?.trim() ?: AppConstants.DEFAULT_R2_OBJECT_KEY
+
+        if (!accountId.isNullOrBlank() && !accessKeyId.isNullOrBlank() && !secretAccessKey.isNullOrBlank() && bucketName.isNotBlank()) {
+            return R2Config(
+                accountId = accountId,
+                accessKeyId = accessKeyId,
+                secretAccessKey = secretAccessKey,
+                bucketName = bucketName,
+                objectKey = objectKey
+            )
+        }
+
         return try {
             val jsonStr = context.assets.open(AppConstants.R2_CREDENTIALS_ASSET_FILE).bufferedReader().use { it.readText() }
             val json = JSONObject(jsonStr)
@@ -32,12 +49,34 @@ object CloudStorageSyncer {
                 accountId = json.getString("account_id"),
                 accessKeyId = json.getString("access_key_id"),
                 secretAccessKey = json.getString("secret_access_key"),
-                bucketName = json.getString("bucket_name"),
+                bucketName = json.optString("bucket_name", "ichsanul-dev"),
                 objectKey = json.optString("object_key", AppConstants.DEFAULT_R2_OBJECT_KEY)
             )
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
+    }
+
+    fun saveR2Config(context: Context, config: R2Config) {
+        val prefs = context.getSharedPreferences(AppConstants.PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit()
+            .putString(AppConstants.PREF_KEY_R2_ACCOUNT_ID, config.accountId.trim())
+            .putString(AppConstants.PREF_KEY_R2_ACCESS_KEY_ID, config.accessKeyId.trim())
+            .putString(AppConstants.PREF_KEY_R2_SECRET_ACCESS_KEY, config.secretAccessKey.trim())
+            .putString(AppConstants.PREF_KEY_R2_BUCKET_NAME, config.bucketName.trim())
+            .putString(AppConstants.PREF_KEY_R2_OBJECT_KEY, config.objectKey.trim())
+            .apply()
+    }
+
+    fun clearR2Config(context: Context) {
+        val prefs = context.getSharedPreferences(AppConstants.PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit()
+            .remove(AppConstants.PREF_KEY_R2_ACCOUNT_ID)
+            .remove(AppConstants.PREF_KEY_R2_ACCESS_KEY_ID)
+            .remove(AppConstants.PREF_KEY_R2_SECRET_ACCESS_KEY)
+            .remove(AppConstants.PREF_KEY_R2_BUCKET_NAME)
+            .remove(AppConstants.PREF_KEY_R2_OBJECT_KEY)
+            .apply()
     }
 
     suspend fun uploadDatabaseBackup(context: Context, dbFile: File): Result<String> = withContext(Dispatchers.IO) {
