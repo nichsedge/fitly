@@ -17,8 +17,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -29,8 +32,6 @@ import com.fitly.app.data.local.entity.OutfitEntity
 import com.fitly.app.data.util.ImageStorageHelper
 import com.fitly.app.presentation.WardrobeViewModel
 import org.json.JSONArray
-import java.text.SimpleDateFormat
-import java.util.*
 
 @Composable
 fun OutfitDetailDialog(
@@ -40,6 +41,7 @@ fun OutfitDetailDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     val allItems by viewModel.allItems.collectAsState()
 
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -55,6 +57,10 @@ fun OutfitDetailDialog(
         }
     }
 
+    val totalValuation = remember(composedItems) {
+        composedItems.mapNotNull { it.price }.sum()
+    }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -62,10 +68,10 @@ fun OutfitDetailDialog(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            shape = RoundedCornerShape(24.dp),
+                .padding(horizontal = 14.dp, vertical = 24.dp),
+            shape = RoundedCornerShape(28.dp),
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
+            tonalElevation = 8.dp
         ) {
             Column(
                 modifier = Modifier
@@ -79,33 +85,44 @@ fun OutfitDetailDialog(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
+                    IconButton(
+                        onClick = onDismiss,
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", modifier = Modifier.size(20.dp))
                     }
                     Text(
                         text = outfit.name,
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        maxLines = 1
+                        maxLines = 1,
+                        modifier = Modifier.weight(1f).padding(horizontal = 12.dp)
                     )
-                    IconButton(onClick = { showDeleteConfirm = true }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete Outfit", tint = MaterialTheme.colorScheme.error)
+                    IconButton(
+                        onClick = { showDeleteConfirm = true },
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+                        )
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = "Delete Outfit", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // Stats Banner
+                // Stats Row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Card(
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                     ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
+                        Column(modifier = Modifier.padding(14.dp)) {
                             Text("TIMES WORN", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text("${outfit.wearCount}x", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         }
@@ -113,26 +130,44 @@ fun OutfitDetailDialog(
 
                     Card(
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                     ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
+                        Column(modifier = Modifier.padding(14.dp)) {
                             Text("PIECES", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text("${composedItems.size} items", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Card(
+                        modifier = Modifier.weight(1.2f),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text("TOTAL VALUE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            Text(formatCurrencyShort(totalValuation), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
 
                 if (!outfit.note.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = outfit.note,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    ) {
+                        Text(
+                            text = "💡 ${outfit.note}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(14.dp)
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(18.dp))
 
                 Text(
                     text = "Composed Pieces (${composedItems.size})",
@@ -140,7 +175,7 @@ fun OutfitDetailDialog(
                     fontWeight = FontWeight.SemiBold
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -158,17 +193,17 @@ fun OutfitDetailDialog(
 
                         Card(
                             modifier = Modifier
-                                .width(130.dp)
+                                .width(136.dp)
                                 .clickable { onItemClick(item) },
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                         ) {
                             Column(modifier = Modifier.padding(8.dp)) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(110.dp)
-                                        .clip(RoundedCornerShape(8.dp))
+                                        .height(115.dp)
+                                        .clip(RoundedCornerShape(12.dp))
                                         .background(MaterialTheme.colorScheme.surface)
                                 ) {
                                     if (imgFile != null) {
@@ -177,6 +212,30 @@ fun OutfitDetailDialog(
                                             contentDescription = item.name,
                                             modifier = Modifier.fillMaxSize(),
                                             contentScale = ContentScale.Crop
+                                        )
+                                    } else {
+                                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                            Text(item.name.take(3), style = MaterialTheme.typography.labelSmall)
+                                        }
+                                    }
+
+                                    // Status Badge on piece
+                                    Surface(
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(6.dp),
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = when (item.status) {
+                                            "ready" -> Color(0xFF10B981)
+                                            "dirty" -> Color(0xFFEF4444)
+                                            else -> Color(0xFF3B82F6)
+                                        }
+                                    ) {
+                                        Text(
+                                            text = item.status.uppercase(),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = Color.White,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                         )
                                     }
                                 }
@@ -190,7 +249,8 @@ fun OutfitDetailDialog(
                                 Text(
                                     text = item.category.uppercase(),
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
                         }
@@ -201,15 +261,17 @@ fun OutfitDetailDialog(
 
                 Button(
                     onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         viewModel.wearOutfit(outfit) {
                             onDismiss()
                         }
                     },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(16.dp)
                 ) {
                     Icon(Icons.Default.Check, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Wear Outfit Today")
+                    Text("Wear Outfit Today", fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -219,7 +281,7 @@ fun OutfitDetailDialog(
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
             title = { Text("Delete Outfit?") },
-            text = { Text("Are you sure you want to delete \"${outfit.name}\"?") },
+            text = { Text("Are you sure you want to delete \"${outfit.name}\"? The individual wardrobe pieces will remain intact.") },
             confirmButton = {
                 Button(
                     onClick = {

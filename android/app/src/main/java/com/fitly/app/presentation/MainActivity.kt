@@ -7,15 +7,23 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.animation.*
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.fitly.app.data.local.entity.ClothingItemEntity
 import com.fitly.app.data.util.AppConstants
 import com.fitly.app.presentation.screens.*
@@ -45,6 +53,16 @@ class MainActivity : ComponentActivity() {
                 var currentTab by remember { mutableStateOf(FitlyTab.WARDROBE) }
                 var previousTab by remember { mutableStateOf(FitlyTab.WARDROBE) }
                 var activeDetailItem by remember { mutableStateOf<ClothingItemEntity?>(null) }
+                val snackbarHostState = remember { SnackbarHostState() }
+
+                LaunchedEffect(Unit) {
+                    viewModel.userMessage.collect { msg ->
+                        snackbarHostState.showSnackbar(
+                            message = msg,
+                            duration = SnackbarDuration.Short
+                        )
+                    }
+                }
 
                 BackHandler(enabled = currentTab != FitlyTab.WARDROBE) {
                     if (currentTab == FitlyTab.ANALYTICS || currentTab == FitlyTab.SETTINGS) {
@@ -57,38 +75,77 @@ class MainActivity : ComponentActivity() {
                 val dirtyItems by viewModel.dirtyItems.collectAsState()
 
                 Scaffold(
+                    snackbarHost = {
+                        SnackbarHost(hostState = snackbarHostState) { data ->
+                            Snackbar(
+                                snackbarData = data,
+                                shape = RoundedCornerShape(12.dp),
+                                containerColor = MaterialTheme.colorScheme.inverseSurface,
+                                contentColor = MaterialTheme.colorScheme.inverseOnSurface
+                            )
+                        }
+                    },
                     topBar = {
                         TopAppBar(
                             title = {
-                                Text(
-                                    text = currentTab.label,
-                                    style = MaterialTheme.typography.titleLarge
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    if (currentTab != FitlyTab.ANALYTICS && currentTab != FitlyTab.SETTINGS) {
+                                        Text(
+                                            text = "FITLY",
+                                            style = MaterialTheme.typography.titleLarge.copy(
+                                                fontWeight = FontWeight.Black,
+                                                letterSpacing = 2.sp
+                                            ),
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Text(
+                                            text = "•",
+                                            color = MaterialTheme.colorScheme.outlineVariant,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                    Text(
+                                        text = currentTab.label,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             },
                             navigationIcon = {
                                 if (currentTab == FitlyTab.ANALYTICS || currentTab == FitlyTab.SETTINGS) {
                                     IconButton(onClick = { currentTab = previousTab }) {
-                                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                                     }
                                 }
                             },
                             actions = {
                                 if (currentTab != FitlyTab.ANALYTICS) {
-                                    IconButton(onClick = {
-                                        previousTab = currentTab
-                                        currentTab = FitlyTab.ANALYTICS
-                                    }) {
-                                        Icon(Icons.Default.Insights, contentDescription = "Analytics")
+                                    FilledTonalIconButton(
+                                        onClick = {
+                                            previousTab = currentTab
+                                            currentTab = FitlyTab.ANALYTICS
+                                        },
+                                        modifier = Modifier.size(38.dp)
+                                    ) {
+                                        Icon(Icons.Default.Insights, contentDescription = "Analytics", modifier = Modifier.size(20.dp))
                                     }
                                 }
+                                Spacer(modifier = Modifier.width(6.dp))
                                 if (currentTab != FitlyTab.SETTINGS) {
-                                    IconButton(onClick = {
-                                        previousTab = currentTab
-                                        currentTab = FitlyTab.SETTINGS
-                                    }) {
-                                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                                    FilledTonalIconButton(
+                                        onClick = {
+                                            previousTab = currentTab
+                                            currentTab = FitlyTab.SETTINGS
+                                        },
+                                        modifier = Modifier.size(38.dp)
+                                    ) {
+                                        Icon(Icons.Default.Settings, contentDescription = "Settings", modifier = Modifier.size(20.dp))
                                     }
                                 }
+                                Spacer(modifier = Modifier.width(8.dp))
                             },
                             colors = TopAppBarDefaults.topAppBarColors(
                                 containerColor = MaterialTheme.colorScheme.background
@@ -97,7 +154,10 @@ class MainActivity : ComponentActivity() {
                     },
                     bottomBar = {
                         if (currentTab != FitlyTab.ANALYTICS && currentTab != FitlyTab.SETTINGS) {
-                            NavigationBar {
+                            NavigationBar(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                tonalElevation = 3.dp
+                            ) {
                                 NavigationBarItem(
                                     selected = currentTab == FitlyTab.WARDROBE,
                                     onClick = { currentTab = FitlyTab.WARDROBE },
@@ -116,7 +176,12 @@ class MainActivity : ComponentActivity() {
                                     icon = {
                                         BadgedBox(badge = {
                                             if (dirtyItems.isNotEmpty()) {
-                                                Badge { Text(dirtyItems.size.toString()) }
+                                                Badge(
+                                                    containerColor = MaterialTheme.colorScheme.error,
+                                                    contentColor = MaterialTheme.colorScheme.onError
+                                                ) {
+                                                    Text("${dirtyItems.size}")
+                                                }
                                             }
                                         }) {
                                             Icon(Icons.Default.LocalLaundryService, contentDescription = "Laundry")
@@ -149,8 +214,8 @@ class MainActivity : ComponentActivity() {
                             targetState = currentTab,
                             transitionSpec = {
                                 val isForward = targetState.ordinal > initialState.ordinal
-                                val enter = (if (isForward) slideInHorizontally { it / AppConstants.TRANSITION_SLIDE_DIVISOR } else slideInHorizontally { -it / AppConstants.TRANSITION_SLIDE_DIVISOR }) + fadeIn(animationSpec = tween(AppConstants.TRANSITION_DURATION_ENTER_MS))
-                                val exit = (if (isForward) slideOutHorizontally { -it / AppConstants.TRANSITION_SLIDE_DIVISOR } else slideOutHorizontally { it / AppConstants.TRANSITION_SLIDE_DIVISOR }) + fadeOut(animationSpec = tween(AppConstants.TRANSITION_DURATION_EXIT_MS))
+                                val enter = (if (isForward) slideInHorizontally(animationSpec = tween(AppConstants.TRANSITION_DURATION_ENTER_MS, easing = FastOutSlowInEasing)) { it / AppConstants.TRANSITION_SLIDE_DIVISOR } else slideInHorizontally(animationSpec = tween(AppConstants.TRANSITION_DURATION_ENTER_MS, easing = FastOutSlowInEasing)) { -it / AppConstants.TRANSITION_SLIDE_DIVISOR }) + fadeIn(animationSpec = tween(AppConstants.TRANSITION_DURATION_ENTER_MS))
+                                val exit = (if (isForward) slideOutHorizontally(animationSpec = tween(AppConstants.TRANSITION_DURATION_EXIT_MS, easing = FastOutSlowInEasing)) { -it / AppConstants.TRANSITION_SLIDE_DIVISOR } else slideOutHorizontally(animationSpec = tween(AppConstants.TRANSITION_DURATION_EXIT_MS, easing = FastOutSlowInEasing)) { it / AppConstants.TRANSITION_SLIDE_DIVISOR }) + fadeOut(animationSpec = tween(AppConstants.TRANSITION_DURATION_EXIT_MS))
                                 enter togetherWith exit
                             },
                             label = "TabTransition"

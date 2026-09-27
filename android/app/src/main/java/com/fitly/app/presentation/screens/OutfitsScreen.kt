@@ -1,6 +1,7 @@
 package com.fitly.app.presentation.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -8,6 +9,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,6 +20,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.fitly.app.data.local.entity.ClothingItemEntity
 import com.fitly.app.data.local.entity.OutfitEntity
@@ -77,7 +80,7 @@ fun OutfitsScreen(
                     value = searchQuery,
                     onValueChange = { viewModel.setOutfitSearchQuery(it) },
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("Search...") },
+                    placeholder = { Text("Search ${outfits.size} styled outfits...") },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
                     trailingIcon = {
                         if (searchQuery.isNotBlank()) {
@@ -86,14 +89,14 @@ fun OutfitsScreen(
                             }
                         }
                     },
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(16.dp),
                     singleLine = true
                 )
 
                 // Sort Menu
                 Box {
                     FilledTonalIconButton(onClick = { showSortMenu = true }) {
-                        Icon(Icons.Default.Sort, contentDescription = "Sort Outfits")
+                        Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Sort Outfits")
                     }
                     DropdownMenu(
                         expanded = showSortMenu,
@@ -167,7 +170,7 @@ fun OutfitsScreen(
                 }
             } else {
                 LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
                     contentPadding = PaddingValues(bottom = 80.dp)
                 ) {
                     items(outfits, key = { it.id }) { outfit ->
@@ -211,6 +214,7 @@ fun OutfitCard(
     onWear: () -> Unit
 ) {
     val context = LocalContext.current
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
 
     val composedItems = remember(outfit.itemIds, allItems) {
         try {
@@ -223,12 +227,17 @@ fun OutfitCard(
         }
     }
 
+    val totalValue = remember(composedItems) {
+        composedItems.mapNotNull { it.price }.sum()
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -242,20 +251,55 @@ fun OutfitCard(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    Text(
-                        text = "Worn ${outfit.wearCount}x",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "Worn ${outfit.wearCount}x",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "•",
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
+                        Text(
+                            text = "${composedItems.size} pieces",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (totalValue > 0) {
+                            Text(
+                                text = "•",
+                                color = MaterialTheme.colorScheme.outlineVariant
+                            )
+                            Text(
+                                text = formatCurrencyShort(totalValue),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
 
-                FilledTonalIconButton(onClick = onWear) {
-                    Icon(Icons.Default.Check, contentDescription = "Wear Outfit")
+                FilledTonalButton(
+                    onClick = {
+                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                        onWear()
+                    },
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Wear", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                 }
             }
 
             if (!outfit.note.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = outfit.note,
                     style = MaterialTheme.typography.bodySmall,
@@ -264,9 +308,9 @@ fun OutfitCard(
             }
 
             if (composedItems.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
                 LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     items(composedItems, key = { it.id }) { item ->
@@ -281,9 +325,10 @@ fun OutfitCard(
 
                         Box(
                             modifier = Modifier
-                                .size(56.dp)
-                                .clip(RoundedCornerShape(8.dp))
+                                .size(64.dp)
+                                .clip(RoundedCornerShape(12.dp))
                                 .background(MaterialTheme.colorScheme.surface)
+                                .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
                         ) {
                             if (imgFile != null) {
                                 AsyncImage(
@@ -291,6 +336,31 @@ fun OutfitCard(
                                     contentDescription = item.name,
                                     modifier = Modifier.fillMaxSize(),
                                     contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Icon(
+                                    Icons.Default.Checkroom,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .align(Alignment.Center)
+                                )
+                            }
+
+                            // Category label at bottom
+                            Surface(
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .fillMaxWidth(),
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
+                            ) {
+                                Text(
+                                    text = item.category.uppercase(),
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp, fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    modifier = Modifier.padding(vertical = 1.dp)
                                 )
                             }
                         }

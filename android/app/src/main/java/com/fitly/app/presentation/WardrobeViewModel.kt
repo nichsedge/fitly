@@ -83,6 +83,18 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
     private val _syncStatus = MutableStateFlow<String?>(null)
     val syncStatus: StateFlow<String?> = _syncStatus.asStateFlow()
 
+    private val _isSyncing = MutableStateFlow(false)
+    val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
+
+    private val _userMessage = MutableSharedFlow<String>()
+    val userMessage: SharedFlow<String> = _userMessage.asSharedFlow()
+
+    fun notify(message: String) {
+        viewModelScope.launch {
+            _userMessage.emit(message)
+        }
+    }
+
     // Items
     val allItems: StateFlow<List<ClothingItemEntity>> = dao.getAllActiveItems()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -323,6 +335,7 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
                     type = "wear"
                 )
             )
+            notify("Wore ${item.name} ✨ (${item.wearCount + 1}x)")
         }
     }
 
@@ -343,6 +356,11 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
                         type = "wash"
                     )
                 )
+                notify("${item.name} is clean & ready! 🧼")
+            } else if (newStatus == "cleaning") {
+                notify("Sent ${item.name} to laundry 🧺")
+            } else if (newStatus == "dirty") {
+                notify("Marked ${item.name} as dirty")
             }
         }
     }
@@ -359,6 +377,7 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
                 createdAt = System.currentTimeMillis()
             )
             dao.insertOutfit(newOutfit)
+            notify("Created outfit '$name' 👔")
             onComplete?.invoke()
         }
     }
@@ -366,6 +385,7 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
     fun deleteOutfit(outfit: OutfitEntity, onComplete: (() -> Unit)? = null) {
         viewModelScope.launch {
             dao.deleteOutfit(outfit)
+            notify("Deleted outfit '${outfit.name}'")
             onComplete?.invoke()
         }
     }
@@ -403,6 +423,7 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
             } catch (e: Exception) {
                 e.printStackTrace()
             }
+            notify("Styled & wore '${outfit.name}'! 🌟")
             onComplete?.invoke()
         }
     }
@@ -479,6 +500,7 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             val now = System.currentTimeMillis()
             dao.markAllDirtyWashed(now)
+            notify("All dirty items washed & ready! 🧼")
         }
     }
 
@@ -486,6 +508,7 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             val now = System.currentTimeMillis()
             dao.markAllCleaningWashed(now)
+            notify("All cleaning items ready! 🧼")
         }
     }
 
@@ -540,81 +563,120 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
     // --- Backup & Cloud ---
     fun backupToR2() {
         viewModelScope.launch {
+            _isSyncing.value = true
             _syncStatus.value = "Backing up to Cloudflare R2..."
-            val dbFile = getApplication<Application>().getDatabasePath("fitly_db")
-            if (!dbFile.exists()) {
-                _syncStatus.value = "Database file does not exist yet"
-                return@launch
+            try {
+                val dbFile = getApplication<Application>().getDatabasePath("fitly_db")
+                if (!dbFile.exists()) {
+                    _syncStatus.value = "Database file does not exist yet"
+                    return@launch
+                }
+                val res = CloudStorageSyncer.uploadDatabaseBackup(getApplication(), dbFile)
+                val msg = res.fold(
+                    onSuccess = { "✅ $it" },
+                    onFailure = { "❌ Backup error: ${it.localizedMessage}" }
+                )
+                _syncStatus.value = msg
+                notify(msg)
+            } finally {
+                _isSyncing.value = false
             }
-            val res = CloudStorageSyncer.uploadDatabaseBackup(getApplication(), dbFile)
-            _syncStatus.value = res.fold(
-                onSuccess = { "✅ $it" },
-                onFailure = { "❌ Backup error: ${it.localizedMessage}" }
-            )
         }
     }
 
     fun restoreFromR2() {
         viewModelScope.launch {
+            _isSyncing.value = true
             _syncStatus.value = "Restoring from Cloudflare R2..."
-            val context = getApplication<Application>()
-            val destFile = File(context.cacheDir, "fitly_restore.sqlite")
-            val res = CloudStorageSyncer.downloadDatabaseBackup(context, destFile)
-            if (res.isFailure) {
-                _syncStatus.value = "❌ Restore error: ${res.exceptionOrNull()?.localizedMessage}"
-                return@launch
-            }
             try {
-                FitlyDatabase.closeAndReset()
-                val dbFile = context.getDatabasePath("fitly_db")
-                val walFile = File(dbFile.path + "-wal")
-                val shmFile = File(dbFile.path + "-shm")
-                if (walFile.exists()) walFile.delete()
-                if (shmFile.exists()) shmFile.delete()
-                destFile.copyTo(dbFile, overwrite = true)
-                destFile.delete()
-                _syncStatus.value = "✅ Database restored from R2! Please restart app to reload all tables."
-            } catch (e: Exception) {
-                _syncStatus.value = "❌ Database swap error: ${e.localizedMessage}"
+                val context = getApplication<Application>()
+                val destFile = File(context.cacheDir, "fitly_restore.sqlite")
+                val res = CloudStorageSyncer.downloadDatabaseBackup(context, destFile)
+                if (res.isFailure) {
+                    val err = "❌ Restore error: ${res.exceptionOrNull()?.localizedMessage}"
+                    _syncStatus.value = err
+                    notify(err)
+                    return@launch
+                }
+                try {
+                    FitlyDatabase.closeAndReset()
+                    val dbFile = context.getDatabasePath("fitly_db")
+                    val walFile = File(dbFile.path + "-wal")
+                    val shmFile = File(dbFile.path + "-shm")
+                    if (walFile.exists()) walFile.delete()
+                    if (shmFile.exists()) shmFile.delete()
+                    destFile.copyTo(dbFile, overwrite = true)
+                    destFile.delete()
+                    val successMsg = "✅ Database restored from R2! Restart app to refresh."
+                    _syncStatus.value = successMsg
+                    notify(successMsg)
+                } catch (e: Exception) {
+                    val swapErr = "❌ Database swap error: ${e.localizedMessage}"
+                    _syncStatus.value = swapErr
+                    notify(swapErr)
+                }
+            } finally {
+                _isSyncing.value = false
             }
         }
     }
 
     fun reloadSeedBackup() {
         viewModelScope.launch {
+            _isSyncing.value = true
             _syncStatus.value = "Reloading 48 seed items from backup JSON..."
             try {
                 val jsonStr = getApplication<Application>().assets.open("seed_wardrobe.json").bufferedReader().use { it.readText() }
                 val res = JsonBackupImporter.importJsonString(jsonStr, dao)
-                _syncStatus.value = res.fold(
+                val msg = res.fold(
                     onSuccess = { "✅ Reloaded $it items from seed backup!" },
                     onFailure = { "❌ Seed error: ${it.localizedMessage}" }
                 )
+                _syncStatus.value = msg
+                notify(msg)
             } catch (e: Exception) {
-                _syncStatus.value = "❌ Error: ${e.localizedMessage}"
+                val err = "❌ Error: ${e.localizedMessage}"
+                _syncStatus.value = err
+                notify(err)
+            } finally {
+                _isSyncing.value = false
             }
         }
     }
 
     fun exportToZip(outputStream: OutputStream) {
         viewModelScope.launch {
+            _isSyncing.value = true
             _syncStatus.value = "Exporting wardrobe ZIP archive..."
-            val res = ZipBackupManager.exportToZip(getApplication(), dao, outputStream)
-            _syncStatus.value = res.fold(
-                onSuccess = { "✅ Exported $it items & photos to ZIP archive!" },
-                onFailure = { "❌ ZIP Export error: ${it.localizedMessage}" }
-            )
+            try {
+                val res = ZipBackupManager.exportToZip(getApplication(), dao, outputStream)
+                val msg = res.fold(
+                    onSuccess = { "✅ Exported $it items & photos to ZIP archive!" },
+                    onFailure = { "❌ ZIP Export error: ${it.localizedMessage}" }
+                )
+                _syncStatus.value = msg
+                notify(msg)
+            } finally {
+                _isSyncing.value = false
+            }
         }
     }
 
     fun importFromZip(inputStream: InputStream) {
         viewModelScope.launch {
+            _isSyncing.value = true
             _syncStatus.value = "Importing wardrobe ZIP archive..."
-            val res = ZipBackupManager.importFromZip(getApplication(), dao, inputStream)
-            _syncStatus.value = res.fold(
-                onSuccess = { "✅ Restored $it items from ZIP archive!" },
-                onFailure = { "❌ ZIP Import error: ${it.localizedMessage}" }
-            )
+            try {
+                val res = ZipBackupManager.importFromZip(getApplication(), dao, inputStream)
+                val msg = res.fold(
+                    onSuccess = { "✅ Restored $it items from ZIP archive!" },
+                    onFailure = { "❌ ZIP Import error: ${it.localizedMessage}" }
+                )
+                _syncStatus.value = msg
+                notify(msg)
+            } finally {
+                _isSyncing.value = false
+            }
         }
     }
 

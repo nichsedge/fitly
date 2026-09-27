@@ -4,6 +4,11 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,9 +27,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -68,6 +76,7 @@ fun ItemDetailDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     var isEditing by remember { mutableStateOf(false) }
     var showRetireDialog by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -84,7 +93,7 @@ fun ItemDetailDialog(
     var editName by remember { mutableStateOf(item.name) }
     var editBrand by remember { mutableStateOf(item.brand ?: "") }
     var editCategory by remember { mutableStateOf(item.category) }
-    var editPrice by remember { mutableStateOf(item.price?.toString() ?: "") }
+    var editPrice by remember { mutableStateOf(item.price?.toInt()?.toString() ?: "") }
     var editColor by remember { mutableStateOf(item.color ?: "#1a1a1a") }
     var editMaterial by remember { mutableStateOf(item.material ?: "") }
     var editCare by remember { mutableStateOf(item.careInstructions ?: "") }
@@ -121,10 +130,10 @@ fun ItemDetailDialog(
         Surface(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
-            shape = RoundedCornerShape(24.dp),
+                .padding(horizontal = 12.dp, vertical = 20.dp),
+            shape = RoundedCornerShape(28.dp),
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
+            tonalElevation = 8.dp
         ) {
             Column(
                 modifier = Modifier
@@ -132,30 +141,48 @@ fun ItemDetailDialog(
                     .verticalScroll(rememberScrollState())
                     .padding(20.dp)
             ) {
-                // Top Action Bar
+                // Top Header Row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
+                    IconButton(
+                        onClick = onDismiss,
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", modifier = Modifier.size(20.dp))
                     }
+
                     Text(
                         text = if (isEditing) "Edit Item" else item.name,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        maxLines = 1
+                        maxLines = 1,
+                        modifier = Modifier.weight(1f).padding(horizontal = 12.dp)
                     )
-                    IconButton(onClick = { isEditing = !isEditing }) {
+
+                    IconButton(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            isEditing = !isEditing
+                        },
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = if (isEditing) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
                         Icon(
                             imageVector = if (isEditing) Icons.Default.Check else Icons.Default.Edit,
-                            contentDescription = if (isEditing) "Done" else "Edit"
+                            contentDescription = if (isEditing) "Done" else "Edit",
+                            tint = if (isEditing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // Photos List
                 val imageList = remember(item.images, newPhotoUri) {
@@ -174,11 +201,12 @@ fun ItemDetailDialog(
                     if (currentImgId != null) ImageStorageHelper.getImageFile(context, currentImgId) else null
                 }
 
+                // Hero Image Box with Overlays
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(280.dp)
-                        .clip(RoundedCornerShape(16.dp))
+                        .height(290.dp)
+                        .clip(RoundedCornerShape(22.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
@@ -193,31 +221,138 @@ fun ItemDetailDialog(
                         Icon(
                             Icons.Default.Checkroom,
                             contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            modifier = Modifier.size(72.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                         )
                     }
 
-                    // Change photo badge button
-                    FloatingActionButton(
-                        onClick = {
-                            photoPickerLauncher.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                            )
-                        },
+                    // Scrim gradient for contrast
+                    Box(
                         modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(12.dp)
-                            .size(44.dp),
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                            .fillMaxSize()
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.Black.copy(alpha = 0.45f),
+                                        Color.Transparent,
+                                        Color.Black.copy(alpha = 0.6f)
+                                    )
+                                )
+                            )
+                    )
+
+                    // Top row overlay: Category & Spark Joy
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.CameraAlt, contentDescription = "Add/Change photo", modifier = Modifier.size(20.dp))
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                            tonalElevation = 2.dp
+                        ) {
+                            Text(
+                                text = item.category.uppercase(),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+
+                        // Spark joy badge
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                            tonalElevation = 2.dp
+                        ) {
+                            Text(
+                                text = when (item.sparkJoy) {
+                                    "joy" -> "💖 Joy"
+                                    "no-joy" -> "🍂 Release"
+                                    else -> "🧺 Essential"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
+                    // Bottom row overlay: Status & Camera FAB
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Quick toggle status button
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = when (item.status) {
+                                "ready" -> Color(0xFF10B981).copy(alpha = 0.9f)
+                                "dirty" -> Color(0xFFEF4444).copy(alpha = 0.9f)
+                                else -> Color(0xFF3B82F6).copy(alpha = 0.9f)
+                            },
+                            modifier = Modifier.clickable {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                val nextStatus = when (item.status) {
+                                    "ready" -> "dirty"
+                                    "dirty" -> "cleaning"
+                                    else -> "ready"
+                                }
+                                viewModel.setItemStatus(item, nextStatus)
+                            }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = when (item.status) {
+                                        "ready" -> Icons.Default.CheckCircle
+                                        "dirty" -> Icons.Default.LocalLaundryService
+                                        else -> Icons.Default.HourglassTop
+                                    },
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = item.status.uppercase(),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                        }
+
+                        // Change photo button
+                        SmallFloatingActionButton(
+                            onClick = {
+                                photoPickerLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            },
+                            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                            contentColor = MaterialTheme.colorScheme.primary,
+                            shape = CircleShape
+                        ) {
+                            Icon(Icons.Default.CameraAlt, contentDescription = "Add/Change photo", modifier = Modifier.size(18.dp))
+                        }
                     }
                 }
 
                 // Thumbnail strip if multiple photos
                 if (imageList.size > 1) {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -227,12 +362,12 @@ fun ItemDetailDialog(
                             val thumbFile = remember(thumbId) { ImageStorageHelper.getImageFile(context, thumbId) }
                             Box(
                                 modifier = Modifier
-                                    .size(52.dp)
-                                    .clip(RoundedCornerShape(8.dp))
+                                    .size(54.dp)
+                                    .clip(RoundedCornerShape(10.dp))
                                     .border(
                                         width = if (selectedImageIndex == idx) 2.dp else 1.dp,
-                                        color = if (selectedImageIndex == idx) MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.4f),
-                                        shape = RoundedCornerShape(8.dp)
+                                        color = if (selectedImageIndex == idx) MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.3f),
+                                        shape = RoundedCornerShape(10.dp)
                                     )
                                     .clickable { selectedImageIndex = idx }
                             ) {
@@ -249,466 +384,466 @@ fun ItemDetailDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(18.dp))
 
-                if (isEditing) {
-                    // ================= EDIT MODE =================
-                    OutlinedTextField(
-                        value = editName,
-                        onValueChange = { editName = it },
-                        label = { Text("Item Name") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    OutlinedTextField(
-                        value = editBrand,
-                        onValueChange = { editBrand = it },
-                        label = { Text("Brand") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Category Selector
-                    Text("Category", style = MaterialTheme.typography.labelMedium)
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.padding(vertical = 6.dp)
-                    ) {
-                        items(CATEGORY_OPTIONS) { cat ->
-                            FilterChip(
-                                selected = editCategory.equals(cat, ignoreCase = true),
-                                onClick = { editCategory = cat },
-                                label = { Text(cat.uppercase()) }
+                AnimatedContent(
+                    targetState = isEditing,
+                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    label = "mode_transition"
+                ) { editing ->
+                    if (editing) {
+                        // ================= EDIT MODE =================
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            OutlinedTextField(
+                                value = editName,
+                                onValueChange = { editName = it },
+                                label = { Text("Item Name *") },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(14.dp),
+                                singleLine = true
                             )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
 
-                    OutlinedTextField(
-                        value = editPrice,
-                        onValueChange = { editPrice = it },
-                        label = { Text("Price (IDR / USD)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Color swatches
-                    Text("Color", style = MaterialTheme.typography.labelMedium)
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        modifier = Modifier.padding(vertical = 6.dp)
-                    ) {
-                        items(COLOR_OPTIONS) { (hex, name) ->
-                            val colorInt = android.graphics.Color.parseColor(hex)
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(colorInt))
-                                    .border(
-                                        width = if (editColor.equals(hex, ignoreCase = true)) 3.dp else 1.dp,
-                                        color = if (editColor.equals(hex, ignoreCase = true)) MaterialTheme.colorScheme.primary else Color.Gray,
-                                        shape = CircleShape
-                                    )
-                                    .clickable { editColor = hex }
+                            OutlinedTextField(
+                                value = editBrand,
+                                onValueChange = { editBrand = it },
+                                label = { Text("Brand (e.g. Uniqlo, Zara)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(14.dp),
+                                singleLine = true
                             )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
 
-                    OutlinedTextField(
-                        value = editMaterial,
-                        onValueChange = { editMaterial = it },
-                        label = { Text("Material (e.g. 100% Linen)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    OutlinedTextField(
-                        value = editCare,
-                        onValueChange = { editCare = it },
-                        label = { Text("Care Instructions (e.g. Cold Wash 30°C)") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Status & Condition
-                    Text("Status", style = MaterialTheme.typography.labelMedium)
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.padding(vertical = 6.dp)
-                    ) {
-                        items(STATUS_OPTIONS) { st ->
-                            FilterChip(
-                                selected = editStatus == st,
-                                onClick = { editStatus = st },
-                                label = { Text(st.replaceFirstChar { it.uppercase() }) }
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text("Spark Joy (KonMari)", style = MaterialTheme.typography.labelMedium)
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.padding(vertical = 6.dp)
-                    ) {
-                        items(listOf("joy" to "💖 Joy", "essential" to "🧺 Essential", "no-joy" to "🍂 Release")) { (k, label) ->
-                            FilterChip(
-                                selected = editSparkJoy == k,
-                                onClick = { editSparkJoy = k },
-                                label = { Text(label) }
-                            )
-                        }
-                    }
-
-                    // Storage Location
-                    Text("Storage Location", style = MaterialTheme.typography.labelMedium)
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.padding(vertical = 6.dp)
-                    ) {
-                        item {
-                            FilterChip(
-                                selected = editLocationId == null,
-                                onClick = { editLocationId = null },
-                                label = { Text("None") }
-                            )
-                        }
-                        items(locations) { loc ->
-                            FilterChip(
-                                selected = editLocationId == loc.id,
-                                onClick = { editLocationId = if (editLocationId == loc.id) null else loc.id },
-                                label = { Text("${loc.icon ?: "📍"} ${loc.name}") }
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Style Tags
-                    Text("Style Tags (${editTagsList.size})", style = MaterialTheme.typography.labelMedium)
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = newTagInput,
-                            onValueChange = { newTagInput = it },
-                            placeholder = { Text("Add custom tag...") },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true
-                        )
-                        IconButton(
-                            onClick = {
-                                val clean = newTagInput.trim().lowercase()
-                                if (clean.isNotBlank() && !editTagsList.contains(clean)) {
-                                    editTagsList.add(clean)
-                                    viewModel.addTag(clean)
-                                    newTagInput = ""
-                                }
-                            }
-                        ) {
-                            Icon(Icons.Default.Add, contentDescription = "Add tag")
-                        }
-                    }
-                    if (editTagsList.isNotEmpty() || tags.isNotEmpty()) {
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        ) {
-                            items(tags) { t ->
-                                val hasTag = editTagsList.contains(t.label)
-                                FilterChip(
-                                    selected = hasTag,
-                                    onClick = {
-                                        if (hasTag) editTagsList.remove(t.label) else editTagsList.add(t.label)
-                                    },
-                                    label = { Text("#${t.label}") }
-                                )
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Save Button
-                    Button(
-                        onClick = {
-                            val updated = item.copy(
-                                name = editName.ifBlank { item.name },
-                                brand = editBrand.ifBlank { null },
-                                category = editCategory,
-                                price = editPrice.toDoubleOrNull() ?: item.price,
-                                color = editColor,
-                                locationId = editLocationId,
-                                tags = JSONArray(editTagsList.toList()).toString(),
-                                material = editMaterial.ifBlank { null },
-                                careInstructions = editCare.ifBlank { null },
-                                condition = editCondition,
-                                status = editStatus,
-                                sparkJoy = editSparkJoy
-                            )
-                            viewModel.saveItem(updated, newPhotoUri) {
-                                isEditing = false
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.Save, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Save Changes")
-                    }
-                } else {
-                    // ================= VIEW MODE =================
-                    // Stats Banner (Price & Cost Per Wear)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Card(
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Text("PRICE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                val priceFormatted = item.price?.let {
-                                    NumberFormat.getCurrencyInstance(Locale("id", "ID")).format(it)
-                                } ?: "—"
-                                Text(priceFormatted, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            }
-                        }
-
-                        Card(
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Text("COST PER WEAR", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                                val cpwFormatted = item.price?.let { p ->
-                                    val count = item.wearCount.coerceAtLeast(1)
-                                    NumberFormat.getCurrencyInstance(Locale("id", "ID")).format(p / count)
-                                } ?: "—"
-                                Text(cpwFormatted, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Status and Spark Joy Badges
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Status toggle button
-                        AssistChip(
-                            onClick = {
-                                val nextStatus = when (item.status) {
-                                    "ready" -> "dirty"
-                                    "dirty" -> "cleaning"
-                                    else -> "ready"
-                                }
-                                viewModel.setItemStatus(item, nextStatus)
-                            },
-                            label = { Text("Status: ${item.status.uppercase()}") },
-                            leadingIcon = {
-                                Icon(
-                                    when (item.status) {
-                                        "ready" -> Icons.Default.CheckCircle
-                                        "dirty" -> Icons.Default.LocalLaundryService
-                                        else -> Icons.Default.HourglassTop
-                                    },
-                                    contentDescription = null,
-                                    tint = when (item.status) {
-                                        "ready" -> Color(0xFF16A34A)
-                                        "dirty" -> Color(0xFFDC2626)
-                                        else -> Color(0xFF2563EB)
-                                    }
-                                )
-                            }
-                        )
-
-                        // Spark Joy chip
-                        AssistChip(
-                            onClick = { isEditing = true },
-                            label = {
-                                Text(
-                                    when (item.sparkJoy) {
-                                        "joy" -> "💖 Sparks Joy"
-                                        "no-joy" -> "🍂 To Release"
-                                        else -> "🧺 Daily Essential"
-                                    }
-                                )
-                            }
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Metadata Spec Rows
-                    SpecRow(label = "Category", value = item.category.uppercase())
-                    if (!item.brand.isNullOrBlank()) SpecRow(label = "Brand", value = item.brand)
-                    if (!item.color.isNullOrBlank()) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("Color", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            val parsedColor = remember(item.color) {
-                                try {
-                                    Color(android.graphics.Color.parseColor(item.color))
-                                } catch (_: Exception) {
-                                    null
-                                }
-                            }
-                            if (parsedColor != null) {
-                                Box(modifier = Modifier.size(16.dp).clip(CircleShape).background(parsedColor).border(1.dp, Color.Gray, CircleShape))
-                            }
-                        }
-                    }
-                    if (!item.material.isNullOrBlank()) SpecRow(label = "Material", value = item.material)
-                    if (!item.careInstructions.isNullOrBlank()) SpecRow(label = "Care Info", value = item.careInstructions)
-                    SpecRow(label = "Condition", value = item.condition?.replaceFirstChar { it.uppercase() } ?: "Good")
-                    SpecRow(label = "Worn Count", value = "${item.wearCount} times")
-
-                    // Location
-                    val locName = remember(item.locationId, locations) {
-                        item.locationId?.let { lId -> locations.find { it.id == lId }?.name }
-                    }
-                    if (!locName.isNullOrBlank()) {
-                        SpecRow(label = "Location", value = "📍 $locName")
-                    }
-
-                    val addedDateStr = SimpleDateFormat("MMM d, yyyy", Locale.US).format(Date(item.createdAt))
-                    SpecRow(label = "Added", value = addedDateStr)
-
-                    // Tags
-                    val itemTags = remember(item.tags) {
-                        try {
-                            val arr = JSONArray(item.tags)
-                            val list = mutableListOf<String>()
-                            for (i in 0 until arr.length()) list.add(arr.getString(i))
-                            list
-                        } catch (_: Exception) {
-                            emptyList()
-                        }
-                    }
-                    if (itemTags.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(6.dp))
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            items(itemTags) { t ->
-                                AssistChip(onClick = {}, label = { Text("#$t", style = MaterialTheme.typography.labelSmall) })
-                            }
-                        }
-                    }
-
-                    if (!item.gratitudeNote.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f))
-                        ) {
-                            Text(
-                                text = "🌸 \"${item.gratitudeNote}\"",
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(12.dp)
-                            )
-                        }
-                    }
-
-                    // Wear & Wash History Timeline
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Text(
-                        text = "Wear & Wash History (${itemWearLogs.size})",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    if (itemWearLogs.isEmpty()) {
-                        Text("No logs recorded yet.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    } else {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            itemWearLogs.take(5).forEach { log ->
-                                Card(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                            // Category Selector
+                            Column {
+                                Text("Category", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.padding(top = 4.dp)
                                 ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                            Icon(
-                                                imageVector = if (log.type == "wash") Icons.Default.LocalLaundryService else Icons.Default.Check,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(16.dp),
-                                                tint = if (log.type == "wash") MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
-                                            )
-                                            Text(
-                                                text = if (log.type == "wash") "Washed / Cleaned" else "Worn",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                fontWeight = FontWeight.Medium
-                                            )
-                                        }
-                                        Text(
-                                            text = log.wornDate,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    items(CATEGORY_OPTIONS) { cat ->
+                                        FilterChip(
+                                            selected = editCategory.equals(cat, ignoreCase = true),
+                                            onClick = { editCategory = cat },
+                                            label = { Text(cat.uppercase()) }
                                         )
                                     }
                                 }
                             }
+
+                            OutlinedTextField(
+                                value = editPrice,
+                                onValueChange = { editPrice = it },
+                                label = { Text("Price (IDR)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(14.dp),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                singleLine = true
+                            )
+
+                            // Color swatches
+                            Column {
+                                Text("Color", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    modifier = Modifier.padding(top = 6.dp)
+                                ) {
+                                    items(COLOR_OPTIONS) { (hex, _) ->
+                                        val colorInt = android.graphics.Color.parseColor(hex)
+                                        Box(
+                                            modifier = Modifier
+                                                .size(36.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(colorInt))
+                                                .border(
+                                                    width = if (editColor.equals(hex, ignoreCase = true)) 3.dp else 1.dp,
+                                                    color = if (editColor.equals(hex, ignoreCase = true)) MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.4f),
+                                                    shape = CircleShape
+                                                )
+                                                .clickable { editColor = hex }
+                                        )
+                                    }
+                                }
+                            }
+
+                            OutlinedTextField(
+                                value = editMaterial,
+                                onValueChange = { editMaterial = it },
+                                label = { Text("Material (e.g. 100% Linen)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(14.dp),
+                                singleLine = true
+                            )
+
+                            OutlinedTextField(
+                                value = editCare,
+                                onValueChange = { editCare = it },
+                                label = { Text("Care Instructions (e.g. Cold Wash 30°C)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(14.dp)
+                            )
+
+                            // Status & Spark Joy
+                            Column {
+                                Text("Status", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.padding(top = 4.dp)
+                                ) {
+                                    items(STATUS_OPTIONS) { st ->
+                                        FilterChip(
+                                            selected = editStatus == st,
+                                            onClick = { editStatus = st },
+                                            label = { Text(st.uppercase()) }
+                                        )
+                                    }
+                                }
+                            }
+
+                            Column {
+                                Text("Spark Joy (KonMari)", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.padding(top = 4.dp)
+                                ) {
+                                    items(listOf("joy" to "💖 Joy", "essential" to "🧺 Essential", "no-joy" to "🍂 Release")) { (k, label) ->
+                                        FilterChip(
+                                            selected = editSparkJoy == k,
+                                            onClick = { editSparkJoy = k },
+                                            label = { Text(label) }
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Storage Location
+                            Column {
+                                Text("Storage Location", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.padding(top = 4.dp)
+                                ) {
+                                    item {
+                                        FilterChip(
+                                            selected = editLocationId == null,
+                                            onClick = { editLocationId = null },
+                                            label = { Text("None") }
+                                        )
+                                    }
+                                    items(locations) { loc ->
+                                        FilterChip(
+                                            selected = editLocationId == loc.id,
+                                            onClick = { editLocationId = if (editLocationId == loc.id) null else loc.id },
+                                            label = { Text("${loc.icon ?: "📍"} ${loc.name}") }
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Style Tags
+                            Column {
+                                Text("Style Tags (${editTagsList.size})", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    OutlinedTextField(
+                                        value = newTagInput,
+                                        onValueChange = { newTagInput = it },
+                                        placeholder = { Text("Add custom tag...") },
+                                        modifier = Modifier.weight(1f),
+                                        shape = RoundedCornerShape(14.dp),
+                                        singleLine = true
+                                    )
+                                    IconButton(
+                                        onClick = {
+                                            val clean = newTagInput.trim().lowercase()
+                                            if (clean.isNotBlank() && !editTagsList.contains(clean)) {
+                                                editTagsList.add(clean)
+                                                viewModel.addTag(clean)
+                                                newTagInput = ""
+                                            }
+                                        }
+                                    ) {
+                                        Icon(Icons.Default.AddCircle, contentDescription = "Add tag", tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                }
+                                if (editTagsList.isNotEmpty() || tags.isNotEmpty()) {
+                                    LazyRow(
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        modifier = Modifier.padding(top = 6.dp)
+                                    ) {
+                                        items(tags) { t ->
+                                            val hasTag = editTagsList.contains(t.label)
+                                            FilterChip(
+                                                selected = hasTag,
+                                                onClick = {
+                                                    if (hasTag) editTagsList.remove(t.label) else editTagsList.add(t.label)
+                                                },
+                                                label = { Text("#${t.label}") }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // Save Button
+                            Button(
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    val updated = item.copy(
+                                        name = editName.ifBlank { item.name },
+                                        brand = editBrand.ifBlank { null },
+                                        category = editCategory,
+                                        price = editPrice.toDoubleOrNull() ?: item.price,
+                                        color = editColor,
+                                        locationId = editLocationId,
+                                        tags = JSONArray(editTagsList.toList()).toString(),
+                                        material = editMaterial.ifBlank { null },
+                                        careInstructions = editCare.ifBlank { null },
+                                        condition = editCondition,
+                                        status = editStatus,
+                                        sparkJoy = editSparkJoy
+                                    )
+                                    viewModel.saveItem(updated, newPhotoUri) {
+                                        isEditing = false
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth().height(52.dp),
+                                shape = RoundedCornerShape(16.dp)
+                            ) {
+                                Icon(Icons.Default.Save, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Save Changes", fontWeight = FontWeight.Bold)
+                            }
                         }
-                    }
+                    } else {
+                        // ================= VIEW MODE =================
+                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            // Stats Banner (Price, CPW, Wears)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                // Price
+                                Card(
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(16.dp),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                                ) {
+                                    Column(modifier = Modifier.padding(14.dp)) {
+                                        Text("PRICE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        val priceFormatted = item.price?.let {
+                                            NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID")).format(it)
+                                        } ?: "—"
+                                        Text(priceFormatted, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1)
+                                    }
+                                }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                                // Cost-Per-Wear
+                                Card(
+                                    modifier = Modifier.weight(1.2f),
+                                    shape = RoundedCornerShape(16.dp),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                                ) {
+                                    Column(modifier = Modifier.padding(14.dp)) {
+                                        Text("COST / WEAR", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                        val cpw = item.price?.let { p ->
+                                            val count = item.wearCount.coerceAtLeast(1)
+                                            p / count
+                                        }
+                                        val cpwText = cpw?.let { formatCurrencyShort(it) + "/w" } ?: "—"
+                                        Text(cpwText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                    }
+                                }
 
-                    // Action Buttons
-                    Button(
-                        onClick = {
-                            viewModel.logItemWear(item)
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.Check, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Log Wear Today")
-                    }
+                                // Wears Count
+                                Card(
+                                    modifier = Modifier.weight(0.9f),
+                                    shape = RoundedCornerShape(16.dp),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                                ) {
+                                    Column(modifier = Modifier.padding(14.dp)) {
+                                        Text("WEARS", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text("${item.wearCount}x", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                            // Metadata Card
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(18.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    SpecRow(label = "Category", value = item.category.uppercase())
+                                    if (!item.brand.isNullOrBlank()) SpecRow(label = "Brand", value = item.brand)
+                                    if (!item.color.isNullOrBlank()) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text("Color", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            val parsedColor = remember(item.color) {
+                                                try {
+                                                    Color(android.graphics.Color.parseColor(item.color))
+                                                } catch (_: Exception) {
+                                                    null
+                                                }
+                                            }
+                                            if (parsedColor != null) {
+                                                Box(modifier = Modifier.size(18.dp).clip(CircleShape).background(parsedColor).border(1.dp, Color.Gray, CircleShape))
+                                            }
+                                        }
+                                    }
+                                    if (!item.material.isNullOrBlank()) SpecRow(label = "Material", value = item.material)
+                                    if (!item.careInstructions.isNullOrBlank()) SpecRow(label = "Care Info", value = item.careInstructions)
+                                    SpecRow(label = "Condition", value = item.condition?.replaceFirstChar { it.uppercase() } ?: "Good")
 
-                    OutlinedButton(
-                        onClick = { showRetireDialog = true },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.Archive, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Thank & Retire Item")
-                    }
+                                    val locName = remember(item.locationId, locations) {
+                                        item.locationId?.let { lId -> locations.find { it.id == lId }?.name }
+                                    }
+                                    if (!locName.isNullOrBlank()) {
+                                        SpecRow(label = "Location", value = "📍 $locName")
+                                    }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                                    val addedDateStr = SimpleDateFormat("MMM d, yyyy", Locale.US).format(Date(item.createdAt))
+                                    SpecRow(label = "Added to Wardrobe", value = addedDateStr)
+                                }
+                            }
 
-                    TextButton(
-                        onClick = { showDeleteConfirm = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                    ) {
-                        Icon(Icons.Default.Delete, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Delete Item")
+                            // Tags row
+                            val itemTags = remember(item.tags) {
+                                try {
+                                    val arr = JSONArray(item.tags)
+                                    val list = mutableListOf<String>()
+                                    for (i in 0 until arr.length()) list.add(arr.getString(i))
+                                    list
+                                } catch (_: Exception) {
+                                    emptyList()
+                                }
+                            }
+                            if (itemTags.isNotEmpty()) {
+                                Column {
+                                    Text("Style Tags", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    LazyRow(
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        modifier = Modifier.padding(top = 4.dp)
+                                    ) {
+                                        items(itemTags) { t ->
+                                            AssistChip(
+                                                onClick = {},
+                                                label = { Text("#$t", style = MaterialTheme.typography.labelSmall) },
+                                                shape = RoundedCornerShape(12.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (!item.gratitudeNote.isNullOrBlank()) {
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)),
+                                    shape = RoundedCornerShape(14.dp)
+                                ) {
+                                    Text(
+                                        text = "🌸 \"${item.gratitudeNote}\"",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        modifier = Modifier.padding(14.dp)
+                                    )
+                                }
+                            }
+
+                            // Wear & Wash History
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = "Wear & Wash History (${itemWearLogs.size})",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                if (itemWearLogs.isEmpty()) {
+                                    Text("No wear logs recorded yet.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                } else {
+                                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        itemWearLogs.take(5).forEach { log ->
+                                            Card(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                shape = RoundedCornerShape(12.dp),
+                                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                        Icon(
+                                                            imageVector = if (log.type == "wash") Icons.Default.LocalLaundryService else Icons.Default.Check,
+                                                            contentDescription = null,
+                                                            modifier = Modifier.size(16.dp),
+                                                            tint = if (log.type == "wash") MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+                                                        )
+                                                        Text(
+                                                            text = if (log.type == "wash") "Washed / Cleaned" else "Worn",
+                                                            style = MaterialTheme.typography.bodySmall,
+                                                            fontWeight = FontWeight.Medium
+                                                        )
+                                                    }
+                                                    Text(
+                                                        text = log.wornDate,
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            // Action Buttons
+                            Button(
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    viewModel.logItemWear(item)
+                                },
+                                modifier = Modifier.fillMaxWidth().height(52.dp),
+                                shape = RoundedCornerShape(16.dp)
+                            ) {
+                                Icon(Icons.Default.Check, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Log Wear Today", fontWeight = FontWeight.Bold)
+                            }
+
+                            OutlinedButton(
+                                onClick = { showRetireDialog = true },
+                                modifier = Modifier.fillMaxWidth().height(48.dp),
+                                shape = RoundedCornerShape(16.dp)
+                            ) {
+                                Icon(Icons.Default.Archive, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Thank & Retire Item")
+                            }
+
+                            TextButton(
+                                onClick = { showDeleteConfirm = true },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                            ) {
+                                Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Delete Item")
+                            }
+                        }
                     }
                 }
             }
@@ -736,7 +871,8 @@ fun ItemDetailDialog(
                         value = gratitudeNote,
                         onValueChange = { gratitudeNote = it },
                         label = { Text("Gratitude Note") },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
                     )
                 }
             },
@@ -789,10 +925,9 @@ fun ItemDetailDialog(
 @Composable
 fun SpecRow(label: String, value: String) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)

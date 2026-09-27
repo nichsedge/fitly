@@ -39,9 +39,9 @@ fun AnalyticsScreen(
         items.mapNotNull { it.price }.sum()
     }
     val avgCpw = remember(items) {
-        val priced = items.filter { it.price != null && it.price!! > 0 }
+        val priced = items.filter { (it.price ?: 0.0) > 0 }
         if (priced.isNotEmpty()) {
-            priced.sumOf { it.price!! / it.wearCount.coerceAtLeast(1) } / priced.size
+            priced.sumOf { (it.price ?: 0.0) / it.wearCount.coerceAtLeast(1) } / priced.size
         } else 0.0
     }
 
@@ -52,18 +52,19 @@ fun AnalyticsScreen(
 
     // Best value (lowest CPW)
     val bestValueItems = remember(items) {
-        items.filter { it.price != null && it.price!! > 0 && it.wearCount > 0 }
-            .sortedBy { it.price!! / it.wearCount }
+        items.filter { (it.price ?: 0.0) > 0 && it.wearCount > 0 }
+            .sortedBy { (it.price ?: 0.0) / it.wearCount }
             .take(5)
     }
 
     // Dust collectors (0 wears or last worn > 60 days)
     val sixtyDaysAgo = remember { System.currentTimeMillis() - 60L * 24 * 60 * 60 * 1000 }
     val dustCollectors = remember(items) {
-        items.filter { it.wearCount == 0 || (it.lastWornAt != null && it.lastWornAt!! < sixtyDaysAgo) }
+        items.filter { it.wearCount == 0 || (it.lastWornAt ?: 0L) < sixtyDaysAgo }
     }
 
-    val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("id", "ID")) }
+    val utilizationRate = if (totalItems > 0) ((totalItems - dustCollectors.size) * 100) / totalItems else 0
+    val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID")) }
 
     LazyColumn(
         modifier = Modifier
@@ -80,53 +81,80 @@ fun AnalyticsScreen(
             )
         }
 
-        // Top Summary Cards
+        // Top Summary Cards (2x2 Grid)
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Card(
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text("TOTAL ITEMS", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("$totalItems", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text("TOTAL PIECES", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("$totalItems", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text("TOTAL VALUATION", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(formatCurrencyShort(totalValue), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, maxLines = 1)
+                        }
                     }
                 }
 
-                Card(
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text("TOTAL VALUE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(currencyFormat.format(totalValue), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1)
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text("AVG CPW", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(formatCurrencyShort(avgCpw), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, maxLines = 1)
+                        }
                     }
-                }
 
-                Card(
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text("AVG CPW", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                        Text(currencyFormat.format(avgCpw), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1)
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text("ACTIVE ROTATION", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("$utilizationRate%", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = if (utilizationRate >= 70) Color(0xFF10B981) else MaterialTheme.colorScheme.primary)
+                        }
                     }
                 }
             }
         }
 
-        // KonMari Spark Joy Section
+        // KonMari Spark Joy Section with Visual Progress Bar
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
@@ -134,7 +162,43 @@ fun AnalyticsScreen(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Segmented distribution bar
+                    if (totalItems > 0) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(12.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                        ) {
+                            if (joyItems.isNotEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .weight(joyItems.size.toFloat())
+                                        .fillMaxHeight()
+                                        .background(Color(0xFFEC4899))
+                                )
+                            }
+                            if (essentialItems.isNotEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .weight(essentialItems.size.toFloat())
+                                        .fillMaxHeight()
+                                        .background(MaterialTheme.colorScheme.primary)
+                                )
+                            }
+                            if (releaseItems.isNotEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .weight(releaseItems.size.toFloat())
+                                        .fillMaxHeight()
+                                        .background(Color(0xFFCA8A04))
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(14.dp))
+                    }
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -171,25 +235,68 @@ fun AnalyticsScreen(
                 Text("Log wears to calculate cost-per-wear rankings.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else {
-            items(bestValueItems, key = { it.id }) { item ->
+            items(bestValueItems.mapIndexed { idx, itm -> Pair(idx + 1, itm) }, key = { it.second.id }) { (rank, item) ->
                 val cpw = (item.price ?: 0.0) / item.wearCount.coerceAtLeast(1)
+                val imgFile = remember(item.images) {
+                    try {
+                        val arr = JSONArray(item.images)
+                        if (arr.length() > 0) ImageStorageHelper.getImageFile(context, arr.getString(0)) else null
+                    } catch (_: Exception) {
+                        null
+                    }
+                }
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { onItemClick(item) },
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                 ) {
                     Row(
                         modifier = Modifier.padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // Rank Badge
+                        Text(
+                            text = when (rank) {
+                                1 -> "🥇"
+                                2 -> "🥈"
+                                3 -> "🥉"
+                                else -> "#$rank"
+                            },
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.width(32.dp)
+                        )
+
+                        // Thumbnail
+                        Box(
+                            modifier = Modifier
+                                .size(50.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(MaterialTheme.colorScheme.surface)
+                        ) {
+                            if (imgFile != null) {
+                                AsyncImage(
+                                    model = imgFile,
+                                    contentDescription = item.name,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(item.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                            Text(item.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, maxLines = 1)
                             Text("Worn ${item.wearCount}x • ${item.category.uppercase()}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
+
                         Text(
-                            text = "${currencyFormat.format(cpw)} / wear",
+                            text = "${formatCurrencyShort(cpw)}/w",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -215,25 +322,57 @@ fun AnalyticsScreen(
             }
         } else {
             items(dustCollectors.take(8), key = { it.id }) { item ->
+                val imgFile = remember(item.images) {
+                    try {
+                        val arr = JSONArray(item.images)
+                        if (arr.length() > 0) ImageStorageHelper.getImageFile(context, arr.getString(0)) else null
+                    } catch (_: Exception) {
+                        null
+                    }
+                }
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { onItemClick(item) },
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                 ) {
                     Row(
                         modifier = Modifier.padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        Box(
+                            modifier = Modifier
+                                .size(50.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(MaterialTheme.colorScheme.surface)
+                        ) {
+                            if (imgFile != null) {
+                                AsyncImage(
+                                    model = imgFile,
+                                    contentDescription = item.name,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(item.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                            Text(item.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, maxLines = 1)
                             Text("${item.category.uppercase()} • Worn ${item.wearCount}x", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        AssistChip(
+
+                        FilledTonalButton(
                             onClick = { onItemClick(item) },
-                            label = { Text("Inspect") }
-                        )
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("Inspect", style = MaterialTheme.typography.labelSmall)
+                        }
                     }
                 }
             }

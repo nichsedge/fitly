@@ -1,6 +1,7 @@
 package com.fitly.app.presentation.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -8,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Checkroom
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.LocalLaundryService
 import androidx.compose.material3.*
@@ -90,22 +92,69 @@ fun LaundryScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Status Tabs
-        TabRow(selectedTabIndex = selectedTab) {
+        // Status Tabs with Badges
+        PrimaryTabRow(
+            selectedTabIndex = selectedTab,
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.primary
+        ) {
             Tab(
                 selected = selectedTab == 0,
                 onClick = { selectedTab = 0 },
-                text = { Text("Dirty (${dirtyItems.size})") }
+                text = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text("Dirty", fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal)
+                        if (dirtyItems.isNotEmpty()) {
+                            Badge(
+                                containerColor = MaterialTheme.colorScheme.error,
+                                contentColor = MaterialTheme.colorScheme.onError
+                            ) {
+                                Text("${dirtyItems.size}")
+                            }
+                        }
+                    }
+                }
             )
             Tab(
                 selected = selectedTab == 1,
                 onClick = { selectedTab = 1 },
-                text = { Text("Cleaning (${cleaningItems.size})") }
+                text = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text("Cleaning", fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal)
+                        if (cleaningItems.isNotEmpty()) {
+                            Badge(
+                                containerColor = Color(0xFF2563EB),
+                                contentColor = Color.White
+                            ) {
+                                Text("${cleaningItems.size}")
+                            }
+                        }
+                    }
+                }
             )
             Tab(
                 selected = selectedTab == 2,
                 onClick = { selectedTab = 2 },
-                text = { Text("Clean (${readyItems.size})") }
+                text = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text("Clean", fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Normal)
+                        Badge(
+                            containerColor = Color(0xFF059669),
+                            contentColor = Color.White
+                        ) {
+                            Text("${readyItems.size}")
+                        }
+                    }
+                }
             )
         }
 
@@ -135,7 +184,7 @@ fun LaundryScreen(
             }
         } else {
             LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(bottom = 80.dp)
             ) {
                 items(displayedItems, key = { it.id }) { item ->
@@ -187,19 +236,22 @@ fun LaundryItemCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Thumbnail
+            // Thumbnail with category
             Box(
                 modifier = Modifier
-                    .size(64.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .size(68.dp)
+                    .clip(RoundedCornerShape(12.dp))
                     .background(MaterialTheme.colorScheme.surface)
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f), RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
             ) {
                 if (imageFile != null) {
                     AsyncImage(
@@ -208,49 +260,77 @@ fun LaundryItemCard(
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
+                } else {
+                    Icon(
+                        Icons.Default.Checkroom,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                        modifier = Modifier.size(32.dp)
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(14.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = item.name,
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
                 )
                 Text(
-                    text = "${item.category.uppercase()} • ${item.brand ?: "Wardrobe"}",
+                    text = "${item.category.uppercase()} • ${item.brand?.takeIf { it.isNotBlank() } ?: "Wardrobe"}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Text(
-                    text = "Worn ${wearsSinceWash}x since last wash",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (wearsSinceWash >= 3) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = if (wearsSinceWash >= 3) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surface
+                ) {
+                    Text(
+                        text = if (wearsSinceWash >= 3) "🔥 Worn ${wearsSinceWash}x since wash" else "Worn ${wearsSinceWash}x since wash",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (wearsSinceWash >= 3) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
                 if (!item.careInstructions.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "🧼 ${item.careInstructions}",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1
                     )
                 }
             }
 
+            Spacer(modifier = Modifier.width(8.dp))
+
             if (item.status == "dirty") {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    FilledTonalIconButton(onClick = onMoveToCleaning) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilledTonalIconButton(
+                        onClick = onMoveToCleaning,
+                        modifier = Modifier.size(36.dp)
+                    ) {
                         Icon(Icons.Default.LocalLaundryService, contentDescription = "To Cleaning", modifier = Modifier.size(18.dp))
                     }
-                    IconButton(onClick = onMarkWashed) {
-                        Icon(Icons.Default.Check, contentDescription = "Mark Clean", tint = MaterialTheme.colorScheme.primary)
+                    FilledIconButton(
+                        onClick = onMarkWashed,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(Icons.Default.Check, contentDescription = "Mark Clean", modifier = Modifier.size(18.dp))
                     }
                 }
             } else if (item.status == "cleaning") {
-                IconButton(onClick = onMarkWashed) {
-                    Icon(Icons.Default.Check, contentDescription = "Mark Clean", tint = MaterialTheme.colorScheme.primary)
+                FilledIconButton(
+                    onClick = onMarkWashed,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(Icons.Default.Check, contentDescription = "Mark Clean", modifier = Modifier.size(18.dp))
                 }
             }
         }

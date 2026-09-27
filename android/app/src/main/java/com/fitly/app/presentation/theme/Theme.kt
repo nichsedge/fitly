@@ -8,27 +8,45 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFF6C63FF),
-    secondary = Color(0xFF03DAC6),
-    tertiary = Color(0xFFFF4081),
-    background = Color(0xFF121212),
-    surface = Color(0xFF1E1E1E),
-    surfaceVariant = Color(0xFF2C2C2C),
-    onPrimary = Color.White,
-    onBackground = Color(0xFFE0E0E0),
-    onSurface = Color(0xFFE0E0E0)
+    primary = Color(0xFF8B77FF),
+    onPrimary = Color(0xFF1B153C),
+    primaryContainer = Color(0xFF332A6B),
+    onPrimaryContainer = Color(0xFFE4DFFF),
+    secondary = Color(0xFF2DD4BF),
+    onSecondary = Color(0xFF003731),
+    secondaryContainer = Color(0xFF004F47),
+    onSecondaryContainer = Color(0xFF73F7E3),
+    tertiary = Color(0xFFFB7185),
+    onTertiary = Color(0xFF4C0015),
+    background = Color(0xFF0E1117),
+    onBackground = Color(0xFFE3E6EE),
+    surface = Color(0xFF151922),
+    onSurface = Color(0xFFE3E6EE),
+    surfaceVariant = Color(0xFF1F2432),
+    onSurfaceVariant = Color(0xFF9CA3AF),
+    outline = Color(0xFF374151),
+    outlineVariant = Color(0xFF242B3B)
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Color(0xFF6C63FF),
-    secondary = Color(0xFF018786),
-    tertiary = Color(0xFFC51162),
-    background = Color(0xFFF8F9FA),
-    surface = Color.White,
-    surfaceVariant = Color(0xFFECEFF1),
+    primary = Color(0xFF6352E8),
     onPrimary = Color.White,
-    onBackground = Color(0xFF212121),
-    onSurface = Color(0xFF212121)
+    primaryContainer = Color(0xFFEDE9FE),
+    onPrimaryContainer = Color(0xFF2E2472),
+    secondary = Color(0xFF0D9488),
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFFCCFBF1),
+    onSecondaryContainer = Color(0xFF115E59),
+    tertiary = Color(0xFFE11D48),
+    onTertiary = Color.White,
+    background = Color(0xFFF8FAFC),
+    onBackground = Color(0xFF0F172A),
+    surface = Color(0xFFFFFFFF),
+    onSurface = Color(0xFF0F172A),
+    surfaceVariant = Color(0xFFF1F5F9),
+    onSurfaceVariant = Color(0xFF64748B),
+    outline = Color(0xFFCBD5E1),
+    outlineVariant = Color(0xFFE2E8F0)
 )
 
 @Composable

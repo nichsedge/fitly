@@ -105,6 +105,8 @@ fun CalendarScreen(
             .fillMaxSize()
             .padding(16.dp)
     ) {
+        val todayStr = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) }
+
         // Month Navigation Header
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -119,11 +121,23 @@ fun CalendarScreen(
                 Icon(Icons.Default.ChevronLeft, contentDescription = "Previous Month")
             }
 
-            Text(
-                text = monthName,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = monthName,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                TextButton(
+                    onClick = {
+                        val currentM = SimpleDateFormat("yyyy-MM", Locale.US).format(Date())
+                        viewModel.setCurrentMonth(currentM)
+                        viewModel.setSelectedDate(todayStr)
+                    },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Text("Today", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                }
+            }
 
             IconButton(onClick = {
                 cal.add(Calendar.MONTH, 1)
@@ -165,7 +179,7 @@ fun CalendarScreen(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .height(38.dp),
+                                .height(40.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             if (dayNum in 1..daysInMonth) {
@@ -173,36 +187,47 @@ fun CalendarScreen(
                                 val hasActivity = activeDays.contains(dayNum)
                                 val hasPlan = plannedDays.contains(dayNum)
                                 val dateStr = String.format(Locale.US, "%s-%02d", currentMonth, dayNum)
+                                val isToday = dateStr == todayStr
 
                                 Box(
                                     modifier = Modifier
-                                        .size(34.dp)
+                                        .size(36.dp)
                                         .clip(CircleShape)
                                         .background(
                                             if (isSelected) MaterialTheme.colorScheme.primary
-                                             else if (hasActivity) MaterialTheme.colorScheme.primaryContainer
-                                             else Color.Transparent
-                                         )
+                                            else if (hasActivity) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                                            else Color.Transparent
+                                        )
                                         .border(
-                                            width = if (hasPlan && !isSelected) 1.5.dp else 0.dp,
-                                            color = if (hasPlan && !isSelected) MaterialTheme.colorScheme.tertiary else Color.Transparent,
+                                            width = if (isToday && !isSelected) 1.5.dp else if (hasPlan && !isSelected) 1.dp else 0.dp,
+                                            color = if (isToday && !isSelected) MaterialTheme.colorScheme.primary else if (hasPlan && !isSelected) MaterialTheme.colorScheme.tertiary else Color.Transparent,
                                             shape = CircleShape
                                         )
                                         .clickable {
                                             viewModel.setSelectedDate(dateStr)
                                         },
-                                     contentAlignment = Alignment.Center
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
                                         Text(
                                             text = dayNum.toString(),
                                             style = MaterialTheme.typography.bodySmall,
-                                            fontWeight = if (isSelected || hasActivity || hasPlan) FontWeight.Bold else FontWeight.Normal,
+                                            fontWeight = if (isSelected || isToday || hasActivity || hasPlan) FontWeight.Bold else FontWeight.Normal,
                                             color = if (isSelected) MaterialTheme.colorScheme.onPrimary
                                             else if (hasActivity) MaterialTheme.colorScheme.onPrimaryContainer
                                             else MaterialTheme.colorScheme.onSurface
                                         )
-                                        if (hasPlan && !isSelected) {
+                                        if (hasActivity && !isSelected) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(4.dp)
+                                                    .clip(CircleShape)
+                                                    .background(MaterialTheme.colorScheme.primary)
+                                            )
+                                        } else if (hasPlan && !isSelected) {
                                             Box(
                                                 modifier = Modifier
                                                     .size(4.dp)
@@ -220,7 +245,7 @@ fun CalendarScreen(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-        Divider()
+        HorizontalDivider()
         Spacer(modifier = Modifier.height(12.dp))
 
         // Selected Date Activity Header
@@ -346,24 +371,73 @@ fun CalendarScreen(
                 items(logsForDate, key = { it.id }) { log ->
                     val matchedOutfit = log.outfitId?.let { oId -> allOutfits.find { it.id == oId } }
                     val matchedItem = log.itemId?.let { iId -> allItems.find { it.id == iId } }
+                    val logTime = remember(log.timestamp) {
+                        SimpleDateFormat("hh:mm a", Locale.US).format(Date(log.timestamp))
+                    }
 
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = matchedItem != null) {
+                                matchedItem?.let { onItemClick(it) }
+                            },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                     ) {
                         Row(
                             modifier = Modifier.padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = if (log.type == "wash") Icons.Default.LocalLaundryService
-                                else if (matchedOutfit != null) Icons.Default.Style
-                                else Icons.Default.Checkroom,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
-                            )
+                            if (matchedItem != null) {
+                                val imgFile = remember(matchedItem.images) {
+                                    try {
+                                        val arr = JSONArray(matchedItem.images)
+                                        if (arr.length() > 0) ImageStorageHelper.getImageFile(context, arr.getString(0)) else null
+                                    } catch (_: Exception) {
+                                        null
+                                    }
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(52.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(MaterialTheme.colorScheme.surface),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (imgFile != null) {
+                                        AsyncImage(
+                                            model = imgFile,
+                                            contentDescription = matchedItem.name,
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    } else {
+                                        Icon(
+                                            Icons.Default.Checkroom,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                }
+                            } else {
+                                Surface(
+                                    modifier = Modifier.size(52.dp),
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = if (log.type == "wash") MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.primaryContainer
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = if (log.type == "wash") Icons.Default.LocalLaundryService else Icons.Default.Style,
+                                            contentDescription = null,
+                                            tint = if (log.type == "wash") MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onPrimaryContainer,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                }
+                            }
+
                             Spacer(modifier = Modifier.width(12.dp))
 
                             Column(modifier = Modifier.weight(1f)) {
@@ -373,14 +447,27 @@ fun CalendarScreen(
                                     else if (log.type == "wash") "Laundry Wash"
                                     else "Wear Log",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1
                                 )
                                 Text(
-                                    text = if (log.type == "wash") "Washed & Cleaned"
-                                    else if (matchedItem != null) "${matchedItem.category.uppercase()} • ${matchedItem.brand ?: ""}"
-                                    else "Worn on $selectedDate",
+                                    text = if (log.type == "wash") "Washed & ready for rotation"
+                                    else if (matchedItem != null) "${matchedItem.category.uppercase()} • ${matchedItem.brand ?: "Wardrobe"}"
+                                    else "Logged look",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = MaterialTheme.colorScheme.surface
+                            ) {
+                                Text(
+                                    text = logTime,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                 )
                             }
                         }
@@ -399,7 +486,7 @@ fun CalendarScreen(
             title = { Text("Log Wear for $selectedDate") },
             text = {
                 Column(modifier = Modifier.height(350.dp)) {
-                    TabRow(selectedTabIndex = pickerTab) {
+                    PrimaryTabRow(selectedTabIndex = pickerTab) {
                         Tab(selected = pickerTab == 0, onClick = { pickerTab = 0 }, text = { Text("Outfits") })
                         Tab(selected = pickerTab == 1, onClick = { pickerTab = 1 }, text = { Text("Items") })
                     }
@@ -507,7 +594,7 @@ fun PlanOutfitDialog(
                 )
                 Spacer(modifier = Modifier.height(10.dp))
 
-                TabRow(selectedTabIndex = planTab) {
+                PrimaryTabRow(selectedTabIndex = planTab) {
                     Tab(selected = planTab == 0, onClick = { planTab = 0 }, text = { Text("From Outfits") })
                     Tab(selected = planTab == 1, onClick = { planTab = 1 }, text = { Text("From Pieces (${selectedItemIds.size})") })
                 }

@@ -145,13 +145,15 @@ fun TripCard(
         try { JSONArray(trip.packedItemIds).length() } catch (_: Exception) { 0 }
     }
     val progress = if (totalItems > 0) packedCount.toFloat() / totalItems.toFloat() else 0f
+    val isAllPacked = totalItems > 0 && packedCount == totalItems
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -159,7 +161,7 @@ fun TripCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = trip.name,
                         style = MaterialTheme.typography.titleMedium,
@@ -169,12 +171,12 @@ fun TripCard(
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
                             Icon(Icons.Default.Place, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text(trip.destination, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                            Text(trip.destination, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Medium)
                         }
                     }
                 }
                 IconButton(onClick = onDelete) {
-                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Icons.Default.DeleteOutline, contentDescription = "Delete", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
@@ -182,28 +184,38 @@ fun TripCard(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "📅 ${trip.startDate} → ${trip.endDate}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Text(
-                    text = "$packedCount / $totalItems Packed",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (isAllPacked) Color(0xFF10B981).copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface
+                ) {
+                    Text(
+                        text = if (isAllPacked) "Ready! (100%)" else "$packedCount/$totalItems (${(progress * 100).toInt()}%)",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isAllPacked) Color(0xFF10B981) else MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             LinearProgressIndicator(
                 progress = { progress },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(6.dp)
-                    .clip(RoundedCornerShape(3.dp)),
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                color = if (isAllPacked) Color(0xFF10B981) else MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surface
             )
         }
     }
@@ -496,7 +508,7 @@ fun CreateTripDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                TabRow(
+                PrimaryTabRow(
                     selectedTabIndex = packMode,
                     modifier = Modifier.fillMaxWidth()
                 ) {

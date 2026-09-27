@@ -1,5 +1,6 @@
 package com.fitly.app.presentation.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,6 +14,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -35,8 +38,19 @@ import com.fitly.app.presentation.WardrobeSort
 import com.fitly.app.presentation.WardrobeViewMode
 import com.fitly.app.presentation.WardrobeViewModel
 import org.json.JSONArray
+import java.util.Locale
 
 val WARDROBE_CATEGORIES = listOf("top", "bottom", "outerwear", "shoes", "accessory", "bag", "underwear")
+
+fun formatCurrencyShort(amount: Double): String {
+    return if (amount >= 1_000_000) {
+        String.format(Locale.US, "Rp %.1fM", amount / 1_000_000.0)
+    } else if (amount >= 1_000) {
+        String.format(Locale.US, "Rp %.0fk", amount / 1_000.0)
+    } else {
+        String.format(Locale.US, "Rp %.0f", amount)
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,6 +59,7 @@ fun WardrobeScreen(
     onItemClick: (ClothingItemEntity) -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
+    val allItems by viewModel.allItems.collectAsState()
     val items by viewModel.filteredItems.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -76,7 +91,7 @@ fun WardrobeScreen(
                     value = searchQuery,
                     onValueChange = { viewModel.setSearchQuery(it) },
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("Search...") },
+                    placeholder = { Text("Search ${allItems.size} items...") },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
                     trailingIcon = {
                         if (searchQuery.isNotBlank()) {
@@ -85,7 +100,7 @@ fun WardrobeScreen(
                             }
                         }
                     },
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(16.dp),
                     singleLine = true
                 )
 
@@ -105,8 +120,8 @@ fun WardrobeScreen(
 
                 // Sort Menu
                 Box {
-                    IconButton(onClick = { showSortMenu = true }) {
-                        Icon(Icons.Default.Sort, contentDescription = "Sort")
+                    FilledTonalIconButton(onClick = { showSortMenu = true }) {
+                        Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Sort")
                     }
                     DropdownMenu(
                         expanded = showSortMenu,
@@ -133,7 +148,7 @@ fun WardrobeScreen(
                 }
             }
 
-            // Category Pills
+            // Category Pills with count badges
             LazyRow(
                 modifier = Modifier.padding(bottom = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -142,10 +157,11 @@ fun WardrobeScreen(
                     FilterChip(
                         selected = selectedCategory == null,
                         onClick = { viewModel.selectCategory(null) },
-                        label = { Text("All") }
+                        label = { Text("All (${allItems.size})") }
                     )
                 }
                 items(WARDROBE_CATEGORIES) { cat ->
+                    val catCount = allItems.count { it.category.equals(cat, ignoreCase = true) }
                     FilterChip(
                         selected = selectedCategory.equals(cat, ignoreCase = true),
                         onClick = {
@@ -155,7 +171,7 @@ fun WardrobeScreen(
                                 viewModel.selectCategory(cat)
                             }
                         },
-                        label = { Text(cat.replaceFirstChar { it.uppercase() }) }
+                        label = { Text("${cat.replaceFirstChar { it.uppercase() }} ($catCount)") }
                     )
                 }
             }
@@ -208,7 +224,7 @@ fun WardrobeScreen(
                         modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
-                            Icons.Default.ViewList,
+                            Icons.AutoMirrored.Filled.ViewList,
                             contentDescription = "List View",
                             tint = if (viewMode == WardrobeViewMode.LIST) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                         )
@@ -421,50 +437,12 @@ fun WardrobeItemCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     ) {
         Column(modifier = Modifier.padding(10.dp)) {
-            // Category tag & color swatch & status indicator
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = item.category.uppercase(),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold
-                )
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    if (item.status == "dirty") {
-                        Text("DIRTY", style = MaterialTheme.typography.labelSmall, color = Color(0xFFDC2626), fontWeight = FontWeight.Bold)
-                    } else if (item.status == "cleaning") {
-                        Text("CLEANING", style = MaterialTheme.typography.labelSmall, color = Color(0xFF2563EB), fontWeight = FontWeight.Bold)
-                    }
-                    val swatchColor = remember(item.color) {
-                        try {
-                            if (!item.color.isNullOrBlank()) Color(android.graphics.Color.parseColor(item.color)) else null
-                        } catch (_: Exception) {
-                            null
-                        }
-                    }
-                    if (swatchColor != null) {
-                        Box(
-                            modifier = Modifier
-                                .size(14.dp)
-                                .clip(CircleShape)
-                                .background(swatchColor)
-                                .border(1.dp, Color.Gray.copy(alpha = 0.5f), CircleShape)
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // Item Photo if available
+            // Item Photo with overlay badges
             val imageFile = remember(item.images) {
                 try {
                     val jsonArray = JSONArray(item.images)
@@ -472,7 +450,7 @@ fun WardrobeItemCard(
                         val imgId = jsonArray.getString(0)
                         ImageStorageHelper.getImageFile(context, imgId)
                     } else null
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     null
                 }
             }
@@ -480,8 +458,8 @@ fun WardrobeItemCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(140.dp)
-                    .clip(RoundedCornerShape(10.dp))
+                    .height(155.dp)
+                    .clip(RoundedCornerShape(12.dp))
                     .background(MaterialTheme.colorScheme.surface),
                 contentAlignment = Alignment.Center
             ) {
@@ -492,6 +470,97 @@ fun WardrobeItemCard(
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
+                } else {
+                    Icon(
+                        Icons.Default.Checkroom,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                        modifier = Modifier.size(48.dp)
+                    )
+                }
+
+                // Top-Left: Spark Joy indicator
+                val sparkJoyEmoji = when (item.sparkJoy) {
+                    "joy" -> "💖"
+                    "essential" -> "🧺"
+                    "no-joy" -> "🍂"
+                    else -> null
+                }
+                if (sparkJoyEmoji != null) {
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(6.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
+                    ) {
+                        Text(
+                            text = sparkJoyEmoji,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+
+                // Top-Right: Status Badge
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    color = when (item.status) {
+                        "dirty" -> Color(0xFFDC2626).copy(alpha = 0.9f)
+                        "cleaning" -> Color(0xFF2563EB).copy(alpha = 0.9f)
+                        else -> Color(0xFF059669).copy(alpha = 0.9f)
+                    }
+                ) {
+                    Text(
+                        text = when (item.status) {
+                            "dirty" -> "DIRTY"
+                            "cleaning" -> "LAUNDRY"
+                            else -> "READY"
+                        },
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+
+                // Bottom-Left: Color Swatch + Category tag
+                val swatchColor = remember(item.color) {
+                    try {
+                        if (!item.color.isNullOrBlank()) Color(android.graphics.Color.parseColor(item.color)) else null
+                    } catch (_: Exception) {
+                        null
+                    }
+                }
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(6.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        if (swatchColor != null) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(swatchColor)
+                                    .border(0.5.dp, Color.Gray.copy(alpha = 0.5f), CircleShape)
+                            )
+                        }
+                        Text(
+                            text = item.category.uppercase(),
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                 }
             }
 
@@ -501,43 +570,67 @@ fun WardrobeItemCard(
             Text(
                 text = item.name,
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
 
-            // Brand
-            if (!item.brand.isNullOrBlank()) {
-                Text(
-                    text = item.brand,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1
-                )
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // Wear Count & Log Button
+            // Brand & Cost-Per-Wear
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Worn ${item.wearCount}x",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Medium
+                    text = item.brand?.takeIf { it.isNotBlank() } ?: "Wardrobe",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f, fill = false),
+                    overflow = TextOverflow.Ellipsis
                 )
-                IconButton(
+
+                val price = item.price
+                if (price != null && price > 0) {
+                    val cpw = price / item.wearCount.coerceAtLeast(1)
+                    Text(
+                        text = "${formatCurrencyShort(cpw)}/w",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Wear Count & Quick Log Button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surface
+                ) {
+                    Text(
+                        text = "Worn ${item.wearCount}x",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+
+                FilledTonalIconButton(
                     onClick = onLogWear,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
                         Icons.Default.Check,
                         contentDescription = "Log Wear",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(16.dp)
                     )
                 }
             }
@@ -564,14 +657,15 @@ fun WardrobeItemCardCompact(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        shape = RoundedCornerShape(10.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
     ) {
         Column(modifier = Modifier.padding(6.dp)) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(96.dp)
+                    .height(100.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .background(MaterialTheme.colorScheme.surface),
                 contentAlignment = Alignment.Center
@@ -583,21 +677,53 @@ fun WardrobeItemCardCompact(
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
+                } else {
+                    Icon(
+                        Icons.Default.Checkroom,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                        modifier = Modifier.size(32.dp)
+                    )
                 }
+
+                // Status indicator dot
+                val statusColor = when (item.status) {
+                    "dirty" -> Color(0xFFDC2626)
+                    "cleaning" -> Color(0xFF2563EB)
+                    else -> Color(0xFF059669)
+                }
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(4.dp)
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(statusColor)
+                )
             }
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = item.name,
                 style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Text(
-                text = "${item.wearCount}x",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "${item.wearCount}x",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+                if (item.sparkJoy == "joy") {
+                    Text("💖", fontSize = 10.sp)
+                }
+            }
         }
     }
 }
@@ -622,8 +748,9 @@ fun WardrobeItemRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
     ) {
         Row(
             modifier = Modifier.padding(10.dp),
@@ -631,8 +758,8 @@ fun WardrobeItemRow(
         ) {
             Box(
                 modifier = Modifier
-                    .size(60.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .size(68.dp)
+                    .clip(RoundedCornerShape(10.dp))
                     .background(MaterialTheme.colorScheme.surface),
                 contentAlignment = Alignment.Center
             ) {
@@ -643,34 +770,69 @@ fun WardrobeItemRow(
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
+                } else {
+                    Icon(
+                        Icons.Default.Checkroom,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                        modifier = Modifier.size(32.dp)
+                    )
                 }
             }
 
             Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = item.name,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (item.sparkJoy == "joy") {
+                        Text("💖", fontSize = 11.sp)
+                    }
+                }
                 Text(
-                    text = item.name,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = "${item.category.uppercase()} • ${item.brand ?: "Wardrobe"}",
+                    text = "${item.category.uppercase()} • ${item.brand?.takeIf { it.isNotBlank() } ?: "Wardrobe"}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Text(
-                    text = "Worn ${item.wearCount} times",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Worn ${item.wearCount}x",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                    val price = item.price
+                    if (price != null && price > 0) {
+                        val cpw = price / item.wearCount.coerceAtLeast(1)
+                        Text(
+                            text = "• ${formatCurrencyShort(cpw)}/w",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
 
-            IconButton(onClick = onLogWear) {
+            FilledTonalIconButton(
+                onClick = onLogWear,
+                modifier = Modifier.size(36.dp)
+            ) {
                 Icon(
                     Icons.Default.Check,
                     contentDescription = "Log Wear",
-                    tint = MaterialTheme.colorScheme.primary
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }
