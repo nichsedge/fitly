@@ -20,7 +20,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -41,6 +43,7 @@ fun CalendarScreen(
     onItemClick: (ClothingItemEntity) -> Unit
 ) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     val allItems by viewModel.allItems.collectAsState()
     val allOutfits by viewModel.outfits.collectAsState()
     val selectedDate by viewModel.selectedDate.collectAsState()
@@ -52,6 +55,21 @@ fun CalendarScreen(
 
     var showLogWearPicker by remember { mutableStateOf(false) }
     var showPlanOutfitDialog by remember { mutableStateOf(false) }
+
+    val todayIso = remember {
+        SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+    }
+
+    val formattedSelectedDate = remember(selectedDate) {
+        try {
+            val dateObj = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(selectedDate)
+            if (dateObj != null) {
+                SimpleDateFormat("EEE, d MMM yyyy", Locale.US).format(dateObj)
+            } else selectedDate
+        } catch (_: Exception) {
+            selectedDate
+        }
+    }
 
     // Month calendar calculation
     val cal = remember(currentMonth) {
@@ -245,43 +263,88 @@ fun CalendarScreen(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-        HorizontalDivider()
-        Spacer(modifier = Modifier.height(12.dp))
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+        Spacer(modifier = Modifier.height(14.dp))
 
-        // Selected Date Activity Header
-        Row(
+        // Selected Date Activity Header & Action Buttons
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text(
-                text = "Activity on $selectedDate",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Daily Activity",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = formattedSelectedDate,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (selectedDate == todayIso) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
+                    ) {
+                        Text(
+                            text = "Today",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
+                    }
+                }
+            }
+
+            // Balanced Action Buttons Row (50/50 Split)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 OutlinedButton(
-                    onClick = { showPlanOutfitDialog = true },
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        showPlanOutfitDialog = true
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp)
                 ) {
                     Icon(Icons.Default.EventAvailable, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Plan Look")
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Plan Look", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
                 }
 
                 Button(
-                    onClick = { showLogWearPicker = true },
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        showLogWearPicker = true
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp)
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Log Wear")
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Log Wear", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         // Planned Outfit Banner if scheduled for this date
         planForSelectedDate?.let { plan ->
@@ -590,6 +653,7 @@ fun PlanOutfitDialog(
                     onValueChange = { note = it },
                     label = { Text("Occasion / Styling Note (Optional)") },
                     modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
                     singleLine = true
                 )
                 Spacer(modifier = Modifier.height(10.dp))

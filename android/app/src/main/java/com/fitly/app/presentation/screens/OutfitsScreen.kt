@@ -76,27 +76,21 @@ fun OutfitsScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { viewModel.setOutfitSearchQuery(it) },
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text("Search ${outfits.size} styled outfits...") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
-                    trailingIcon = {
-                        if (searchQuery.isNotBlank()) {
-                            IconButton(onClick = { viewModel.setOutfitSearchQuery("") }) {
-                                Icon(Icons.Default.Clear, contentDescription = "Clear")
-                            }
-                        }
-                    },
-                    shape = RoundedCornerShape(16.dp),
-                    singleLine = true
+                FitlySearchBar(
+                    query = searchQuery,
+                    onQueryChange = { viewModel.setOutfitSearchQuery(it) },
+                    placeholder = "Search ${outfits.size} styled outfits...",
+                    modifier = Modifier.weight(1f)
                 )
 
                 // Sort Menu
                 Box {
-                    FilledTonalIconButton(onClick = { showSortMenu = true }) {
-                        Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Sort Outfits")
+                    FilledTonalIconButton(
+                        onClick = { showSortMenu = true },
+                        modifier = Modifier.size(42.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Sort Outfits", modifier = Modifier.size(20.dp))
                     }
                     DropdownMenu(
                         expanded = showSortMenu,
