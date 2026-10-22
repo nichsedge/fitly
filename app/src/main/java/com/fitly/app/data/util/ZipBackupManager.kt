@@ -139,32 +139,33 @@ object ZipBackupManager {
             rootJson.put("trips", tripsArray)
 
             // Pack Zip
-            val zos = ZipOutputStream(BufferedOutputStream(outputStream))
-            // 1. wardrobe.json
-            val jsonBytes = rootJson.toString(2).toByteArray(Charsets.UTF_8)
-            zos.putNextEntry(ZipEntry(AppConstants.BACKUP_JSON_FILENAME))
-            zos.write(jsonBytes)
-            zos.closeEntry()
+            ZipOutputStream(BufferedOutputStream(outputStream)).use { zos ->
+                // 1. wardrobe.json
+                val jsonBytes = rootJson.toString(2).toByteArray(Charsets.UTF_8)
+                zos.putNextEntry(ZipEntry(AppConstants.BACKUP_JSON_FILENAME))
+                zos.write(jsonBytes)
+                zos.closeEntry()
 
-            // 2. images/ directory
-            val imagesDir = File(context.filesDir, AppConstants.IMAGES_DIRECTORY)
-            var imageCount = 0
-            if (imagesDir.exists() && imagesDir.isDirectory) {
-                val files = imagesDir.listFiles() ?: emptyArray()
-                for (imgFile in files) {
-                    if (imgFile.isFile) {
-                        zos.putNextEntry(ZipEntry("${AppConstants.IMAGES_DIRECTORY}/${imgFile.name}"))
-                        imgFile.inputStream().use { input ->
-                            input.copyTo(zos)
+                // 2. images/ directory
+                val imagesDir = File(context.filesDir, AppConstants.IMAGES_DIRECTORY)
+                var imageCount = 0
+                if (imagesDir.exists() && imagesDir.isDirectory) {
+                    val files = imagesDir.listFiles() ?: emptyArray()
+                    for (imgFile in files) {
+                        if (imgFile.isFile) {
+                            zos.putNextEntry(ZipEntry("${AppConstants.IMAGES_DIRECTORY}/${imgFile.name}"))
+                            imgFile.inputStream().use { input ->
+                                input.copyTo(zos)
+                            }
+                            zos.closeEntry()
+                            imageCount++
                         }
-                        zos.closeEntry()
-                        imageCount++
                     }
                 }
-            }
 
-            zos.finish()
-            zos.flush()
+                zos.finish()
+                zos.flush()
+            }
             Result.success(items.size)
         } catch (e: Exception) {
             Result.failure(e)
@@ -173,34 +174,34 @@ object ZipBackupManager {
 
     suspend fun importFromZip(context: Context, dao: FitlyDao, inputStream: InputStream): Result<Int> = withContext(Dispatchers.IO) {
         try {
-            val zis = ZipInputStream(BufferedInputStream(inputStream))
-            var entry: ZipEntry? = zis.nextEntry
             var jsonString: String? = null
             val imagesDir = File(context.filesDir, AppConstants.IMAGES_DIRECTORY)
             if (!imagesDir.exists()) imagesDir.mkdirs()
 
             val imagesPrefix = "${AppConstants.IMAGES_DIRECTORY}/"
             var restoredImages = 0
-            while (entry != null) {
-                val name = entry.name
-                if (name == AppConstants.BACKUP_JSON_FILENAME) {
-                    val baos = ByteArrayOutputStream()
-                    zis.copyTo(baos)
-                    jsonString = baos.toString("UTF-8")
-                } else if (name.startsWith(imagesPrefix) && !entry.isDirectory) {
-                    val filename = File(name).name
-                    if (filename.isNotBlank()) {
-                        val destFile = File(imagesDir, filename)
-                        FileOutputStream(destFile).use { fos ->
-                            zis.copyTo(fos)
+            ZipInputStream(BufferedInputStream(inputStream)).use { zis ->
+                var entry: ZipEntry? = zis.nextEntry
+                while (entry != null) {
+                    val name = entry.name
+                    if (name == AppConstants.BACKUP_JSON_FILENAME) {
+                        val baos = ByteArrayOutputStream()
+                        zis.copyTo(baos)
+                        jsonString = baos.toString("UTF-8")
+                    } else if (name.startsWith(imagesPrefix) && !entry.isDirectory) {
+                        val filename = File(name).name
+                        if (filename.isNotBlank()) {
+                            val destFile = File(imagesDir, filename)
+                            FileOutputStream(destFile).use { fos ->
+                                zis.copyTo(fos)
+                            }
+                            restoredImages++
                         }
-                        restoredImages++
                     }
+                    zis.closeEntry()
+                    entry = zis.nextEntry
                 }
-                zis.closeEntry()
-                entry = zis.nextEntry
             }
-            zis.close()
 
             if (jsonString.isNullOrBlank()) {
                 return@withContext Result.failure(IllegalStateException("${AppConstants.BACKUP_JSON_FILENAME} not found in archive"))

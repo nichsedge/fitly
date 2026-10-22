@@ -51,9 +51,7 @@ fun SettingsScreen(viewModel: WardrobeViewModel) {
         contract = ActivityResultContracts.CreateDocument(AppConstants.MIME_TYPE_ZIP)
     ) { uri: Uri? ->
         if (uri != null) {
-            context.contentResolver.openOutputStream(uri)?.use { os ->
-                viewModel.exportToZip(os)
-            }
+            viewModel.exportToZip(uri)
         }
     }
 
@@ -62,9 +60,7 @@ fun SettingsScreen(viewModel: WardrobeViewModel) {
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         if (uri != null) {
-            context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                viewModel.importFromZip(inputStream)
-            }
+            viewModel.importFromZip(uri)
         }
     }
 

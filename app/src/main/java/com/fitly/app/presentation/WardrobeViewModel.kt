@@ -14,8 +14,10 @@ import com.fitly.app.data.util.ImageStorageHelper
 import com.fitly.app.data.util.JsonBackupImporter
 import com.fitly.app.data.util.R2Config
 import com.fitly.app.data.util.ZipBackupManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import java.io.File
 import java.io.InputStream
@@ -717,12 +719,21 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun exportToZip(outputStream: OutputStream) {
+    fun exportToZip(uri: Uri) {
         viewModelScope.launch {
             _isSyncing.value = true
             _syncStatus.value = "Exporting wardrobe ZIP archive..."
             try {
-                val res = ZipBackupManager.exportToZip(getApplication(), dao, outputStream)
+                val context = getApplication<Application>()
+                val res = withContext(Dispatchers.IO) {
+                    try {
+                        context.contentResolver.openOutputStream(uri)?.use { os ->
+                            ZipBackupManager.exportToZip(context, dao, os)
+                        } ?: Result.failure(java.io.IOException("Failed to open output stream for export"))
+                    } catch (e: Exception) {
+                        Result.failure(e)
+                    }
+                }
                 val msg = res.fold(
                     onSuccess = { "✅ Exported $it items & photos to ZIP archive!" },
                     onFailure = { "❌ ZIP Export error: ${it.localizedMessage}" }
@@ -735,12 +746,21 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun importFromZip(inputStream: InputStream) {
+    fun importFromZip(uri: Uri) {
         viewModelScope.launch {
             _isSyncing.value = true
             _syncStatus.value = "Importing wardrobe ZIP archive..."
             try {
-                val res = ZipBackupManager.importFromZip(getApplication(), dao, inputStream)
+                val context = getApplication<Application>()
+                val res = withContext(Dispatchers.IO) {
+                    try {
+                        context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                            ZipBackupManager.importFromZip(context, dao, inputStream)
+                        } ?: Result.failure(java.io.IOException("Failed to open input stream for import"))
+                    } catch (e: Exception) {
+                        Result.failure(e)
+                    }
+                }
                 val msg = res.fold(
                     onSuccess = { "✅ Restored $it items from ZIP archive!" },
                     onFailure = { "❌ ZIP Import error: ${it.localizedMessage}" }
