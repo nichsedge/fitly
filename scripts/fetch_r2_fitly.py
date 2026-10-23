@@ -19,7 +19,7 @@ from pathlib import Path
 R2_BUCKET = "ichsanul-dev"
 R2_KEY = "db/fitly_latest.sqlite"
 LOCAL_DEST = Path.home() / "Projects" / "fitly" / "data" / "fitly_latest.sqlite"
-CREDS_FILE = Path.home() / "Projects" / "fitly" / "android" / "app" / "src" / "main" / "assets" / "r2_cred.json"
+CREDS_FILE = Path.home() / "Projects" / "fitly" / "app" / "src" / "main" / "assets" / "r2_cred.json"
 
 
 def load_credentials():
