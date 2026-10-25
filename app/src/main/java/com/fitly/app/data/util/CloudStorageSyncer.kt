@@ -2,6 +2,7 @@ package com.fitly.app.data.util
 
 import android.content.Context
 import androidx.core.content.edit
+import com.fitly.app.data.local.FitlyDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -81,6 +82,7 @@ object CloudStorageSyncer {
     }
 
     suspend fun uploadDatabaseBackup(context: Context, dbFile: File): Result<String> = withContext(Dispatchers.IO) {
+        FitlyDatabase.checkpoint(context)
         val config = loadR2Config(context) ?: return@withContext Result.failure(Exception("R2 credentials not found"))
         try {
             val fileBytes = dbFile.readBytes()
@@ -187,7 +189,7 @@ object CloudStorageSyncer {
         }
     }
 
-    private fun getIsoTimestamps(): Pair<String, String> {
+    internal fun getIsoTimestamps(): Pair<String, String> {
         val now = Date()
         val amzFormat = SimpleDateFormat("yyyyMMdd'T'HHmmss'Z'", Locale.US).apply {
             timeZone = TimeZone.getTimeZone("UTC")
@@ -198,7 +200,7 @@ object CloudStorageSyncer {
         return Pair(amzFormat.format(now), dateStampFormat.format(now))
     }
 
-    private fun buildSigV4AuthorizationHeader(
+    internal fun buildSigV4AuthorizationHeader(
         httpMethod: String,
         canonicalUri: String,
         headers: SortedMap<String, String>,
@@ -225,7 +227,7 @@ object CloudStorageSyncer {
         return "AWS4-HMAC-SHA256 Credential=$accessKey/$credentialScope, SignedHeaders=$signedHeaders, Signature=$signature"
     }
 
-    private fun getSignatureKey(key: String, dateStamp: String, regionName: String, serviceName: String): ByteArray {
+    internal fun getSignatureKey(key: String, dateStamp: String, regionName: String, serviceName: String): ByteArray {
         val kSecret = ("AWS4$key").toByteArray(StandardCharsets.UTF_8)
         val kDate = hmacSha256(kSecret, dateStamp)
         val kRegion = hmacSha256(kDate, regionName)
@@ -233,22 +235,22 @@ object CloudStorageSyncer {
         return hmacSha256(kService, "aws4_request")
     }
 
-    private fun hmacSha256(key: ByteArray, data: String): ByteArray {
+    internal fun hmacSha256(key: ByteArray, data: String): ByteArray {
         val mac = Mac.getInstance("HmacSHA256")
         mac.init(SecretKeySpec(key, "HmacSHA256"))
         return mac.doFinal(data.toByteArray(StandardCharsets.UTF_8))
     }
 
-    private fun hmacSha256Hex(key: ByteArray, data: String): String {
+    internal fun hmacSha256Hex(key: ByteArray, data: String): String {
         return bytesToHex(hmacSha256(key, data))
     }
 
-    private fun sha256Hex(data: ByteArray): String {
+    internal fun sha256Hex(data: ByteArray): String {
         val digest = MessageDigest.getInstance("SHA-256")
         return bytesToHex(digest.digest(data))
     }
 
-    private fun bytesToHex(bytes: ByteArray): String {
+    internal fun bytesToHex(bytes: ByteArray): String {
         val sb = StringBuilder()
         for (b in bytes) {
             sb.append(String.format("%02x", b))

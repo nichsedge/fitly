@@ -26,6 +26,7 @@ object ZipBackupManager {
             val locations = dao.getAllLocations().first()
             val wearLogs = dao.getAllWearLogs().first()
             val trips = dao.getAllTrips().first()
+            val plannedOutfits = dao.getAllPlannedOutfits().first()
 
             val rootJson = JSONObject()
 
@@ -88,6 +89,8 @@ object ZipBackupManager {
                     logObj.put("id", log.id)
                     logObj.put("timestamp", log.timestamp)
                     logObj.put("wornDate", log.wornDate)
+                    logObj.put("type", log.type)
+                    if (log.notes != null) logObj.put("notes", log.notes)
                     wearLogsArray.put(logObj)
                 }
                 obj.put("wearLogs", wearLogsArray)
@@ -113,6 +116,8 @@ object ZipBackupManager {
                     logObj.put("id", log.id)
                     logObj.put("timestamp", log.timestamp)
                     logObj.put("wornDate", log.wornDate)
+                    logObj.put("type", log.type)
+                    if (log.notes != null) logObj.put("notes", log.notes)
                     wearLogsArray.put(logObj)
                 }
                 obj.put("wearLogs", wearLogsArray)
@@ -137,6 +142,20 @@ object ZipBackupManager {
                 tripsArray.put(obj)
             }
             rootJson.put("trips", tripsArray)
+
+            // 6. Planned Outfits
+            val plannedArray = JSONArray()
+            for (plan in plannedOutfits) {
+                val obj = JSONObject()
+                obj.put("id", plan.id)
+                obj.put("date", plan.date)
+                if (plan.outfitId != null) obj.put("outfitId", plan.outfitId)
+                obj.put("itemIds", JSONArray(plan.itemIds))
+                if (plan.note != null) obj.put("note", plan.note)
+                obj.put("createdAt", plan.createdAt)
+                plannedArray.put(obj)
+            }
+            rootJson.put("plannedOutfits", plannedArray)
 
             // Pack Zip
             ZipOutputStream(BufferedOutputStream(outputStream)).use { zos ->

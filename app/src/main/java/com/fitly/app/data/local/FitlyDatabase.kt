@@ -70,6 +70,18 @@ abstract class FitlyDatabase : RoomDatabase() {
             }
         }
 
+        fun checkpoint(context: Context) {
+            try {
+                val db = getDatabase(context)
+                if (db.isOpen) {
+                    val cursor = db.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(FULL)")
+                    cursor.moveToFirst()
+                    cursor.close()
+                }
+            } catch (_: Exception) {
+            }
+        }
+
         fun getDatabase(context: Context): FitlyDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(

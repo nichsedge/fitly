@@ -107,6 +107,9 @@ interface FitlyDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPlan(plan: PlannedOutfitEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPlans(plans: List<PlannedOutfitEntity>)
+
     @Delete
     suspend fun deletePlan(plan: PlannedOutfitEntity)
 
@@ -119,6 +122,9 @@ interface FitlyDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTrip(trip: TripEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTrips(trips: List<TripEntity>)
 
     @Update
     suspend fun updateTrip(trip: TripEntity)

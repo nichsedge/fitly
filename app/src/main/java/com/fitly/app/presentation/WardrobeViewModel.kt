@@ -538,16 +538,40 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
     fun markAllDirtyWashed() {
         viewModelScope.launch {
             val now = System.currentTimeMillis()
+            val dirty = dirtyItems.value
+            if (dirty.isEmpty()) return@launch
             dao.markAllDirtyWashed(now)
-            notify("All dirty items washed & ready! 🧼")
+            val washLogs = dirty.map { item ->
+                WearLogEntity(
+                    id = "wash_${UUID.randomUUID()}",
+                    itemId = item.id,
+                    wornDate = todayStr,
+                    timestamp = now,
+                    type = "wash"
+                )
+            }
+            dao.insertWearLogs(washLogs)
+            notify("All ${dirty.size} dirty items washed & ready! 🧼")
         }
     }
 
     fun markAllCleaningWashed() {
         viewModelScope.launch {
             val now = System.currentTimeMillis()
+            val cleaning = cleaningItems.value
+            if (cleaning.isEmpty()) return@launch
             dao.markAllCleaningWashed(now)
-            notify("All cleaning items ready! 🧼")
+            val washLogs = cleaning.map { item ->
+                WearLogEntity(
+                    id = "wash_${UUID.randomUUID()}",
+                    itemId = item.id,
+                    wornDate = todayStr,
+                    timestamp = now,
+                    type = "wash"
+                )
+            }
+            dao.insertWearLogs(washLogs)
+            notify("All ${cleaning.size} cleaning items ready! 🧼")
         }
     }
 

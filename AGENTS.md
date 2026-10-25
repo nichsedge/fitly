@@ -41,6 +41,7 @@ Fitly is a standalone native Android application located directly at repository 
   ```bash
   make build     # Build debug APK (app/build/outputs/apk/debug/app-debug.apk)
   make release   # Build lightweight minified APK (app/build/outputs/apk/release/app-release.apk)
+  make test      # Run local JVM unit tests (SigV4 signing, CPW math, backup fidelity)
   make run       # Build and deploy to connected Android phone (via ADB)
   make clean     # Clean build cache
   ```

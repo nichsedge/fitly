@@ -12,7 +12,7 @@ import sys
 import zipfile
 from pathlib import Path
 
-IDENTITY_HASH = "4ab61f65910300f91546632d1fe4bd96"
+IDENTITY_HASH = "47ed6e5b60eeb141956379a02233d444"
 PACKAGE = "com.fitly.app"
 
 
@@ -40,6 +40,8 @@ def create_room_schema(conn: sqlite3.Connection):
             `createdAt` INTEGER NOT NULL,
             `retiredAt` INTEGER,
             `retirementReason` TEXT,
+            `sparkJoy` TEXT,
+            `gratitudeNote` TEXT,
             PRIMARY KEY(`id`)
         );
 
@@ -61,6 +63,31 @@ def create_room_schema(conn: sqlite3.Connection):
             `wornDate` TEXT NOT NULL,
             `timestamp` INTEGER NOT NULL,
             `notes` TEXT,
+            `type` TEXT NOT NULL DEFAULT 'wear',
+            PRIMARY KEY(`id`)
+        );
+
+        CREATE TABLE IF NOT EXISTS `planned_outfits` (
+            `id` TEXT NOT NULL,
+            `date` TEXT NOT NULL,
+            `outfitId` TEXT,
+            `itemIds` TEXT NOT NULL,
+            `note` TEXT,
+            `createdAt` INTEGER NOT NULL,
+            PRIMARY KEY(`id`)
+        );
+
+        CREATE TABLE IF NOT EXISTS `trips` (
+            `id` TEXT NOT NULL,
+            `name` TEXT NOT NULL,
+            `destination` TEXT,
+            `startDate` TEXT NOT NULL,
+            `endDate` TEXT NOT NULL,
+            `itemIds` TEXT NOT NULL,
+            `outfitIds` TEXT NOT NULL,
+            `packedItemIds` TEXT NOT NULL,
+            `completed` INTEGER NOT NULL,
+            `createdAt` INTEGER NOT NULL,
             PRIMARY KEY(`id`)
         );
 
@@ -107,6 +134,7 @@ def populate_data(conn: sqlite3.Connection, data: dict):
         item_id = item["id"]
         wear_logs = item.get("wearLogs", [])
         last_worn = None
+        wear_count = 0
         for i, w in enumerate(wear_logs):
             if isinstance(w, (int, float)):
                 ts = int(w)
@@ -114,30 +142,35 @@ def populate_data(conn: sqlite3.Connection, data: dict):
                     dt_str = datetime.datetime.fromtimestamp(ts / 1000).strftime("%Y-%m-%d")
                 except Exception:
                     dt_str = "2026-01-01"
-                w_id = f"{item_id}_w_{i}"
+                w_id = f"{item_id}_wear_{i}"
                 note = None
+                log_type = "wear"
             elif isinstance(w, dict):
                 ts = int(w.get("timestamp", 0))
                 dt_str = w.get("wornDate", "2026-01-01")
-                w_id = w.get("id") or f"{item_id}_w_{i}"
+                log_type = w.get("type", "wear")
+                w_id = w.get("id") or f"{item_id}_{log_type}_{i}"
                 note = w.get("notes")
             else:
                 continue
 
-            if last_worn is None or ts > last_worn:
-                last_worn = ts
+            if log_type == "wear":
+                wear_count += 1
+                if last_worn is None or ts > last_worn:
+                    last_worn = ts
 
             cur.execute(
-                "INSERT OR REPLACE INTO wear_logs (id, itemId, wornDate, timestamp, notes) VALUES (?, ?, ?, ?, ?)",
-                (w_id, item_id, dt_str, ts, note)
+                "INSERT OR REPLACE INTO wear_logs (id, itemId, wornDate, timestamp, notes, type) VALUES (?, ?, ?, ?, ?, ?)",
+                (w_id, item_id, dt_str, ts, note, log_type)
             )
 
         cur.execute(
             """INSERT OR REPLACE INTO items (
                 id, name, brand, price, purchaseDate, status, category, locationId,
                 color, tags, images, material, careInstructions, condition,
-                wearCount, lastWornAt, lastWashedAt, createdAt, retiredAt, retirementReason
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                wearCount, lastWornAt, lastWashedAt, createdAt, retiredAt, retirementReason,
+                sparkJoy, gratitudeNote
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 item_id,
                 item["name"],
@@ -145,7 +178,7 @@ def populate_data(conn: sqlite3.Connection, data: dict):
                 item.get("price"),
                 item.get("purchaseDate"),
                 item.get("status", "ready"),
-                item.get("category", "tops"),
+                item.get("category", "top"),
                 item.get("locationId"),
                 item.get("color"),
                 json.dumps(item.get("tags", [])),
@@ -153,12 +186,14 @@ def populate_data(conn: sqlite3.Connection, data: dict):
                 item.get("material"),
                 item.get("careInstructions"),
                 item.get("condition", "good"),
-                len(wear_logs),
+                wear_count,
                 last_worn,
                 item.get("lastWashedAt"),
                 item.get("createdAt", 0),
                 item.get("retiredAt"),
                 item.get("retirementReason"),
+                item.get("sparkJoy"),
+                item.get("gratitudeNote"),
             )
         )
 
@@ -167,6 +202,7 @@ def populate_data(conn: sqlite3.Connection, data: dict):
         outfit_id = outfit["id"]
         wear_logs = outfit.get("wearLogs", [])
         last_worn = None
+        o_wear_count = 0
         for i, w in enumerate(wear_logs):
             if isinstance(w, (int, float)):
                 ts = int(w)
@@ -174,22 +210,26 @@ def populate_data(conn: sqlite3.Connection, data: dict):
                     dt_str = datetime.datetime.fromtimestamp(ts / 1000).strftime("%Y-%m-%d")
                 except Exception:
                     dt_str = "2026-01-01"
-                w_id = f"{outfit_id}_w_{i}"
+                w_id = f"{outfit_id}_wear_{i}"
                 note = None
+                log_type = "wear"
             elif isinstance(w, dict):
                 ts = int(w.get("timestamp", 0))
                 dt_str = w.get("wornDate", "2026-01-01")
-                w_id = w.get("id") or f"{outfit_id}_w_{i}"
+                log_type = w.get("type", "wear")
+                w_id = w.get("id") or f"{outfit_id}_{log_type}_{i}"
                 note = w.get("notes")
             else:
                 continue
 
-            if last_worn is None or ts > last_worn:
-                last_worn = ts
+            if log_type == "wear":
+                o_wear_count += 1
+                if last_worn is None or ts > last_worn:
+                    last_worn = ts
 
             cur.execute(
-                "INSERT OR REPLACE INTO wear_logs (id, outfitId, wornDate, timestamp, notes) VALUES (?, ?, ?, ?, ?)",
-                (w_id, outfit_id, dt_str, ts, note)
+                "INSERT OR REPLACE INTO wear_logs (id, outfitId, wornDate, timestamp, notes, type) VALUES (?, ?, ?, ?, ?, ?)",
+                (w_id, outfit_id, dt_str, ts, note, log_type)
             )
 
         cur.execute(
@@ -201,11 +241,49 @@ def populate_data(conn: sqlite3.Connection, data: dict):
                 outfit["name"],
                 outfit.get("note"),
                 json.dumps(outfit.get("itemIds", [])),
-                len(wear_logs),
+                o_wear_count,
                 last_worn,
                 outfit.get("createdAt", 0),
             )
         )
+
+    # 5. Trips
+    for trip in data.get("trips", []):
+        cur.execute(
+            """INSERT OR REPLACE INTO trips (
+                id, name, destination, startDate, endDate, itemIds, outfitIds, packedItemIds, completed, createdAt
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                trip["id"],
+                trip["name"],
+                trip.get("destination"),
+                trip.get("startDate", "2026-01-01"),
+                trip.get("endDate", "2026-01-01"),
+                json.dumps(trip.get("itemIds", [])),
+                json.dumps(trip.get("outfitIds", [])),
+                json.dumps(trip.get("packedItemIds", [])),
+                1 if trip.get("completed") else 0,
+                trip.get("createdAt", 0)
+            )
+        )
+
+    # 6. Planned Outfits
+    for plan in data.get("plannedOutfits", []):
+        cur.execute(
+            """INSERT OR REPLACE INTO planned_outfits (
+                id, date, outfitId, itemIds, note, createdAt
+            ) VALUES (?, ?, ?, ?, ?, ?)""",
+            (
+                plan["id"],
+                plan["date"],
+                plan.get("outfitId"),
+                json.dumps(plan.get("itemIds", [])),
+                plan.get("note"),
+                plan.get("createdAt", 0)
+            )
+        )
+
+    conn.commit()
 
     conn.commit()
 

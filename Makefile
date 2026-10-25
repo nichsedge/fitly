@@ -1,4 +1,4 @@
-.PHONY: help run build release clean
+.PHONY: help run build release test clean
 
 DEVICE ?=
 
@@ -12,6 +12,7 @@ help:
 	@echo "Build Targets:"
 	@echo "  build              Build debug APK"
 	@echo "  release            Build optimized minified APK"
+	@echo "  test               Run local JVM unit tests"
 	@echo "  clean              Clean build artifacts"
 
 run:
@@ -22,6 +23,9 @@ build:
 
 release:
 	./gradlew assembleRelease
+
+test:
+	./gradlew testDebugUnitTest
 
 clean:
 	./gradlew clean

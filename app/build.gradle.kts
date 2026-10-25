@@ -11,7 +11,7 @@ android {
 
     defaultConfig {
         applicationId = "com.fitly.app"
-        minSdk = 36
+        minSdk = 30
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
@@ -71,6 +71,10 @@ dependencies {
     // Coil Image Loading
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
+
+    // Testing
+    testImplementation(libs.junit)
+    testImplementation("org.json:json:20240303")
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
