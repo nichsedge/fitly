@@ -144,38 +144,20 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             actions = {
-                                val isAnalytics = currentTab == FitlyTab.ANALYTICS
-                                val isSettings = currentTab == FitlyTab.SETTINGS
-
-                                if (isAnalytics) {
-                                    FilledIconButton(
-                                        onClick = { navigateBack() },
-                                        modifier = Modifier.size(38.dp)
-                                    ) {
-                                        Icon(Icons.Default.Insights, contentDescription = "Analytics", modifier = Modifier.size(20.dp))
-                                    }
-                                } else {
+                                if (currentTab != FitlyTab.ANALYTICS) {
                                     FilledTonalIconButton(
                                         onClick = { navigateTo(FitlyTab.ANALYTICS) },
-                                        modifier = Modifier.size(38.dp)
+                                        modifier = Modifier.size(40.dp)
                                     ) {
                                         Icon(Icons.Default.Insights, contentDescription = "Analytics", modifier = Modifier.size(20.dp))
                                     }
+                                    Spacer(modifier = Modifier.width(6.dp))
                                 }
 
-                                Spacer(modifier = Modifier.width(6.dp))
-
-                                if (isSettings) {
-                                    FilledIconButton(
-                                        onClick = { navigateBack() },
-                                        modifier = Modifier.size(38.dp)
-                                    ) {
-                                        Icon(Icons.Default.Settings, contentDescription = "Settings", modifier = Modifier.size(20.dp))
-                                    }
-                                } else {
+                                if (currentTab != FitlyTab.SETTINGS) {
                                     FilledTonalIconButton(
                                         onClick = { navigateTo(FitlyTab.SETTINGS) },
-                                        modifier = Modifier.size(38.dp)
+                                        modifier = Modifier.size(40.dp)
                                     ) {
                                         Icon(Icons.Default.Settings, contentDescription = "Settings", modifier = Modifier.size(20.dp))
                                     }
@@ -189,53 +171,55 @@ class MainActivity : ComponentActivity() {
                         )
                     },
                     bottomBar = {
-                        NavigationBar(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            tonalElevation = 3.dp
-                        ) {
-                            NavigationBarItem(
-                                selected = currentTab == FitlyTab.WARDROBE,
-                                onClick = { navigateTo(FitlyTab.WARDROBE) },
-                                icon = { Icon(Icons.Default.Checkroom, contentDescription = "Wardrobe") },
-                                label = { Text("Wardrobe") }
-                            )
-                            NavigationBarItem(
-                                selected = currentTab == FitlyTab.OUTFITS,
-                                onClick = { navigateTo(FitlyTab.OUTFITS) },
-                                icon = { Icon(Icons.Default.Style, contentDescription = "Outfits") },
-                                label = { Text("Outfits") }
-                            )
-                            NavigationBarItem(
-                                selected = currentTab == FitlyTab.LAUNDRY,
-                                onClick = { navigateTo(FitlyTab.LAUNDRY) },
-                                icon = {
-                                    BadgedBox(badge = {
-                                        if (dirtyItems.isNotEmpty()) {
-                                            Badge(
-                                                containerColor = MaterialTheme.colorScheme.error,
-                                                contentColor = MaterialTheme.colorScheme.onError
-                                            ) {
-                                                Text("${dirtyItems.size}")
+                        if (currentTab != FitlyTab.ANALYTICS && currentTab != FitlyTab.SETTINGS) {
+                            NavigationBar(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                tonalElevation = 3.dp
+                            ) {
+                                NavigationBarItem(
+                                    selected = currentTab == FitlyTab.WARDROBE,
+                                    onClick = { navigateTo(FitlyTab.WARDROBE) },
+                                    icon = { Icon(Icons.Default.Checkroom, contentDescription = "Wardrobe") },
+                                    label = { Text("Wardrobe") }
+                                )
+                                NavigationBarItem(
+                                    selected = currentTab == FitlyTab.OUTFITS,
+                                    onClick = { navigateTo(FitlyTab.OUTFITS) },
+                                    icon = { Icon(Icons.Default.Style, contentDescription = "Outfits") },
+                                    label = { Text("Outfits") }
+                                )
+                                NavigationBarItem(
+                                    selected = currentTab == FitlyTab.LAUNDRY,
+                                    onClick = { navigateTo(FitlyTab.LAUNDRY) },
+                                    icon = {
+                                        BadgedBox(badge = {
+                                            if (dirtyItems.isNotEmpty()) {
+                                                Badge(
+                                                    containerColor = MaterialTheme.colorScheme.error,
+                                                    contentColor = MaterialTheme.colorScheme.onError
+                                                ) {
+                                                    Text("${dirtyItems.size}")
+                                                }
                                             }
+                                        }) {
+                                            Icon(Icons.Default.LocalLaundryService, contentDescription = "Laundry")
                                         }
-                                    }) {
-                                        Icon(Icons.Default.LocalLaundryService, contentDescription = "Laundry")
-                                    }
-                                },
-                                label = { Text("Laundry") }
-                            )
-                            NavigationBarItem(
-                                selected = currentTab == FitlyTab.CALENDAR,
-                                onClick = { navigateTo(FitlyTab.CALENDAR) },
-                                icon = { Icon(Icons.Default.CalendarMonth, contentDescription = "Calendar") },
-                                label = { Text("Calendar") }
-                            )
-                            NavigationBarItem(
-                                selected = currentTab == FitlyTab.TRIPS,
-                                onClick = { navigateTo(FitlyTab.TRIPS) },
-                                icon = { Icon(Icons.Default.Luggage, contentDescription = "Trips") },
-                                label = { Text("Trips") }
-                            )
+                                    },
+                                    label = { Text("Laundry") }
+                                )
+                                NavigationBarItem(
+                                    selected = currentTab == FitlyTab.CALENDAR,
+                                    onClick = { navigateTo(FitlyTab.CALENDAR) },
+                                    icon = { Icon(Icons.Default.CalendarMonth, contentDescription = "Calendar") },
+                                    label = { Text("Calendar") }
+                                )
+                                NavigationBarItem(
+                                    selected = currentTab == FitlyTab.TRIPS,
+                                    onClick = { navigateTo(FitlyTab.TRIPS) },
+                                    icon = { Icon(Icons.Default.Luggage, contentDescription = "Trips") },
+                                    label = { Text("Trips") }
+                                )
+                            }
                         }
                     }
                 ) { innerPadding ->

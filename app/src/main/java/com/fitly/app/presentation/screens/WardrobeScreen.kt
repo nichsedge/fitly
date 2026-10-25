@@ -38,6 +38,7 @@ import com.fitly.app.data.util.ImageStorageHelper
 import com.fitly.app.presentation.WardrobeSort
 import com.fitly.app.presentation.WardrobeViewMode
 import com.fitly.app.presentation.WardrobeViewModel
+import com.fitly.app.presentation.util.FormatUtils
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.graphics.SolidColor
 import org.json.JSONArray
@@ -45,15 +46,7 @@ import java.util.Locale
 
 val WARDROBE_CATEGORIES = listOf("top", "bottom", "outerwear", "shoes", "accessory", "bag", "underwear")
 
-fun formatCurrencyShort(amount: Double): String {
-    return if (amount >= 1_000_000) {
-        String.format(Locale.US, "Rp %.1fM", amount / 1_000_000.0)
-    } else if (amount >= 1_000) {
-        String.format(Locale.US, "Rp %.0fk", amount / 1_000.0)
-    } else {
-        String.format(Locale.US, "Rp %.0f", amount)
-    }
-}
+fun formatCurrencyShort(amount: Double): String = FormatUtils.formatCurrencyShort(amount)
 
 @Composable
 fun FitlySearchBar(
@@ -303,32 +296,35 @@ fun WardrobeScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     IconButton(
                         onClick = { viewModel.setViewMode(WardrobeViewMode.GRID_2) },
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(38.dp)
                     ) {
                         Icon(
                             Icons.Default.GridView,
                             contentDescription = "2 Columns",
-                            tint = if (viewMode == WardrobeViewMode.GRID_2) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            tint = if (viewMode == WardrobeViewMode.GRID_2) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                     IconButton(
                         onClick = { viewModel.setViewMode(WardrobeViewMode.GRID_3) },
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(38.dp)
                     ) {
                         Icon(
                             Icons.Default.ViewModule,
                             contentDescription = "3 Columns",
-                            tint = if (viewMode == WardrobeViewMode.GRID_3) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            tint = if (viewMode == WardrobeViewMode.GRID_3) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                     IconButton(
                         onClick = { viewModel.setViewMode(WardrobeViewMode.LIST) },
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(38.dp)
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.ViewList,
                             contentDescription = "List View",
-                            tint = if (viewMode == WardrobeViewMode.LIST) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            tint = if (viewMode == WardrobeViewMode.LIST) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
@@ -360,10 +356,10 @@ fun WardrobeScreen(
                 when (viewMode) {
                     WardrobeViewMode.GRID_2 -> {
                         LazyVerticalGrid(
-                            columns = GridCells.Fixed(2),
+                            columns = GridCells.Adaptive(minSize = 156.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp),
-                            contentPadding = PaddingValues(bottom = 88.dp)
+                            contentPadding = PaddingValues(bottom = 96.dp)
                         ) {
                             items(items, key = { it.id }) { item ->
                                 WardrobeItemCard(
@@ -379,10 +375,10 @@ fun WardrobeScreen(
                     }
                     WardrobeViewMode.GRID_3 -> {
                         LazyVerticalGrid(
-                            columns = GridCells.Fixed(3),
+                            columns = GridCells.Adaptive(minSize = 104.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
-                            contentPadding = PaddingValues(bottom = 88.dp)
+                            contentPadding = PaddingValues(bottom = 96.dp)
                         ) {
                             items(items, key = { it.id }) { item ->
                                 WardrobeItemCardCompact(
@@ -395,7 +391,7 @@ fun WardrobeScreen(
                     WardrobeViewMode.LIST -> {
                         LazyColumn(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
-                            contentPadding = PaddingValues(bottom = 88.dp)
+                            contentPadding = PaddingValues(bottom = 96.dp)
                         ) {
                             items(items, key = { it.id }) { item ->
                                 WardrobeItemRow(
@@ -633,9 +629,9 @@ fun WardrobeItemCard(
                         .padding(6.dp),
                     shape = RoundedCornerShape(8.dp),
                     color = when (item.status) {
-                        "dirty" -> Color(0xFFDC2626).copy(alpha = 0.9f)
-                        "cleaning" -> Color(0xFF2563EB).copy(alpha = 0.9f)
-                        else -> Color(0xFF059669).copy(alpha = 0.9f)
+                        "dirty" -> MaterialTheme.colorScheme.error.copy(alpha = 0.9f)
+                        "cleaning" -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.9f)
+                        else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.9f)
                     }
                 ) {
                     Text(
@@ -749,12 +745,12 @@ fun WardrobeItemCard(
 
                 FilledTonalIconButton(
                     onClick = onLogWear,
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
                         Icons.Default.Check,
-                        contentDescription = "Log Wear",
-                        modifier = Modifier.size(16.dp)
+                        contentDescription = "Log wear for ${item.name}",
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
@@ -812,9 +808,9 @@ fun WardrobeItemCardCompact(
 
                 // Status indicator dot
                 val statusColor = when (item.status) {
-                    "dirty" -> Color(0xFFDC2626)
-                    "cleaning" -> Color(0xFF2563EB)
-                    else -> Color(0xFF059669)
+                    "dirty" -> MaterialTheme.colorScheme.error
+                    "cleaning" -> MaterialTheme.colorScheme.tertiary
+                    else -> MaterialTheme.colorScheme.primary
                 }
                 Box(
                     modifier = Modifier
@@ -951,11 +947,11 @@ fun WardrobeItemRow(
 
             FilledTonalIconButton(
                 onClick = onLogWear,
-                modifier = Modifier.size(36.dp)
+                modifier = Modifier.size(38.dp)
             ) {
                 Icon(
                     Icons.Default.Check,
-                    contentDescription = "Log Wear",
+                    contentDescription = "Log wear for ${item.name}",
                     modifier = Modifier.size(18.dp)
                 )
             }

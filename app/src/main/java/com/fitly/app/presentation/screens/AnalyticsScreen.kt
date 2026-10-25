@@ -17,10 +17,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.fitly.app.data.local.entity.ClothingItemEntity
 import com.fitly.app.data.util.ImageStorageHelper
 import com.fitly.app.presentation.WardrobeViewModel
+import com.fitly.app.presentation.util.FormatUtils
 import org.json.JSONArray
 import java.text.NumberFormat
 import java.util.*
@@ -33,38 +35,40 @@ fun AnalyticsScreen(
     val context = LocalContext.current
     val items by viewModel.allItems.collectAsState()
 
-    // Calculated metrics
-    val totalItems = items.size
-    val totalValue = remember(items) {
-        items.mapNotNull { it.price }.sum()
+    // Calculated metrics (only on active wardrobe items)
+    val activeItems = remember(items) { items.filter { it.status != "retired" } }
+    val retiredItems = remember(items) { items.filter { it.status == "retired" } }
+
+    val totalItems = activeItems.size
+    val totalValue = remember(activeItems) {
+        activeItems.mapNotNull { it.price }.sum()
     }
-    val avgCpw = remember(items) {
-        val priced = items.filter { (it.price ?: 0.0) > 0 }
+    val avgCpw = remember(activeItems) {
+        val priced = activeItems.filter { (it.price ?: 0.0) > 0 }
         if (priced.isNotEmpty()) {
             priced.sumOf { (it.price ?: 0.0) / it.wearCount.coerceAtLeast(1) } / priced.size
         } else 0.0
     }
 
     // Spark Joy groups
-    val joyItems = remember(items) { items.filter { it.sparkJoy == "joy" } }
-    val essentialItems = remember(items) { items.filter { it.sparkJoy == "essential" || it.sparkJoy == null } }
-    val releaseItems = remember(items) { items.filter { it.sparkJoy == "no-joy" } }
+    val joyItems = remember(activeItems) { activeItems.filter { it.sparkJoy == "joy" } }
+    val essentialItems = remember(activeItems) { activeItems.filter { it.sparkJoy == "essential" || it.sparkJoy == null } }
+    val releaseItems = remember(activeItems) { activeItems.filter { it.sparkJoy == "no-joy" } }
 
     // Best value (lowest CPW)
-    val bestValueItems = remember(items) {
-        items.filter { (it.price ?: 0.0) > 0 && it.wearCount > 0 }
+    val bestValueItems = remember(activeItems) {
+        activeItems.filter { (it.price ?: 0.0) > 0 && it.wearCount > 0 }
             .sortedBy { (it.price ?: 0.0) / it.wearCount }
             .take(5)
     }
 
     // Dust collectors (0 wears or last worn > 60 days)
     val sixtyDaysAgo = remember { System.currentTimeMillis() - 60L * 24 * 60 * 60 * 1000 }
-    val dustCollectors = remember(items) {
-        items.filter { it.wearCount == 0 || (it.lastWornAt ?: 0L) < sixtyDaysAgo }
+    val dustCollectors = remember(activeItems, sixtyDaysAgo) {
+        activeItems.filter { it.wearCount == 0 || (it.lastWornAt ?: 0L) < sixtyDaysAgo }
     }
 
     val utilizationRate = if (totalItems > 0) ((totalItems - dustCollectors.size) * 100) / totalItems else 0
-    val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID")) }
 
     LazyColumn(
         modifier = Modifier
@@ -141,7 +145,11 @@ fun AnalyticsScreen(
                         Column(modifier = Modifier.padding(14.dp)) {
                             Text("ACTIVE ROTATION", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text("$utilizationRate%", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = if (utilizationRate >= 70) Color(0xFF10B981) else MaterialTheme.colorScheme.primary)
+                            Text("$utilizationRate%", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = if (utilizationRate >= 70) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary)
+                            if (utilizationRate == 0) {
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text("Log wears to kick off rotation", style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), color = MaterialTheme.colorScheme.outline)
+                            }
                         }
                     }
                 }
@@ -177,7 +185,7 @@ fun AnalyticsScreen(
                                     modifier = Modifier
                                         .weight(joyItems.size.toFloat())
                                         .fillMaxHeight()
-                                        .background(Color(0xFFEC4899))
+                                        .background(MaterialTheme.colorScheme.tertiary)
                                 )
                             }
                             if (essentialItems.isNotEmpty()) {
@@ -193,7 +201,7 @@ fun AnalyticsScreen(
                                     modifier = Modifier
                                         .weight(releaseItems.size.toFloat())
                                         .fillMaxHeight()
-                                        .background(Color(0xFFCA8A04))
+                                        .background(MaterialTheme.colorScheme.outline)
                                 )
                             }
                         }
@@ -206,7 +214,7 @@ fun AnalyticsScreen(
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("💖 Sparks Joy", style = MaterialTheme.typography.labelMedium)
-                            Text("${joyItems.size}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color(0xFFEC4899))
+                            Text("${joyItems.size}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.tertiary)
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("🧺 Essentials", style = MaterialTheme.typography.labelMedium)
@@ -214,7 +222,7 @@ fun AnalyticsScreen(
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("🍂 Release", style = MaterialTheme.typography.labelMedium)
-                            Text("${releaseItems.size}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color(0xFFCA8A04))
+                            Text("${releaseItems.size}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.outline)
                         }
                     }
                 }
@@ -372,6 +380,47 @@ fun AnalyticsScreen(
                             shape = RoundedCornerShape(10.dp)
                         ) {
                             Text("Inspect", style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
+            }
+        }
+
+        // Retired / Donated Garments (KonMari let go)
+        if (retiredItems.isNotEmpty()) {
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "👋 Retired / Donated (${retiredItems.size} pieces)",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            items(retiredItems, key = { it.id }) { item ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onItemClick(item) },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(item.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                            val reasonText = item.retirementReason?.replaceFirstChar { it.uppercase() } ?: "Retired"
+                            Text("$reasonText • Worn ${item.wearCount}x", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        if (item.price != null && item.price > 0) {
+                            Text(
+                                FormatUtils.formatCurrency(item.price),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.outline
+                            )
                         }
                     }
                 }

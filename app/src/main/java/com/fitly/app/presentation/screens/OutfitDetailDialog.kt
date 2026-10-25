@@ -226,9 +226,9 @@ fun OutfitDetailDialog(
                                             .padding(6.dp),
                                         shape = RoundedCornerShape(8.dp),
                                         color = when (item.status) {
-                                            "ready" -> Color(0xFF10B981)
-                                            "dirty" -> Color(0xFFEF4444)
-                                            else -> Color(0xFF3B82F6)
+                                            "ready" -> MaterialTheme.colorScheme.primary
+                                            "dirty" -> MaterialTheme.colorScheme.error
+                                            else -> MaterialTheme.colorScheme.tertiary
                                         }
                                     ) {
                                         Text(

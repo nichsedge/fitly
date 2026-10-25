@@ -129,8 +129,8 @@ fun LaundryScreen(
                         Text("Cleaning", fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal)
                         if (cleaningItems.isNotEmpty()) {
                             Badge(
-                                containerColor = Color(0xFF2563EB),
-                                contentColor = Color.White
+                                containerColor = MaterialTheme.colorScheme.tertiary,
+                                contentColor = MaterialTheme.colorScheme.onTertiary
                             ) {
                                 Text("${cleaningItems.size}")
                             }
@@ -148,8 +148,8 @@ fun LaundryScreen(
                     ) {
                         Text("Clean", fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Normal)
                         Badge(
-                            containerColor = Color(0xFF059669),
-                            contentColor = Color.White
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
                         ) {
                             Text("${readyItems.size}")
                         }

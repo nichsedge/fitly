@@ -194,13 +194,13 @@ fun TripCard(
                 )
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = if (isAllPacked) Color(0xFF10B981).copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface
+                    color = if (isAllPacked) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
                 ) {
                     Text(
                         text = if (isAllPacked) "Ready! (100%)" else "$packedCount/$totalItems (${(progress * 100).toInt()}%)",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = if (isAllPacked) Color(0xFF10B981) else MaterialTheme.colorScheme.primary,
+                        color = if (isAllPacked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
@@ -214,7 +214,7 @@ fun TripCard(
                     .fillMaxWidth()
                     .height(8.dp)
                     .clip(RoundedCornerShape(4.dp)),
-                color = if (isAllPacked) Color(0xFF10B981) else MaterialTheme.colorScheme.primary,
+                color = MaterialTheme.colorScheme.primary,
                 trackColor = MaterialTheme.colorScheme.surface
             )
         }

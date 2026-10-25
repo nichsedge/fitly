@@ -44,6 +44,7 @@ import coil3.compose.AsyncImage
 import com.fitly.app.data.local.entity.ClothingItemEntity
 import com.fitly.app.data.util.ImageStorageHelper
 import com.fitly.app.presentation.WardrobeViewModel
+import com.fitly.app.presentation.util.FormatUtils
 import org.json.JSONArray
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
@@ -150,6 +151,7 @@ fun ItemDetailDialog(
                 ) {
                     IconButton(
                         onClick = onDismiss,
+                        modifier = Modifier.size(44.dp),
                         colors = IconButtonDefaults.filledTonalIconButtonColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant
                         )
@@ -170,6 +172,7 @@ fun ItemDetailDialog(
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             isEditing = !isEditing
                         },
+                        modifier = Modifier.size(44.dp),
                         colors = IconButtonDefaults.filledTonalIconButtonColors(
                             containerColor = if (isEditing) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
                         )
@@ -297,9 +300,9 @@ fun ItemDetailDialog(
                         Surface(
                             shape = RoundedCornerShape(20.dp),
                             color = when (item.status) {
-                                "ready" -> Color(0xFF10B981).copy(alpha = 0.9f)
-                                "dirty" -> Color(0xFFEF4444).copy(alpha = 0.9f)
-                                else -> Color(0xFF3B82F6).copy(alpha = 0.9f)
+                                "ready" -> MaterialTheme.colorScheme.primary.copy(alpha = 0.9f)
+                                "dirty" -> MaterialTheme.colorScheme.error.copy(alpha = 0.9f)
+                                else -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.9f)
                             },
                             modifier = Modifier.clickable {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -636,7 +639,7 @@ fun ItemDetailDialog(
                                     Column(modifier = Modifier.padding(14.dp)) {
                                         Text("PRICE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                         val priceFormatted = item.price?.let {
-                                            NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID")).format(it)
+                                            FormatUtils.formatCurrency(it)
                                         } ?: "—"
                                         Text(priceFormatted, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1)
                                     }
