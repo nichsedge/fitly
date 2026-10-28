@@ -21,22 +21,24 @@ Fitly is a specialized domain recorder in the workstation's Personal Data Archit
 
 ## 🛠️ Stack & Modules
 
-Fitly is a standalone native Android application located directly at repository root:
+Fitly operates as a dual-interface architecture sharing a single SQLite SSOT:
 
-### 📱 Native Android App (`./`)
+### ⚡ Workstation Style Agent & CLI (`scripts/fitly_agent.py` / `~/.local/bin/fitly`)
+- **Stack**: Python 3.12+ (zero third-party dependencies, standard library only), SQLite WAL, AWS SigV4.
+- **Role**: Fashion education, intelligent styling, wardrobe gap audits, daily outfit recommendations linked to iERP timeline context, and direct export to `digital-graveyard`.
+- **Commands**:
+  ```bash
+  fitly status                      # Valuation, wear counts, CPW, and dust collectors
+  fitly recommend [--context ...]   # Daily outfit suggestions tailored to iERP events
+  fitly wear "<item_or_outfit>"     # Quick terminal wear logging
+  fitly audit                       # Capsule gap & palette analysis
+  fitly export-style                # Export Style Manifesto to digital-graveyard
+  fitly sync [pull|push]            # Cloudflare R2 AWS SigV4 bidirectional sync
+  ```
+
+### 📱 Native Android Companion App (`./app/`)
 - **Stack**: Kotlin 2.x, Jetpack Compose Material 3, Room SQLite (`fitly_db` v2), Coil 3.6, Coroutines.
-- **Features**:
-  - **Wardrobe**: Filter by category (tops, bottoms, shoes, etc.) and storage location (Kos vs. Rumah), live search, real photo grid with color swatches, wear count, and status badges.
-  - **Item Detail & Edit**: View full specs, photo capture/gallery replacement, Cost-Per-Wear calculation (`price / wearCount`), spark joy status, care info, status toggle (ready/dirty/cleaning), and retirement workflow.
-  - **Outfit Builder & Management**: Compose outfits with visual category piece picker and location filter; live search, custom sorting (Recently Created, Oldest, Name A-Z, Most Worn, Recently Worn, Most Items); "Wear Outfit" logs wear for the outfit and all composed items.
-  - **Laundry Tracker**: Separate tabs for Dirty, Cleaning, and Clean with one-tap "Mark Washed" and "Wash All" batch actions.
-  - **Calendar & History**: Monthly interactive calendar marking active wear and wash days, daily breakdown, and manual wear logging.
-  - **Trips & Packing**: Trip itinerary management with packing checklists, checkboxes, and real-time progress bars.
-  - **Analytics & Minimalism**: KonMari Spark Joy audit, Cost-Per-Wear leaderboard, and unworn dust collectors list (>60 days inactive).
-  - **Theming & Motion**: Material You dynamic color scheme (Android 12+), edge-to-edge UI, persistent bottom bar, and stack-based tab navigation.
-- **Data Backup & Cloud Parity**:
-  - **In-App ZIP Archive**: Export and import complete `.zip` archives (database + `images/*`) directly via Android document pickers.
-  - **Cloudflare R2**: Configurable in-app R2 API credentials dialog with zero-dependency AWS SigV4 signed sync to `db/fitly_latest.sqlite` in bucket `ichsanul-dev`.
+- **Role**: On-the-go visual catalog browser, camera photo replacement, and in-app backup/restore.
 - **Commands**:
   ```bash
   make build     # Build debug APK (app/build/outputs/apk/debug/app-debug.apk)
