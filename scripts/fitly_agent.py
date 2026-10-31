@@ -221,26 +221,149 @@ def cmd_recommend(args):
     conn.close()
 
 
+def cmd_outfits(args):
+    """List all saved outfits with resolved item names and wear counts."""
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT id, name, note, itemIds, wearCount, lastWornAt FROM outfits ORDER BY wearCount DESC, name ASC")
+    outfits = c.fetchall()
+
+    print("═══════════════════════════════════════════════════════════════════")
+    print("👔 SAVED FITLY OUTFITS")
+    print("═══════════════════════════════════════════════════════════════════")
+    if not outfits:
+        print("No outfits saved yet. Create one with: fitly add-outfit --name <NAME> --items <ITEMS>")
+    else:
+        for o in outfits:
+            item_ids = json.loads(o["itemIds"])
+            if item_ids:
+                placeholders = ",".join(["?"] * len(item_ids))
+                c.execute(f"SELECT name, category, color FROM items WHERE id IN ({placeholders})", item_ids)
+                pieces = [f"{r['name']} ({r['category']})" for r in c.fetchall()]
+                items_str = ", ".join(pieces)
+            else:
+                items_str = "No items"
+            last_worn = ""
+            if o["lastWornAt"]:
+                dt = datetime.datetime.fromtimestamp(o["lastWornAt"] / 1000).strftime("%Y-%m-%d")
+                last_worn = f" | Last worn: {dt}"
+            print(f"  • [{o['name']}] ({o['wearCount']} wears{last_worn}):")
+            print(f"    {items_str}")
+    print("═══════════════════════════════════════════════════════════════════")
+    conn.close()
+
+
+def cmd_add_outfit(args):
+    """Create a new outfit by resolving item names to IDs."""
+    conn = get_db()
+    c = conn.cursor()
+    name = args.name.strip()
+    item_queries = [s.strip() for s in args.items.split(",") if s.strip()]
+
+    if not item_queries:
+        print("❌ Error: Must specify at least 1 item (e.g. --items 'Boxy T-Shirt, Chinos Brown')", file=sys.stderr)
+        conn.close()
+        sys.exit(1)
+
+    matched_ids = []
+    matched_names = []
+
+    for query in item_queries:
+        c.execute("""
+            SELECT id, name, category, brand FROM items
+            WHERE status != 'retired' AND (
+                lower(id) = ? 
+                OR lower(name) LIKE ? 
+                OR lower(name || ' ' || coalesce(brand, '')) LIKE ?
+                OR lower(coalesce(brand, '') || ' ' || name) LIKE ?
+            )
+            LIMIT 1
+        """, (query.lower(), f"%{query.lower()}%", f"%{query.lower()}%", f"%{query.lower()}%"))
+        row = c.fetchone()
+        if not row:
+            print(f"❌ Error: Could not find wardrobe item matching '{query}'", file=sys.stderr)
+            conn.close()
+            sys.exit(1)
+        matched_ids.append(row["id"])
+        matched_names.append(f"{row['name']} [{row['category']}]")
+
+    import uuid
+    outfit_id = str(uuid.uuid4())
+    now_ms = int(time.time() * 1000)
+    note = args.note or ""
+
+    c.execute("""
+        INSERT INTO outfits (id, name, note, itemIds, wearCount, lastWornAt, createdAt)
+        VALUES (?, ?, ?, ?, 0, NULL, ?)
+    """, (outfit_id, name, note, json.dumps(matched_ids), now_ms))
+
+    conn.commit()
+    conn.close()
+
+    print(f"✅ Created Outfit '{name}' with {len(matched_ids)} pieces:")
+    for piece in matched_names:
+        print(f"   • {piece}")
+    print(f"💡 You can now wear it anytime via: fitly wear '{name}'")
+
+
 def cmd_wear(args):
     conn = get_db()
     c = conn.cursor()
-    target = args.item.lower()
+    target = args.item.lower().strip()
+    now_ms = int(time.time() * 1000)
 
-    # Find matching item by id or partial name
+    # 1. First check if target matches an OUTFIT name or id
+    c.execute("""
+        SELECT id, name, itemIds, wearCount FROM outfits
+        WHERE lower(id) = ? OR lower(name) = ? OR lower(name) LIKE ?
+        LIMIT 1
+    """, (target, target, f"%{target}%"))
+    outfit = c.fetchone()
+
+    if outfit:
+        new_outfit_count = outfit["wearCount"] + 1
+        c.execute("UPDATE outfits SET wearCount = ?, lastWornAt = ? WHERE id = ?", (new_outfit_count, now_ms, outfit["id"]))
+
+        item_ids = json.loads(outfit["itemIds"])
+        print(f"✅ Logged wear for Outfit '{outfit['name']}' (now {new_outfit_count} total wears)")
+        print("   Updating constituent items:")
+
+        for iid in item_ids:
+            c.execute("SELECT id, name, category, wearCount, price FROM items WHERE id = ?", (iid,))
+            it = c.fetchone()
+            if it:
+                new_item_count = it["wearCount"] + 1
+                c.execute("UPDATE items SET wearCount = ?, lastWornAt = ? WHERE id = ?", (new_item_count, now_ms, iid))
+                try:
+                    c.execute("INSERT INTO wear_logs (id, itemId, wornAt, source) VALUES (?, ?, ?, 'cli_outfit')",
+                              (f"wear-{int(time.time())}-{iid[:8]}", iid, now_ms))
+                except Exception:
+                    pass
+                price = it["price"] or 0
+                cpw = format_idr(price / new_item_count) if price > 0 else "N/A"
+                print(f"   • {it['name']} [{it['category'].title()}]: {it['wearCount']} ➡️  {new_item_count} wears (CPW: {cpw}/wear)")
+
+        conn.commit()
+        conn.close()
+        return
+
+    # 2. Otherwise match an individual ITEM by id or partial name/brand
     c.execute("""
         SELECT id, name, category, wearCount, price FROM items
-        WHERE lower(id) = ? OR lower(name) LIKE ?
+        WHERE lower(id) = ? 
+           OR lower(name) LIKE ? 
+           OR lower(name || ' ' || coalesce(brand, '')) LIKE ?
+           OR lower(coalesce(brand, '') || ' ' || name) LIKE ?
         LIMIT 1
-    """, (target, f"%{target}%"))
+    """, (target, f"%{target}%", f"%{target}%", f"%{target}%"))
     item = c.fetchone()
 
     if not item:
-        print(f"❌ Item matching '{args.item}' not found in wardrobe.", file=sys.stderr)
+        print(f"❌ Outfit or item matching '{args.item}' not found in wardrobe.", file=sys.stderr)
         conn.close()
         sys.exit(1)
 
     new_count = item['wearCount'] + 1
-    now_ms = int(time.time() * 1000)
 
     c.execute("""
         UPDATE items
@@ -501,6 +624,12 @@ def main():
     subparsers = parser.add_subparsers(dest="command")
 
     subparsers.add_parser("status", help="Show wardrobe asset valuation and wear status")
+    subparsers.add_parser("outfits", help="List all saved outfits with composite items")
+
+    add_outfit_p = subparsers.add_parser("add-outfit", help="Create a new outfit from item names")
+    add_outfit_p.add_argument("--name", required=True, help="Outfit name (e.g. 'Clean Monochrome')")
+    add_outfit_p.add_argument("--items", required=True, help="Comma-separated item names (e.g. 'Misty, Chinos Grey, Jim Joker')")
+    add_outfit_p.add_argument("--note", default="", help="Optional styling note")
 
     rec_p = subparsers.add_parser("recommend", help="Get contextual outfit recommendation")
     rec_p.add_argument("--context", choices=["casual", "smart-casual", "athletic"], help="Target dress code")
@@ -521,6 +650,10 @@ def main():
 
     if args.command == "status":
         cmd_status(args)
+    elif args.command == "outfits":
+        cmd_outfits(args)
+    elif args.command == "add-outfit":
+        cmd_add_outfit(args)
     elif args.command == "recommend":
         cmd_recommend(args)
     elif args.command == "wear":

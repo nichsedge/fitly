@@ -14,13 +14,19 @@ Fitly features a native workstation intelligence CLI (`fitly` / `scripts/fitly_a
 # View wardrobe valuation, category breakdown, CPW, and dust collectors
 fitly status
 
+# List all saved outfits and wear counts
+fitly outfits
+
+# Create a new outfit combination directly from the terminal
+fitly add-outfit --name "Earthy Minimalist" --items "T-Shirt Manly, Chinos Brown, Jim Joker"
+
 # Get AI outfit recommendation tailored to today's iERP events & dress code
 fitly recommend
 fitly recommend --context smart-casual
 
-# Log wear for an item or outfit (updates wear count & CPW in real-time)
+# Log wear for an outfit (auto-increments outfit AND all constituent items) or single item
+fitly wear "Earthy Minimalist"
 fitly wear "Boxy T-Shirt"
-fitly wear "Chinos Brown"
 
 # Run capsule wardrobe gap analysis (identifies missing anchor pieces)
 fitly audit

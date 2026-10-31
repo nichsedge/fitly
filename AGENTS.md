@@ -29,8 +29,10 @@ Fitly operates as a dual-interface architecture sharing a single SQLite SSOT:
 - **Commands**:
   ```bash
   fitly status                      # Valuation, wear counts, CPW, and dust collectors
+  fitly outfits                     # List saved outfits with composite items
+  fitly add-outfit --name "..." --items "..."  # Assemble new outfit
   fitly recommend [--context ...]   # Daily outfit suggestions tailored to iERP events
-  fitly wear "<item_or_outfit>"     # Quick terminal wear logging
+  fitly wear "<item_or_outfit>"     # Quick terminal wear logging (cascades to items)
   fitly audit                       # Capsule gap & palette analysis
   fitly export-style                # Export Style Manifesto to digital-graveyard
   fitly sync [pull|push]            # Cloudflare R2 AWS SigV4 bidirectional sync
