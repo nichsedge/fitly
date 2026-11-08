@@ -27,7 +27,6 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fitly.app.data.util.AppConstants
-import com.fitly.app.data.util.R2Config
 import com.fitly.app.presentation.WardrobeViewModel
 import java.text.SimpleDateFormat
 import java.util.*
@@ -39,10 +38,9 @@ fun SettingsScreen(viewModel: WardrobeViewModel) {
     val syncStatus by viewModel.syncStatus.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
     val dynamicColor by viewModel.dynamicColorEnabled.collectAsState()
-    val r2Config by viewModel.r2Config.collectAsState()
     val lastBackupTime by viewModel.lastBackupTime.collectAsState()
     val lastBackupSizeBytes by viewModel.lastBackupSizeBytes.collectAsState()
-    var showR2ConfigDialog by remember { mutableStateOf(false) }
+    var showSyncGatewayConfigDialog by remember { mutableStateOf(false) }
     var showRestoreCloudConfirmDialog by remember { mutableStateOf(false) }
 
     val allItems by viewModel.allItems.collectAsState()
@@ -288,6 +286,8 @@ fun SettingsScreen(viewModel: WardrobeViewModel) {
                 Spacer(Modifier.height(8.dp))
 
                 // Storage Provider row with status and settings shortcut
+                val syncToken = viewModel.getSyncGatewayToken()
+                val isConfigured = syncToken.isNotBlank()
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -301,7 +301,7 @@ fun SettingsScreen(viewModel: WardrobeViewModel) {
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            "Cloudflare R2 (${r2Config?.bucketName ?: "ichsanul-dev"} • ${r2Config?.objectKey ?: AppConstants.DEFAULT_R2_OBJECT_KEY})",
+                            "Cloud Sync Gateway (Cloud Run & R2)",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold
@@ -313,20 +313,20 @@ fun SettingsScreen(viewModel: WardrobeViewModel) {
                     ) {
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = if (r2Config != null) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer
+                            color = if (isConfigured) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer
                         ) {
                             Text(
-                                text = if (r2Config != null) "✓ Configured" else "Keys Missing",
+                                text = if (isConfigured) "✓ Configured" else "Token Missing",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (r2Config != null) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer,
+                                color = if (isConfigured) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
-                        IconButton(onClick = { showR2ConfigDialog = true }) {
+                        IconButton(onClick = { showSyncGatewayConfigDialog = true }) {
                             Icon(
                                 Icons.Default.Settings,
-                                contentDescription = "Configure R2",
+                                contentDescription = "Configure Sync Gateway",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                                 modifier = Modifier.size(20.dp)
                             )
@@ -339,17 +339,14 @@ fun SettingsScreen(viewModel: WardrobeViewModel) {
         Spacer(modifier = Modifier.height(30.dp))
     }
 
-    if (showR2ConfigDialog) {
-        R2ConfigDialog(
-            currentConfig = r2Config,
-            onDismiss = { showR2ConfigDialog = false },
-            onSave = { accId, keyId, secKey, bucket, objKey ->
-                viewModel.saveR2Config(accId, keyId, secKey, bucket, objKey)
-                showR2ConfigDialog = false
-            },
-            onClear = {
-                viewModel.clearR2Config()
-                showR2ConfigDialog = false
+    if (showSyncGatewayConfigDialog) {
+        SyncGatewayConfigDialog(
+            currentUrl = viewModel.getSyncGatewayUrl(),
+            currentToken = viewModel.getSyncGatewayToken(),
+            onDismiss = { showSyncGatewayConfigDialog = false },
+            onSave = { url, token ->
+                viewModel.saveSyncGatewayConfig(url, token)
+                showSyncGatewayConfigDialog = false
             }
         )
     }
@@ -360,7 +357,7 @@ fun SettingsScreen(viewModel: WardrobeViewModel) {
             title = { Text("Restore from Cloud Backup") },
             text = {
                 Text(
-                    "This will download the latest verified backup from Cloudflare R2 (${r2Config?.objectKey ?: AppConstants.DEFAULT_R2_OBJECT_KEY}) and replace your local wardrobe database. The app will restart automatically after restore.\n\nAre you sure you want to proceed?"
+                    "This will download the latest verified backup from Cloud Sync Gateway (R2 db/fitly_latest.sqlite) and replace your local wardrobe database. The app will restart automatically after restore.\n\nAre you sure you want to proceed?"
                 )
             },
             confirmButton = {
@@ -386,89 +383,49 @@ fun SettingsScreen(viewModel: WardrobeViewModel) {
 }
 
 @Composable
-private fun R2ConfigDialog(
-    currentConfig: R2Config?,
+private fun SyncGatewayConfigDialog(
+    currentUrl: String,
+    currentToken: String,
     onDismiss: () -> Unit,
-    onSave: (accountId: String, accessKeyId: String, secretAccessKey: String, bucketName: String, objectKey: String) -> Unit,
-    onClear: () -> Unit
+    onSave: (url: String, token: String) -> Unit
 ) {
-    var accountId by remember { mutableStateOf(currentConfig?.accountId ?: "") }
-    var bucketName by remember { mutableStateOf(currentConfig?.bucketName ?: "ichsanul-dev") }
-    var accessKeyId by remember { mutableStateOf(currentConfig?.accessKeyId ?: "") }
-    var secretAccessKey by remember { mutableStateOf(currentConfig?.secretAccessKey ?: "") }
-    var objectKey by remember { mutableStateOf(currentConfig?.objectKey ?: AppConstants.DEFAULT_R2_OBJECT_KEY) }
-    var showSecret by remember { mutableStateOf(false) }
+    var url by remember { mutableStateOf(if (currentUrl.isBlank()) AppConstants.DEFAULT_GATEWAY_URL else currentUrl) }
+    var token by remember { mutableStateOf(currentToken) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Cloud, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Icon(Icons.Default.CloudSync, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Cloudflare R2 Credentials", fontWeight = FontWeight.Bold)
+                Text("Cloud Sync Gateway Configuration", fontWeight = FontWeight.Bold)
             }
         },
         text = {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
+                modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "Configure your private Cloudflare R2 storage credentials (AWS SigV4 zero-dependency sync).",
+                    text = "Gunakan endpoint Cloud Run pribadi untuk sinkronisasi R2 Backup tanpa perlu master S3 credentials.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 OutlinedTextField(
-                    value = accountId,
-                    onValueChange = { accountId = it },
-                    label = { Text("Account ID") },
-                    placeholder = { Text("e.g. 9a8b7c...") },
+                    value = url,
+                    onValueChange = { url = it },
+                    label = { Text("Gateway URL") },
+                    placeholder = { Text(AppConstants.DEFAULT_GATEWAY_URL) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 OutlinedTextField(
-                    value = bucketName,
-                    onValueChange = { bucketName = it },
-                    label = { Text("Bucket Name") },
-                    placeholder = { Text("ichsanul-dev") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                OutlinedTextField(
-                    value = accessKeyId,
-                    onValueChange = { accessKeyId = it },
-                    label = { Text("Access Key ID") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                OutlinedTextField(
-                    value = secretAccessKey,
-                    onValueChange = { secretAccessKey = it },
-                    label = { Text("Secret Access Key") },
-                    singleLine = true,
-                    visualTransformation = if (showSecret) VisualTransformation.None else PasswordVisualTransformation(),
-                    trailingIcon = {
-                        IconButton(onClick = { showSecret = !showSecret }) {
-                            Icon(
-                                if (showSecret) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = if (showSecret) "Hide secret" else "Show secret"
-                            )
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                OutlinedTextField(
-                    value = objectKey,
-                    onValueChange = { objectKey = it },
-                    label = { Text("Object Key / Path") },
-                    placeholder = { Text("db/fitly_latest.sqlite") },
+                    value = token,
+                    onValueChange = { token = it },
+                    label = { Text("Sync Auth Token") },
+                    placeholder = { Text("e.g. sf_sync_...") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -476,27 +433,14 @@ private fun R2ConfigDialog(
         },
         confirmButton = {
             Button(
-                onClick = {
-                    onSave(accountId, accessKeyId, secretAccessKey, bucketName, objectKey)
-                },
-                enabled = accountId.isNotBlank() && accessKeyId.isNotBlank() && secretAccessKey.isNotBlank() && bucketName.isNotBlank()
+                onClick = { onSave(url.trim(), token.trim()) }
             ) {
-                Text("Save Credentials")
+                Text("Save")
             }
         },
         dismissButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (currentConfig != null) {
-                    TextButton(
-                        onClick = onClear,
-                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                    ) {
-                        Text("Clear Keys")
-                    }
-                }
-                TextButton(onClick = onDismiss) {
-                    Text("Cancel")
-                }
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
             }
         }
     )

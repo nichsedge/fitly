@@ -11,13 +11,14 @@ object AppConstants {
     const val PREF_KEY_OUTFITS_SORT = "outfits_sort"
     const val PREF_KEY_WARDROBE_SORT = "wardrobe_sort"
     const val PREF_KEY_VIEW_MODE = "wardrobe_view_mode"
-    const val PREF_KEY_R2_ACCOUNT_ID = "r2_account_id"
-    const val PREF_KEY_R2_ACCESS_KEY_ID = "r2_access_key_id"
-    const val PREF_KEY_R2_SECRET_ACCESS_KEY = "r2_secret_access_key"
-    const val PREF_KEY_R2_BUCKET_NAME = "r2_bucket_name"
-    const val PREF_KEY_R2_OBJECT_KEY = "r2_object_key"
+    const val PREF_KEY_SYNC_GATEWAY_URL = "sync_gateway_url"
+    const val PREF_KEY_SYNC_AUTH_TOKEN = "sync_auth_token"
     const val PREF_KEY_LAST_BACKUP_TIME = "last_backup_time"
     const val PREF_KEY_LAST_BACKUP_SIZE = "last_backup_size"
+
+    // Gateway Defaults
+    const val DEFAULT_GATEWAY_URL = "https://gmail-expenses-worker-886416340889.us-central1.run.app"
+    const val SYNC_CREDENTIALS_ASSET_FILE = "sync_cred.json"
 
     // Asset & Backup Files
     const val SEED_BACKUP_ASSET_FILE = "seed_wardrobe.json"

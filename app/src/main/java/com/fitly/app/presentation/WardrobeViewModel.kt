@@ -13,7 +13,6 @@ import com.fitly.app.data.util.AppConstants
 import com.fitly.app.data.util.CloudStorageSyncer
 import com.fitly.app.data.util.ImageStorageHelper
 import com.fitly.app.data.util.JsonBackupImporter
-import com.fitly.app.data.util.R2Config
 import com.fitly.app.data.util.ZipBackupManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -625,9 +624,6 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
     }
 
     // --- Backup & Cloud ---
-    private val _r2Config = MutableStateFlow<R2Config?>(CloudStorageSyncer.loadR2Config(application))
-    val r2Config: StateFlow<R2Config?> = _r2Config.asStateFlow()
-
     private val _lastBackupTime = MutableStateFlow(CloudStorageSyncer.getLastBackupTime(application))
     val lastBackupTime: StateFlow<Long> = _lastBackupTime.asStateFlow()
 
@@ -641,36 +637,25 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
         Runtime.getRuntime().exit(0)
     }
 
-    fun saveR2Config(accountId: String, accessKeyId: String, secretAccessKey: String, bucketName: String, objectKey: String = AppConstants.DEFAULT_R2_OBJECT_KEY) {
-        val config = R2Config(
-            accountId = accountId.trim(),
-            accessKeyId = accessKeyId.trim(),
-            secretAccessKey = secretAccessKey.trim(),
-            bucketName = bucketName.trim(),
-            objectKey = if (objectKey.isBlank()) AppConstants.DEFAULT_R2_OBJECT_KEY else objectKey.trim()
-        )
-        CloudStorageSyncer.saveR2Config(getApplication(), config)
-        _r2Config.value = config
-        notify("Cloudflare R2 settings saved")
-    }
+    fun getSyncGatewayUrl(): String = CloudStorageSyncer.getGatewayUrl(getApplication())
+    fun getSyncGatewayToken(): String = CloudStorageSyncer.getSyncAuthToken(getApplication())
 
-    fun clearR2Config() {
-        CloudStorageSyncer.clearR2Config(getApplication())
-        _r2Config.value = null
-        notify("Cloudflare R2 settings cleared")
+    fun saveSyncGatewayConfig(url: String, token: String) {
+        CloudStorageSyncer.saveGatewayConfig(getApplication(), url, token)
+        notify("Sync Gateway configuration saved")
     }
 
     fun backupToR2() {
         viewModelScope.launch {
-            val config = CloudStorageSyncer.loadR2Config(getApplication())
-            if (config == null) {
-                val msg = "⚠️ Cloudflare R2 credentials not configured. Please tap 'Configure' first."
+            val token = CloudStorageSyncer.getSyncAuthToken(getApplication())
+            if (token.isBlank()) {
+                val msg = "⚠️ Sync Auth Token not configured. Please tap 'Configure' first."
                 _syncStatus.value = msg
                 notify(msg)
                 return@launch
             }
             _isSyncing.value = true
-            _syncStatus.value = "Backing up to Cloudflare R2 (${config.bucketName})..."
+            _syncStatus.value = "Backing up to Cloud Sync Gateway..."
             try {
                 val context = getApplication<Application>()
                 val dbFile = context.getDatabasePath(AppConstants.DATABASE_NAME)
@@ -697,15 +682,15 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
 
     fun restoreFromR2(context: Context) {
         viewModelScope.launch {
-            val config = CloudStorageSyncer.loadR2Config(getApplication())
-            if (config == null) {
-                val msg = "⚠️ Cloudflare R2 credentials not configured. Please tap 'Configure' first."
+            val token = CloudStorageSyncer.getSyncAuthToken(getApplication())
+            if (token.isBlank()) {
+                val msg = "⚠️ Sync Auth Token not configured. Please tap 'Configure' first."
                 _syncStatus.value = msg
                 notify(msg)
                 return@launch
             }
             _isSyncing.value = true
-            _syncStatus.value = "Restoring from Cloudflare R2 (${config.bucketName})..."
+            _syncStatus.value = "Restoring from Cloud Sync Gateway..."
             try {
                 val destFile = File(context.cacheDir, "fitly_restore.sqlite")
                 val res = CloudStorageSyncer.downloadDatabaseBackup(context, destFile)
