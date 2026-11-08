@@ -2,6 +2,7 @@ package com.fitly.app.presentation
 
 import android.app.Application
 import android.content.Context
+import android.content.Intent
 import androidx.core.content.edit
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
@@ -627,6 +628,19 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
     private val _r2Config = MutableStateFlow<R2Config?>(CloudStorageSyncer.loadR2Config(application))
     val r2Config: StateFlow<R2Config?> = _r2Config.asStateFlow()
 
+    private val _lastBackupTime = MutableStateFlow(CloudStorageSyncer.getLastBackupTime(application))
+    val lastBackupTime: StateFlow<Long> = _lastBackupTime.asStateFlow()
+
+    private val _lastBackupSizeBytes = MutableStateFlow(CloudStorageSyncer.getLastBackupSize(application))
+    val lastBackupSizeBytes: StateFlow<Long> = _lastBackupSizeBytes.asStateFlow()
+
+    fun restartApp(context: Context) {
+        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+        intent?.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        context.startActivity(intent)
+        Runtime.getRuntime().exit(0)
+    }
+
     fun saveR2Config(accountId: String, accessKeyId: String, secretAccessKey: String, bucketName: String, objectKey: String = AppConstants.DEFAULT_R2_OBJECT_KEY) {
         val config = R2Config(
             accountId = accountId.trim(),
@@ -658,14 +672,19 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
             _isSyncing.value = true
             _syncStatus.value = "Backing up to Cloudflare R2 (${config.bucketName})..."
             try {
-                val dbFile = getApplication<Application>().getDatabasePath("fitly_db")
+                val context = getApplication<Application>()
+                val dbFile = context.getDatabasePath(AppConstants.DATABASE_NAME)
                 if (!dbFile.exists()) {
                     _syncStatus.value = "Database file does not exist yet"
                     return@launch
                 }
-                val res = CloudStorageSyncer.uploadDatabaseBackup(getApplication(), dbFile)
+                val res = CloudStorageSyncer.uploadDatabaseBackup(context, dbFile)
                 val msg = res.fold(
-                    onSuccess = { "✅ $it" },
+                    onSuccess = {
+                        _lastBackupTime.value = CloudStorageSyncer.getLastBackupTime(context)
+                        _lastBackupSizeBytes.value = CloudStorageSyncer.getLastBackupSize(context)
+                        "✅ $it"
+                    },
                     onFailure = { "❌ Backup error: ${it.localizedMessage}" }
                 )
                 _syncStatus.value = msg
@@ -676,7 +695,7 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun restoreFromR2() {
+    fun restoreFromR2(context: Context) {
         viewModelScope.launch {
             val config = CloudStorageSyncer.loadR2Config(getApplication())
             if (config == null) {
@@ -688,7 +707,6 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
             _isSyncing.value = true
             _syncStatus.value = "Restoring from Cloudflare R2 (${config.bucketName})..."
             try {
-                val context = getApplication<Application>()
                 val destFile = File(context.cacheDir, "fitly_restore.sqlite")
                 val res = CloudStorageSyncer.downloadDatabaseBackup(context, destFile)
                 if (res.isFailure) {
@@ -699,16 +717,19 @@ class WardrobeViewModel(application: Application) : AndroidViewModel(application
                 }
                 try {
                     FitlyDatabase.closeAndReset()
-                    val dbFile = context.getDatabasePath("fitly_db")
+                    val dbFile = context.getDatabasePath(AppConstants.DATABASE_NAME)
                     val walFile = File(dbFile.path + "-wal")
                     val shmFile = File(dbFile.path + "-shm")
                     if (walFile.exists()) walFile.delete()
                     if (shmFile.exists()) shmFile.delete()
                     destFile.copyTo(dbFile, overwrite = true)
                     destFile.delete()
-                    val successMsg = "✅ Database restored from R2! Restart app to refresh."
+
+                    val successMsg = "✅ Database restored! Restarting app..."
                     _syncStatus.value = successMsg
                     notify(successMsg)
+                    kotlinx.coroutines.delay(1000)
+                    restartApp(context)
                 } catch (e: Exception) {
                     val swapErr = "❌ Database swap error: ${e.localizedMessage}"
                     _syncStatus.value = swapErr

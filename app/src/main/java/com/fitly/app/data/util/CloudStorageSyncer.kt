@@ -81,57 +81,97 @@ object CloudStorageSyncer {
         }
     }
 
+    fun getLastBackupTime(context: Context): Long {
+        val prefs = context.getSharedPreferences(AppConstants.PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getLong(AppConstants.PREF_KEY_LAST_BACKUP_TIME, 0L)
+    }
+
+    fun getLastBackupSize(context: Context): Long {
+        val prefs = context.getSharedPreferences(AppConstants.PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getLong(AppConstants.PREF_KEY_LAST_BACKUP_SIZE, 0L)
+    }
+
+    private fun uploadFileToR2(
+        config: R2Config,
+        objectKey: String,
+        fileBytes: ByteArray,
+        contentType: String = "application/x-sqlite3"
+    ): Result<Unit> {
+        val payloadHash = sha256Hex(fileBytes)
+        val host = "${config.accountId}.r2.cloudflarestorage.com"
+        val canonicalUri = "/${config.bucketName}/$objectKey"
+        val endpointUrl = "https://$host$canonicalUri"
+
+        val (amzDate, dateStamp) = getIsoTimestamps()
+        val headers = sortedMapOf(
+            "content-type" to contentType,
+            "host" to host,
+            "x-amz-content-sha256" to payloadHash,
+            "x-amz-date" to amzDate
+        )
+
+        val authorization = buildSigV4AuthorizationHeader(
+            httpMethod = "PUT",
+            canonicalUri = canonicalUri,
+            headers = headers,
+            payloadHash = payloadHash,
+            accessKey = config.accessKeyId,
+            secretKey = config.secretAccessKey,
+            dateStamp = dateStamp,
+            amzDate = amzDate
+        )
+
+        val url = URL(endpointUrl)
+        val conn = (url.openConnection() as HttpURLConnection).apply {
+            requestMethod = "PUT"
+            doOutput = true
+            connectTimeout = 30000
+            readTimeout = 60000
+            setRequestProperty("Authorization", authorization)
+            setRequestProperty("Content-Type", contentType)
+            setRequestProperty("Host", host)
+            setRequestProperty("x-amz-date", amzDate)
+            setRequestProperty("x-amz-content-sha256", payloadHash)
+            setFixedLengthStreamingMode(fileBytes.size)
+        }
+        conn.outputStream.use { it.write(fileBytes) }
+
+        val responseCode = conn.responseCode
+        return if (responseCode in 200..299) {
+            Result.success(Unit)
+        } else {
+            val errorMsg = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+            Result.failure(Exception("R2 Upload to $objectKey failed ($responseCode): $errorMsg"))
+        }
+    }
+
     suspend fun uploadDatabaseBackup(context: Context, dbFile: File): Result<String> = withContext(Dispatchers.IO) {
         FitlyDatabase.checkpoint(context)
         val config = loadR2Config(context) ?: return@withContext Result.failure(Exception("R2 credentials not found"))
         try {
             val fileBytes = dbFile.readBytes()
-            val host = "${config.accountId}.r2.cloudflarestorage.com"
-            val canonicalUri = "/${config.bucketName}/${config.objectKey}"
-            val endpointUrl = "https://$host$canonicalUri"
 
-            val payloadHash = sha256Hex(fileBytes)
-            val (amzDate, dateStamp) = getIsoTimestamps()
-            val contentType = "application/x-sqlite3"
-
-            val headers = sortedMapOf(
-                "content-type" to contentType,
-                "host" to host,
-                "x-amz-content-sha256" to payloadHash,
-                "x-amz-date" to amzDate
-            )
-
-            val authorization = buildSigV4AuthorizationHeader(
-                httpMethod = "PUT",
-                canonicalUri = canonicalUri,
-                headers = headers,
-                payloadHash = payloadHash,
-                accessKey = config.accessKeyId,
-                secretKey = config.secretAccessKey,
-                dateStamp = dateStamp,
-                amzDate = amzDate
-            )
-
-            val url = URL(endpointUrl)
-            val conn = (url.openConnection() as HttpURLConnection).apply {
-                requestMethod = "PUT"
-                doOutput = true
-                setRequestProperty("Authorization", authorization)
-                setRequestProperty("Content-Type", contentType)
-                setRequestProperty("Host", host)
-                setRequestProperty("x-amz-date", amzDate)
-                setRequestProperty("x-amz-content-sha256", payloadHash)
-                setFixedLengthStreamingMode(fileBytes.size)
+            // 1. Upload to latest pointer
+            val latestResult = uploadFileToR2(config, config.objectKey, fileBytes)
+            if (latestResult.isFailure) {
+                return@withContext Result.failure(latestResult.exceptionOrNull() ?: Exception("R2 latest upload failed"))
             }
-            conn.outputStream.use { it.write(fileBytes) }
 
-            val responseCode = conn.responseCode
-            if (responseCode in 200..299) {
-                Result.success("R2 Backup Successful (${config.objectKey})")
-            } else {
-                val errorMsg = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
-                Result.failure(Exception("R2 Upload Failed ($responseCode): $errorMsg"))
+            // 2. Upload timestamped archive for versioned safety (similar to SansFinance)
+            val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).apply {
+                timeZone = TimeZone.getTimeZone("UTC")
+            }.format(Date())
+            val archiveKey = "db/archive/fitly_$timestamp.sqlite"
+            uploadFileToR2(config, archiveKey, fileBytes)
+
+            // Save metadata
+            val prefs = context.getSharedPreferences(AppConstants.PREFS_NAME, Context.MODE_PRIVATE)
+            prefs.edit {
+                putLong(AppConstants.PREF_KEY_LAST_BACKUP_TIME, System.currentTimeMillis())
+                putLong(AppConstants.PREF_KEY_LAST_BACKUP_SIZE, fileBytes.size.toLong())
             }
+
+            Result.success("R2 Backup Successful (${config.objectKey})")
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -179,6 +219,10 @@ object CloudStorageSyncer {
                         input.copyTo(output)
                     }
                 }
+                if (!isDatabaseValid(destFile)) {
+                    destFile.delete()
+                    return@withContext Result.failure(Exception("Downloaded database is corrupted or empty"))
+                }
                 Result.success("R2 Download Successful")
             } else {
                 val errorMsg = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
@@ -186,6 +230,19 @@ object CloudStorageSyncer {
             }
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    fun isDatabaseValid(file: File): Boolean {
+        if (!file.exists() || file.length() < 100L) return false
+        return try {
+            file.inputStream().use { stream ->
+                val header = ByteArray(16)
+                val bytesRead = stream.read(header)
+                bytesRead == 16 && String(header, StandardCharsets.UTF_8).startsWith("SQLite format 3")
+            }
+        } catch (_: Exception) {
+            false
         }
     }
 

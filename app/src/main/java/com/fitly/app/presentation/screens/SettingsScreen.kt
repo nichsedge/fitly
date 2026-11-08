@@ -40,29 +40,14 @@ fun SettingsScreen(viewModel: WardrobeViewModel) {
     val isSyncing by viewModel.isSyncing.collectAsState()
     val dynamicColor by viewModel.dynamicColorEnabled.collectAsState()
     val r2Config by viewModel.r2Config.collectAsState()
+    val lastBackupTime by viewModel.lastBackupTime.collectAsState()
+    val lastBackupSizeBytes by viewModel.lastBackupSizeBytes.collectAsState()
     var showR2ConfigDialog by remember { mutableStateOf(false) }
+    var showRestoreCloudConfirmDialog by remember { mutableStateOf(false) }
 
     val allItems by viewModel.allItems.collectAsState()
     val outfits by viewModel.outfits.collectAsState()
     val totalValuation = remember(allItems) { allItems.mapNotNull { it.price }.sum() }
-
-    // Export ZIP launcher (Create Document)
-    val exportZipLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument(AppConstants.MIME_TYPE_ZIP)
-    ) { uri: Uri? ->
-        if (uri != null) {
-            viewModel.exportToZip(uri)
-        }
-    }
-
-    // Import ZIP launcher (Open Document)
-    val importZipLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
-        if (uri != null) {
-            viewModel.importFromZip(uri)
-        }
-    }
 
     Column(
         modifier = Modifier
@@ -224,169 +209,128 @@ fun SettingsScreen(viewModel: WardrobeViewModel) {
             fontWeight = FontWeight.Bold
         )
 
-        // 1. In-App ZIP Archive Export & Restore Card
+        // Cloudflare R2 Cloud Backup Card (SansFinance Style)
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
         ) {
             Column(modifier = Modifier.padding(18.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.FolderZip, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = "Complete ZIP Archive (Data + Photos)",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "Export or restore your entire wardrobe (items, outfits, logs, and high-res photos) as a single portable .zip file.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Button(
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            val defaultFilename = "fitly-wardrobe-${SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())}.zip"
-                            exportZipLauncher.launch(defaultFilename)
-                        },
-                        modifier = Modifier.weight(1f).height(46.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        enabled = !isSyncing
-                    ) {
-                        Icon(Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Export ZIP")
+                    Icon(
+                        imageVector = Icons.Default.CloudUpload,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(26.dp)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Cloud Backup & Sync",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        val timeStr = if (lastBackupTime > 0L) {
+                            val sdf = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
+                            sdf.format(Date(lastBackupTime))
+                        } else "Never"
+                        val sizeStr = if (lastBackupSizeBytes > 0L) "${lastBackupSizeBytes / 1024} KB" else "0 KB"
+                        Text(
+                            text = "Last: $timeStr ($sizeStr)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
-
-                    OutlinedButton(
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            importZipLauncher.launch(arrayOf("application/zip", "application/x-zip-compressed", "*/*"))
-                        },
-                        modifier = Modifier.weight(1f).height(46.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        enabled = !isSyncing
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Import ZIP")
+                        OutlinedButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                showRestoreCloudConfirmDialog = true
+                            },
+                            enabled = !isSyncing,
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Text("Restore", style = MaterialTheme.typography.labelMedium)
+                        }
+                        Button(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                viewModel.backupToR2()
+                            },
+                            enabled = !isSyncing,
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            if (isSyncing) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.onPrimary
+                                )
+                            } else {
+                                Text("Back Up", style = MaterialTheme.typography.labelMedium)
+                            }
+                        }
                     }
                 }
-            }
-        }
 
-        // 2. Cloudflare R2 Card
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-        ) {
-            Column(modifier = Modifier.padding(18.dp)) {
+                Spacer(Modifier.height(14.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                Spacer(Modifier.height(8.dp))
+
+                // Storage Provider row with status and settings shortcut
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Cloud, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Cloudflare R2 Storage",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold
+                            "Cloud Storage Provider",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            "Cloudflare R2 (${r2Config?.bucketName ?: "ichsanul-dev"} • ${r2Config?.objectKey ?: AppConstants.DEFAULT_R2_OBJECT_KEY})",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
                         )
                     }
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (r2Config != null) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Text(
-                            text = if (r2Config != null) "✓ Configured" else "Keys Missing",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (r2Config != null) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = if (r2Config != null) {
-                        "Bucket: ${r2Config?.bucketName} • Object: ${r2Config?.objectKey}\nDirect zero-egress SQLite snapshot sync via AWS SigV4."
-                    } else {
-                        "Cloudflare R2 API credentials have not been configured yet. Set up your Account ID, Access Key, and Secret to enable cloud backups."
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // Configure / Edit Keys Button
-                OutlinedButton(
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        showR2ConfigDialog = true
-                    },
-                    modifier = Modifier.fillMaxWidth().height(42.dp),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(
-                        if (r2Config != null) Icons.Default.Edit else Icons.Default.Key,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(if (r2Config != null) "Edit R2 Settings & API Keys" else "Configure R2 Credentials")
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Button(
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            if (r2Config == null) {
-                                showR2ConfigDialog = true
-                            } else {
-                                viewModel.backupToR2()
-                            }
-                        },
-                        modifier = Modifier.weight(1f).height(46.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        enabled = !isSyncing
-                    ) {
-                        Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Backup R2")
-                    }
-                    OutlinedButton(
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            if (r2Config == null) {
-                                showR2ConfigDialog = true
-                            } else {
-                                viewModel.restoreFromR2()
-                            }
-                        },
-                        modifier = Modifier.weight(1f).height(46.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        enabled = !isSyncing
-                    ) {
-                        Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Restore R2")
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (r2Config != null) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer
+                        ) {
+                            Text(
+                                text = if (r2Config != null) "✓ Configured" else "Keys Missing",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (r2Config != null) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                        IconButton(onClick = { showR2ConfigDialog = true }) {
+                            Icon(
+                                Icons.Default.Settings,
+                                contentDescription = "Configure R2",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -406,6 +350,36 @@ fun SettingsScreen(viewModel: WardrobeViewModel) {
             onClear = {
                 viewModel.clearR2Config()
                 showR2ConfigDialog = false
+            }
+        )
+    }
+
+    if (showRestoreCloudConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showRestoreCloudConfirmDialog = false },
+            title = { Text("Restore from Cloud Backup") },
+            text = {
+                Text(
+                    "This will download the latest verified backup from Cloudflare R2 (${r2Config?.objectKey ?: AppConstants.DEFAULT_R2_OBJECT_KEY}) and replace your local wardrobe database. The app will restart automatically after restore.\n\nAre you sure you want to proceed?"
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showRestoreCloudConfirmDialog = false
+                        viewModel.restoreFromR2(context)
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Restore & Restart")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRestoreCloudConfirmDialog = false }) {
+                    Text("Cancel")
+                }
             }
         )
     }

@@ -16,6 +16,8 @@ object AppConstants {
     const val PREF_KEY_R2_SECRET_ACCESS_KEY = "r2_secret_access_key"
     const val PREF_KEY_R2_BUCKET_NAME = "r2_bucket_name"
     const val PREF_KEY_R2_OBJECT_KEY = "r2_object_key"
+    const val PREF_KEY_LAST_BACKUP_TIME = "last_backup_time"
+    const val PREF_KEY_LAST_BACKUP_SIZE = "last_backup_size"
 
     // Asset & Backup Files
     const val SEED_BACKUP_ASSET_FILE = "seed_wardrobe.json"
