@@ -11,6 +11,7 @@ import hashlib
 import hmac
 import json
 import os
+import shutil
 import sqlite3
 import sys
 import urllib.request
@@ -22,11 +23,28 @@ LOCAL_DEST = Path.home() / "Projects" / "fitly" / "data" / "fitly_latest.sqlite"
 CREDS_FILE = Path.home() / "Projects" / "fitly" / "app" / "src" / "main" / "assets" / "r2_cred.json"
 
 
+def parse_secrets_file():
+    secrets_path = Path.home() / ".secrets"
+    creds = {}
+    if secrets_path.exists():
+        for line in secrets_path.read_text().splitlines():
+            line = line.strip()
+            if line.startswith("export "):
+                line = line[7:]
+            if "=" in line:
+                k, v = line.split("=", 1)
+                k = k.strip()
+                v = v.strip().strip("'\"")
+                creds[k] = v
+    return creds
+
+
 def load_credentials():
-    account_id = os.getenv("R2_ACCOUNT_ID") or os.getenv("CLOUDFLARE_ACCOUNT_ID")
-    access_key = os.getenv("R2_ACCESS_KEY_ID") or os.getenv("AWS_ACCESS_KEY_ID")
-    secret_key = os.getenv("R2_SECRET_ACCESS_KEY") or os.getenv("AWS_SECRET_ACCESS_KEY")
-    bucket = os.getenv("R2_BUCKET_NAME") or R2_BUCKET
+    secrets = parse_secrets_file()
+    account_id = secrets.get("R2_ACCOUNT_ID") or os.getenv("R2_ACCOUNT_ID") or os.getenv("CLOUDFLARE_ACCOUNT_ID")
+    access_key = secrets.get("R2_ACCESS_KEY_ID") or os.getenv("R2_ACCESS_KEY_ID") or os.getenv("AWS_ACCESS_KEY_ID")
+    secret_key = secrets.get("R2_SECRET_ACCESS_KEY") or os.getenv("R2_SECRET_ACCESS_KEY") or os.getenv("AWS_SECRET_ACCESS_KEY")
+    bucket = secrets.get("R2_BUCKET_NAME") or os.getenv("R2_BUCKET_NAME") or R2_BUCKET
 
     if not (account_id and access_key and secret_key):
         if CREDS_FILE.exists():
@@ -81,11 +99,24 @@ def fetch_from_r2():
     req.add_header("Authorization", auth_header)
 
     LOCAL_DEST.parent.mkdir(parents=True, exist_ok=True)
-    with urllib.request.urlopen(req) as resp:
-        if resp.status != 200:
-            raise RuntimeError(f"R2 download returned HTTP {resp.status}")
-        data = resp.read()
-        LOCAL_DEST.write_bytes(data)
+    try:
+        with urllib.request.urlopen(req) as resp:
+            if resp.status != 200:
+                raise RuntimeError(f"R2 download returned HTTP {resp.status}")
+            data = resp.read()
+            LOCAL_DEST.write_bytes(data)
+    except Exception as sigv4_err:
+        # Fallback to wrangler CLI
+        import subprocess
+        wrangler_bin = shutil.which("wrangler") or shutil.which("bunx")
+        if wrangler_bin:
+            cmd = ["bunx", "wrangler", "r2", "object", "get", f"{bucket}/{R2_KEY}", f"--file={LOCAL_DEST}", "--remote"]
+            res = subprocess.run(cmd, capture_output=True, text=True)
+            if res.returncode != 0:
+                raise RuntimeError(f"SigV4 failed ({sigv4_err}) and wrangler fallback failed: {res.stderr}")
+            data = LOCAL_DEST.read_bytes()
+        else:
+            raise sigv4_err
 
     # Inspect SQLite database
     conn = sqlite3.connect(LOCAL_DEST)
