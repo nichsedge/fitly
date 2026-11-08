@@ -373,7 +373,7 @@ def cmd_wear(args):
 
     # Also log wear into wear_logs table if exists
     try:
-        log_id = f"wear-{int(time.time())}"
+        log_id = f"wear-{now_ms}-{item['id'][:8]}"
         c.execute("""
             INSERT INTO wear_logs (id, itemId, wornAt, source)
             VALUES (?, ?, ?, 'cli_agent')
